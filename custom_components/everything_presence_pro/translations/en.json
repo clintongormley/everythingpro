@@ -17,5 +17,35 @@
     "abort": {
       "already_configured": "Device is already configured"
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "occupancy": {
+        "name": "Occupancy"
+      },
+      "motion": {
+        "name": "Motion"
+      },
+      "static_presence": {
+        "name": "Static presence"
+      }
+    },
+    "sensor": {
+      "illuminance": {
+        "name": "Illuminance"
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "co2": {
+        "name": "CO2"
+      },
+      "zone_target_count": {
+        "name": "Zone target count"
+      }
+    }
   }
 }
