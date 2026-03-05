@@ -5,7 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from aioesphomeapi import APIClient, SensorState, BinarySensorState
+from aioesphomeapi import (
+    APIClient,
+    BinarySensorInfo,
+    BinarySensorState,
+    SensorInfo,
+    SensorState,
+)
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -193,40 +199,55 @@ class EverythingPresenceProCoordinator:
 
             name = self._classify_entity(object_id)
             if name is not None:
-                if hasattr(entity_info, "is_status_binary_sensor"):
+                if isinstance(entity_info, BinarySensorInfo):
                     self._binary_sensor_key_map[key] = name
-                else:
+                    _LOGGER.debug(
+                        "Mapped binary sensor %s (key=%s) -> %s",
+                        object_id, key, name,
+                    )
+                elif isinstance(entity_info, SensorInfo):
                     self._sensor_key_map[key] = name
+                    _LOGGER.debug(
+                        "Mapped sensor %s (key=%s) -> %s",
+                        object_id, key, name,
+                    )
+            else:
+                _LOGGER.debug("Unclassified entity: %s (key=%s)", object_id, key)
 
-        await self._client.subscribe_states(self._on_state)
+        self._client.subscribe_states(self._on_state)
 
     def _classify_entity(self, object_id: str) -> str | None:
-        """Classify an ESPHome entity object_id to an internal name."""
+        """Classify an ESPHome entity object_id to an internal name.
+
+        EP Pro object_ids are often prefixed with the device name, e.g.
+        'everything_presence_pro_abc123_target_1_x', so we use suffix/substring
+        matching rather than exact matching.
+        """
         lower = object_id.lower()
 
-        # Target sensors: target_1_x, target_1_y, target_1_active, etc.
+        # Target sensors: *target_1_x, *target_1_y, *target_1_active, etc.
         for n in range(1, MAX_TARGETS + 1):
-            if lower == f"target_{n}_x":
+            if lower.endswith(f"target_{n}_x"):
                 return f"target_{n}_x"
-            if lower == f"target_{n}_y":
+            if lower.endswith(f"target_{n}_y"):
                 return f"target_{n}_y"
-            if lower == f"target_{n}_active":
+            if lower.endswith(f"target_{n}_active"):
                 return f"target_{n}_active"
 
         # Presence sensors
-        if lower in ("mmwave", "static"):
+        if "mmwave" in lower or "static_presence" in lower:
             return "static_presence"
-        if lower in ("pir", "motion"):
+        if "pir" in lower or "motion" in lower:
             return "pir_motion"
 
         # Environment sensors
-        if lower == "illuminance":
+        if "illuminance" in lower or "illumination" in lower:
             return "illuminance"
-        if lower == "temperature":
+        if "temperature" in lower:
             return "temperature"
-        if lower == "humidity":
+        if "humidity" in lower:
             return "humidity"
-        if lower == "co2":
+        if "co2" in lower:
             return "co2"
 
         return None
@@ -251,8 +272,10 @@ class EverythingPresenceProCoordinator:
         """Handle a binary sensor state update."""
         if name == "static_presence":
             self._static_present = value
+            self._dispatch_update()
         elif name == "pir_motion":
             self._pir_motion = value
+            self._dispatch_update()
         elif name.startswith("target_") and name.endswith("_active"):
             idx = self._target_index(name)
             if idx is not None:
@@ -263,12 +286,16 @@ class EverythingPresenceProCoordinator:
         """Handle a sensor state update."""
         if name == "illuminance":
             self._illuminance = value
+            self._dispatch_update()
         elif name == "temperature":
             self._temperature = value
+            self._dispatch_update()
         elif name == "humidity":
             self._humidity = value
+            self._dispatch_update()
         elif name == "co2":
             self._co2 = value
+            self._dispatch_update()
         elif name.startswith("target_") and name.endswith("_x"):
             idx = self._target_index(name)
             if idx is not None:
@@ -279,6 +306,12 @@ class EverythingPresenceProCoordinator:
             if idx is not None:
                 self._target_y[idx] = value
                 self._rebuild_targets()
+
+    def _dispatch_update(self) -> None:
+        """Dispatch a signal to update HA entities."""
+        async_dispatcher_send(
+            self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
+        )
 
     def _target_index(self, name: str) -> int | None:
         """Extract the 0-based target index from a name like target_1_x."""
