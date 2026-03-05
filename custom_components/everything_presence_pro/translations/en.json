@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Everything Presence Pro",
+        "data": {
+          "host": "Host",
+          "noise_psk": "Encryption key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to device",
+      "not_ep_pro": "Device is not an Everything Presence Pro",
+      "invalid_auth": "Invalid encryption key"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}

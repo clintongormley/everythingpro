@@ -1,0 +1,12 @@
+{
+  "domain": "everything_presence_pro",
+  "name": "Everything Presence Pro",
+  "codeowners": ["@clintongormley"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/clintongormley/everythingpro",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/clintongormley/everythingpro/issues",
+  "requirements": ["aioesphomeapi>=29.0.0"],
+  "version": "0.1.0"
+}
