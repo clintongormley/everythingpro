@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
 from .coordinator import EverythingPresenceProCoordinator
+from .websocket_api import async_register_websocket_commands
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: EverythingPresenceProConfigEntry
 ) -> bool:
     """Set up Everything Presence Pro from a config entry."""
+    async_register_websocket_commands(hass)
     coordinator = EverythingPresenceProCoordinator(hass, entry)
     coordinator.load_config_data(entry.options.get("config", {}))
     await coordinator.async_connect()
