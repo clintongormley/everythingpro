@@ -55,6 +55,12 @@ class EverythingPresenceProCoordinator:
         # Room layout
         self._room_layout: dict[str, Any] = {}
 
+        # Setup config
+        self._room_name: str = ""
+        self._placement: str = ""  # "wall" | "left_corner" | "right_corner"
+        self._mirrored: bool = False  # X axis flipped (sensor upside down)
+        self._room_bounds: dict[str, float] = {}  # far_y, left_x, right_x
+
         # Target state: list of (x, y, active) tuples
         self._targets: list[tuple[float, float, bool]] = [
             (0.0, 0.0, False) for _ in range(MAX_TARGETS)
@@ -124,6 +130,26 @@ class EverythingPresenceProCoordinator:
     def device_occupied(self) -> bool:
         """Return whether any target is actively detected."""
         return self._last_result.device_tracking_present
+
+    @property
+    def room_name(self) -> str:
+        """Return the room name."""
+        return self._room_name
+
+    @property
+    def placement(self) -> str:
+        """Return the sensor placement."""
+        return self._placement
+
+    @property
+    def mirrored(self) -> bool:
+        """Return whether the X axis is mirrored."""
+        return self._mirrored
+
+    @property
+    def room_bounds(self) -> dict[str, float]:
+        """Return the room bounds in sensor mm coordinates."""
+        return self._room_bounds
 
     @property
     def connected(self) -> bool:
@@ -363,6 +389,10 @@ class EverythingPresenceProCoordinator:
             ],
             "calibration": self._calibration.to_dict(),
             "room_layout": self._room_layout,
+            "room_name": self._room_name,
+            "placement": self._placement,
+            "mirrored": self._mirrored,
+            "room_bounds": self._room_bounds,
         }
 
     def load_config_data(self, data: dict[str, Any]) -> None:
@@ -390,3 +420,9 @@ class EverythingPresenceProCoordinator:
 
         # Load room layout
         self._room_layout = data.get("room_layout", {})
+
+        # Load setup config
+        self._room_name = data.get("room_name", "")
+        self._placement = data.get("placement", "")
+        self._mirrored = data.get("mirrored", False)
+        self._room_bounds = data.get("room_bounds", {})

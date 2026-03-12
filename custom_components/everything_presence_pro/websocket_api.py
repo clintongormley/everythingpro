@@ -34,11 +34,86 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
         return
     _REGISTERED.add(DOMAIN)
 
+    websocket_api.async_register_command(hass, websocket_list_entries)
     websocket_api.async_register_command(hass, websocket_get_config)
     websocket_api.async_register_command(hass, websocket_set_zones)
     websocket_api.async_register_command(hass, websocket_set_calibration)
     websocket_api.async_register_command(hass, websocket_set_room_layout)
+    websocket_api.async_register_command(hass, websocket_set_setup)
     websocket_api.async_register_command(hass, websocket_subscribe_targets)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "everything_presence_pro/list_entries",
+    }
+)
+@callback
+def websocket_list_entries(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return all configured Everything Presence Pro entries."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    connection.send_result(
+        msg["id"],
+        [
+            {
+                "entry_id": e.entry_id,
+                "title": e.title,
+                "room_name": e.options.get("config", {}).get("room_name", ""),
+                "placement": e.options.get("config", {}).get("placement", ""),
+                "has_layout": bool(
+                    e.options.get("config", {}).get("room_layout")
+                ),
+            }
+            for e in entries
+        ],
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "everything_presence_pro/set_setup",
+        vol.Required("entry_id"): str,
+        vol.Required("room_name"): str,
+        vol.Required("placement"): vol.In(["wall", "left_corner", "right_corner"]),
+        vol.Optional("mirrored", default=False): bool,
+        vol.Optional("room_bounds", default={}): {
+            vol.Optional("far_y"): vol.Coerce(float),
+            vol.Optional("left_x"): vol.Coerce(float),
+            vol.Optional("right_x"): vol.Coerce(float),
+        },
+    }
+)
+@websocket_api.async_response
+async def websocket_set_setup(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Persist room name, sensor placement, and room bounds for an entry."""
+    coordinator = _get_coordinator(hass, msg["entry_id"])
+    if coordinator is None:
+        connection.send_error(msg["id"], "not_found", "Config entry not found")
+        return
+
+    entry = hass.config_entries.async_get_entry(msg["entry_id"])
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "Config entry not found")
+        return
+
+    config = dict(entry.options.get("config", {}))
+    config["room_name"] = msg["room_name"]
+    config["placement"] = msg["placement"]
+    config["mirrored"] = msg["mirrored"]
+    config["room_bounds"] = msg["room_bounds"]
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "config": config}
+    )
+
+    connection.send_result(msg["id"])
 
 
 @websocket_api.websocket_command(

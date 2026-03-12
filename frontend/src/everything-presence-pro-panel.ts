@@ -1057,12 +1057,13 @@ export class EverythingPresenceProPanel extends LitElement {
       position: absolute;
     }
 
-    .placement-diagram .fov-line {
+    .placement-diagram .fov-cone {
       position: absolute;
-      width: 2px;
-      height: 40px;
-      background: rgba(3, 169, 244, 0.4);
-      transform-origin: top center;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
 
     .placement-diagram.wall .sensor-dot {
@@ -1071,33 +1072,15 @@ export class EverythingPresenceProPanel extends LitElement {
       transform: translateX(-50%);
     }
 
-    .placement-diagram.wall .fov-line {
-      top: 0;
-      left: calc(50% - 1px);
-    }
-
     .placement-diagram.left-corner .sensor-dot {
       top: -5px;
       left: -5px;
-    }
-
-    .placement-diagram.left-corner .fov-line {
-      top: 0;
-      left: 0;
-      transform: rotate(45deg);
     }
 
     .placement-diagram.right-corner .sensor-dot {
       top: -5px;
       right: -5px;
       left: auto;
-    }
-
-    .placement-diagram.right-corner .fov-line {
-      top: 0;
-      right: 0;
-      left: auto;
-      transform: rotate(-45deg);
     }
 
     .step-indicator {
@@ -1280,7 +1263,9 @@ export class EverythingPresenceProPanel extends LitElement {
           >
             <div class="placement-diagram left-corner">
               <div class="sensor-dot"></div>
-              <div class="fov-line"></div>
+              <svg class="fov-cone" viewBox="0 0 80 56">
+                <path d="M 0 0 L 56 0 L 0 56 Z" fill="rgba(3,169,244,0.15)" stroke="rgba(3,169,244,0.4)" stroke-width="1"/>
+              </svg>
             </div>
             Left corner
           </button>
@@ -1292,7 +1277,9 @@ export class EverythingPresenceProPanel extends LitElement {
           >
             <div class="placement-diagram wall">
               <div class="sensor-dot"></div>
-              <div class="fov-line"></div>
+              <svg class="fov-cone" viewBox="0 0 80 56">
+                <path d="M 40 0 L 72 56 L 8 56 Z" fill="rgba(3,169,244,0.15)" stroke="rgba(3,169,244,0.4)" stroke-width="1"/>
+              </svg>
             </div>
             Wall (center)
           </button>
@@ -1304,7 +1291,9 @@ export class EverythingPresenceProPanel extends LitElement {
           >
             <div class="placement-diagram right-corner">
               <div class="sensor-dot"></div>
-              <div class="fov-line"></div>
+              <svg class="fov-cone" viewBox="0 0 80 56">
+                <path d="M 80 0 L 80 56 L 24 0 Z" fill="rgba(3,169,244,0.15)" stroke="rgba(3,169,244,0.4)" stroke-width="1"/>
+              </svg>
             </div>
             Right corner
           </button>

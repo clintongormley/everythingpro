@@ -30,6 +30,11 @@ ZONE_HIGH = "high"
 ZONE_LOW = "low"
 ZONE_EXCLUSION = "exclusion"
 
+# Sensor placement
+PLACEMENT_WALL = "wall"
+PLACEMENT_LEFT_CORNER = "left_corner"
+PLACEMENT_RIGHT_CORNER = "right_corner"
+
 # Furniture types
 FURNITURE_TYPES = [
     "bed",

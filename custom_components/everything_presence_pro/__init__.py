@@ -32,24 +32,26 @@ async def async_setup_entry(
     """Set up Everything Presence Pro from a config entry."""
     async_register_websocket_commands(hass)
 
-    # Register frontend panel
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(
-            url_path=f"/{DOMAIN}_static",
-            path=FRONTEND_DIR,
-            cache_headers=True,
+    # Register frontend panel once (shared across all entries)
+    if not hass.data.get(f"{DOMAIN}_panel_registered"):
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(
+                url_path=f"/{DOMAIN}_static",
+                path=FRONTEND_DIR,
+                cache_headers=True,
+            )
+        ])
+        await panel_custom.async_register_panel(
+            hass=hass,
+            frontend_url_path=DOMAIN,
+            webcomponent_name="everything-presence-pro-panel",
+            module_url=f"/{DOMAIN}_static/everything-presence-pro-panel.js",
+            sidebar_title="EP Pro",
+            sidebar_icon="mdi:radar",
+            require_admin=False,
+            config={},
         )
-    ])
-    await panel_custom.async_register_panel(
-        hass=hass,
-        frontend_url_path=DOMAIN,
-        webcomponent_name="everything-presence-pro-panel",
-        module_url=f"/{DOMAIN}_static/everything-presence-pro-panel.js",
-        sidebar_title="EP Pro",
-        sidebar_icon="mdi:radar",
-        require_admin=False,
-        config={"entry_id": entry.entry_id},
-    )
+        hass.data[f"{DOMAIN}_panel_registered"] = True
 
     coordinator = EverythingPresenceProCoordinator(hass, entry)
     coordinator.load_config_data(entry.options.get("config", {}))
