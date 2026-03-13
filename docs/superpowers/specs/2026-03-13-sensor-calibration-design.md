@@ -127,30 +127,37 @@ This resolves the dependency: raw points are captured first, then the angle is d
 
 ### Angle computation
 
-Given a reference point with known room-frame position and captured raw sensor coordinates:
+**During initial setup (no known room dimensions yet):**
+
+The 3 boundary points (after distortion correction) form a pattern that encodes the sensor angle. For a corner sensor, the far-left and far-right corrected points define two edges of the room. The angle of the line between them (relative to the sensor X axis) gives the sensor rotation. Specifically:
+
+1. Apply distortion correction to all 3 raw boundary points
+2. For a left-corner sensor: the far-left and far-right corrected points span the back wall. The angle of the back wall relative to the sensor X axis is: `wall_angle = atan2(cy_right - cy_left, cx_right - cx_left)`. The sensor angle is `sensor_angle = wall_angle` (since the back wall should be perpendicular to the room Y axis).
+3. For a wall sensor: the back-wall point should be straight ahead, so `sensor_angle ≈ atan2(cx_back, cy_back)` (should be near 0).
+
+**During recalibration (room dimensions already known):**
+
+Given a single reference point with known room-frame position:
 
 1. Apply distortion correction to raw coords: `(cx, cy) = ld2450_correct(raw_x, raw_y)`
 2. Compute the angle from sensor to point in corrected sensor frame: `sensor_frame_angle = atan2(cx, cy)`
 3. Compute the angle from sensor to point in room frame: `room_frame_angle = atan2(expected_room_x - offset_x, expected_room_y - offset_y)`
 4. The sensor angle is the difference: `sensor_angle = sensor_frame_angle - room_frame_angle`
 
-For the common case of a left-corner sensor with the reference point at the far-right corner (room_width, room_depth):
-```
-sensor_angle = atan2(cx, cy) - atan2(room_width, room_depth)
-```
-
 ### Initial setup flow
 
-1. User selects placement (wall / left corner / right corner)
-2. User enters room dimensions (width, depth) or walks to define them
-3. User walks to boundary points — raw sensor coordinates captured at each step
-4. System applies LD2450 distortion correction to the reference point
-5. System computes `sensor_angle` from corrected reference point + known room position
-6. System computes offsets from placement type + room dimensions
-7. System runs all boundary points through the full pipeline to produce room-frame bounds
-8. All parameters stored in config
+The standard setup requires no manual entry of dimensions or angles. Everything is derived from walking.
 
-No extra steps beyond what exists today.
+1. User selects placement (wall / left corner / right corner)
+2. User walks to 3 boundary points as today (back wall, far left, far right) — **raw sensor coordinates** captured at each step
+3. System applies LD2450 distortion correction to all 3 raw points
+4. System computes `sensor_angle`: the corrected boundary points define the room rectangle's orientation relative to the sensor. For a corner sensor, the angle between the two near-wall points (far-left and far-right) gives the rotation. For a wall sensor, the back-wall point is straight ahead so `sensor_angle ≈ 0`.
+5. System rotates all corrected points by the computed angle to get room-aligned coordinates
+6. Room dimensions are derived from the rotated points: `room_width = max_x - min_x`, `room_depth = max_y`
+7. Offsets computed from placement type
+8. All parameters stored in config (sensor_angle, offsets, room_bounds)
+
+No manual dimension entry, no angle input. Power users who want to fine-tune can manually edit dimensions or recalibrate after the fact.
 
 ### One-click recalibration
 
