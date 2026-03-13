@@ -16,7 +16,7 @@ from aioesphomeapi import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .calibration import CalibrationPoint, CalibrationTransform
+from .calibration import SensorTransform
 from .const import DEFAULT_PORT, DOMAIN, MAX_TARGETS
 from .zone_engine import ProcessingResult, Zone, ZoneEngine
 
@@ -50,7 +50,7 @@ class EverythingPresenceProCoordinator:
         self._zones: list[Zone] = []
 
         # Calibration
-        self._calibration = CalibrationTransform()
+        self._calibration = SensorTransform()
 
         # Room layout
         self._room_layout: dict[str, Any] = {}
@@ -168,10 +168,9 @@ class EverythingPresenceProCoordinator:
         self._zones = zones
         self._zone_engine.set_zones(zones)
 
-    def set_calibration(self, points: list[CalibrationPoint]) -> None:
-        """Set calibration from a list of calibration points."""
-        self._calibration = CalibrationTransform()
-        self._calibration.calibrate(points)
+    def set_calibration(self, transform: SensorTransform) -> None:
+        """Set the sensor calibration transform."""
+        self._calibration = transform
 
     def set_room_layout(self, layout: dict[str, Any]) -> None:
         """Set the room layout configuration."""
@@ -224,21 +223,21 @@ class EverythingPresenceProCoordinator:
                 continue
 
             name = self._classify_entity(object_id)
-            if name is not None:
-                if isinstance(entity_info, BinarySensorInfo):
-                    self._binary_sensor_key_map[key] = name
-                    _LOGGER.debug(
-                        "Mapped binary sensor %s (key=%s) -> %s",
-                        object_id, key, name,
-                    )
-                elif isinstance(entity_info, SensorInfo):
-                    self._sensor_key_map[key] = name
-                    _LOGGER.debug(
-                        "Mapped sensor %s (key=%s) -> %s",
-                        object_id, key, name,
-                    )
-            else:
-                _LOGGER.debug("Unclassified entity: %s (key=%s)", object_id, key)
+            if name is None:
+                continue
+
+            if isinstance(entity_info, BinarySensorInfo):
+                self._binary_sensor_key_map[key] = name
+                _LOGGER.debug(
+                    "Mapped binary sensor %s (key=%s) -> %s",
+                    object_id, key, name,
+                )
+            elif isinstance(entity_info, SensorInfo):
+                self._sensor_key_map[key] = name
+                _LOGGER.debug(
+                    "Mapped sensor %s (key=%s) -> %s",
+                    object_id, key, name,
+                )
 
         self._client.subscribe_states(self._on_state)
 
@@ -416,7 +415,7 @@ class EverythingPresenceProCoordinator:
         # Load calibration
         cal_data = data.get("calibration")
         if cal_data:
-            self._calibration = CalibrationTransform.from_dict(cal_data)
+            self._calibration = SensorTransform.from_dict(cal_data)
 
         # Load room layout
         self._room_layout = data.get("room_layout", {})

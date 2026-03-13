@@ -43,9 +43,6 @@ def test_coordinator_full_lifecycle():
 
 def test_zone_engine_full_pipeline():
     """Test the full target processing pipeline."""
-    from custom_components.everything_presence_pro.calibration import (
-        CalibrationTransform,
-    )
     from custom_components.everything_presence_pro.zone_engine import (
         Zone,
         ZoneEngine,
@@ -72,38 +69,29 @@ def test_zone_engine_full_pipeline():
     assert result.zone_occupancy["z1"] is False
 
     # Test calibration integration
-    transform = CalibrationTransform()
+    from custom_components.everything_presence_pro.calibration import (
+        SensorTransform,
+    )
+    transform = SensorTransform()
     x, y = transform.apply(0, 3000)
-    assert x == 0  # Identity transform
-    assert y == 3000
+    assert abs(x - 0) < 1  # Identity transform (ld2450_correct at angle=0 is identity)
+    assert abs(y - 3000) < 1
 
 
 def test_calibration_full_pipeline():
-    """Test calibration with real-world-like points."""
+    """Test calibration transform serialization roundtrip."""
     from custom_components.everything_presence_pro.calibration import (
-        CalibrationPoint,
-        CalibrationTransform,
+        SensorTransform,
     )
 
-    transform = CalibrationTransform()
+    transform = SensorTransform(sensor_angle=0.5, offset_x=100.0, offset_y=200.0)
 
-    # Simulate sensor reading slightly off from reality
-    points = [
-        CalibrationPoint(sensor_x=0, sensor_y=1000, real_x=0, real_y=1000),
-        CalibrationPoint(sensor_x=2000, sensor_y=1000, real_x=2000, real_y=1000),
-        CalibrationPoint(sensor_x=0, sensor_y=3000, real_x=0, real_y=3000),
-        CalibrationPoint(sensor_x=2000, sensor_y=3000, real_x=2000, real_y=3000),
-    ]
-    transform.calibrate(points)
+    # Apply to a point
+    x, y = transform.apply(0, 3000)
 
-    # Identity case - should be very close
-    x, y = transform.apply(1000, 2000)
-    assert abs(x - 1000) < 1
-    assert abs(y - 2000) < 1
-
-    # Verify serialization
+    # Verify serialization roundtrip
     data = transform.to_dict()
-    restored = CalibrationTransform.from_dict(data)
-    x2, y2 = restored.apply(1000, 2000)
+    restored = SensorTransform.from_dict(data)
+    x2, y2 = restored.apply(0, 3000)
     assert abs(x - x2) < 0.001
     assert abs(y - y2) < 0.001

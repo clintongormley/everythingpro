@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
-from .calibration import CalibrationPoint, CalibrationTransform
+from .calibration import SensorTransform
 from .const import DOMAIN
 from .coordinator import EverythingPresenceProCoordinator, SIGNAL_TARGETS_UPDATED
 from .zone_engine import Zone
@@ -197,14 +197,9 @@ async def websocket_set_zones(
     {
         vol.Required("type"): "everything_presence_pro/set_calibration",
         vol.Required("entry_id"): str,
-        vol.Required("points"): [
-            {
-                vol.Required("sensor_x"): vol.Coerce(float),
-                vol.Required("sensor_y"): vol.Coerce(float),
-                vol.Required("real_x"): vol.Coerce(float),
-                vol.Required("real_y"): vol.Coerce(float),
-            }
-        ],
+        vol.Optional("sensor_angle", default=0.0): vol.Coerce(float),
+        vol.Optional("offset_x", default=0.0): vol.Coerce(float),
+        vol.Optional("offset_y", default=0.0): vol.Coerce(float),
     }
 )
 @websocket_api.async_response
@@ -219,17 +214,13 @@ async def websocket_set_calibration(
         connection.send_error(msg["id"], "not_found", "Config entry not found")
         return
 
-    points = [
-        CalibrationPoint(
-            sensor_x=p["sensor_x"],
-            sensor_y=p["sensor_y"],
-            real_x=p["real_x"],
-            real_y=p["real_y"],
-        )
-        for p in msg["points"]
-    ]
+    transform = SensorTransform(
+        sensor_angle=msg["sensor_angle"],
+        offset_x=msg["offset_x"],
+        offset_y=msg["offset_y"],
+    )
 
-    coordinator.set_calibration(points)
+    coordinator.set_calibration(transform)
 
     # Persist to config entry options
     entry = hass.config_entries.async_get_entry(msg["entry_id"])
