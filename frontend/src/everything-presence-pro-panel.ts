@@ -30,7 +30,7 @@ interface RoomBounds {
   right_x: number;
 }
 
-type Tool = "room" | "outside" | "furniture" | "zone" | "calibrate";
+type Tool = "room" | "outside" | "furniture" | "zone";
 type Placement = "wall" | "left_corner" | "right_corner";
 type SetupStep =
   | "placement"
@@ -48,7 +48,19 @@ const CELL_GAP = 1;
 const CELL_STEP = CELL_SIZE + CELL_GAP;
 const GRID_WIDTH = GRID_COLS * CELL_STEP - CELL_GAP;
 const GRID_HEIGHT = GRID_ROWS * CELL_STEP - CELL_GAP;
-const SIN45 = Math.SQRT2 / 2; // ~0.7071
+// LD2450 angle correction scale factor (must match Python calibration.py)
+const LD2450_SCALE_FACTOR = 0.78;
+
+function ld2450Correct(x: number, y: number): { cx: number; cy: number } {
+  if (x === 0 && y === 0) return { cx: 0, cy: 0 };
+  const angle = Math.atan2(x, y);
+  const distance = Math.sqrt(x * x + y * y);
+  const correctedAngle = angle * LD2450_SCALE_FACTOR;
+  return {
+    cx: distance * Math.sin(correctedAngle),
+    cy: distance * Math.cos(correctedAngle),
+  };
+}
 
 const ZONE_COLORS = [
   "#4CAF50",
@@ -93,14 +105,30 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _mirrored = false;
   @state() private _roomBounds: RoomBounds | null = null;
 
+  // Calibration state
+  @state() private _sensorAngle: number = 0;
+  @state() private _offsetX: number = 0;
+  @state() private _offsetY: number = 0;
+  @state() private _wizardRawPoints: Array<{x: number; y: number; label: string}> = [];
+
+  // Recalibration
+  @state() private _recalibrating: boolean = false;
+
+  // Target subscription
+  private _unsubTargets?: () => void;
+
   connectedCallback(): void {
     super.connectedCallback();
     this._initialize();
   }
 
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._unsubscribeTargets();
+  }
+
   updated(changedProps: PropertyValues): void {
     if (changedProps.has("hass") && this.hass) {
-      this._updateTargets();
       if (this._loading && !this._entries.length) {
         this._initialize();
       }
@@ -145,6 +173,7 @@ export class EverythingPresenceProPanel extends LitElement {
     } catch {
       // Entry may not be ready yet
     }
+    this._subscribeTargets(entryId);
   }
 
   private _applyConfig(config: any): void {
@@ -179,6 +208,12 @@ export class EverythingPresenceProPanel extends LitElement {
     const mirrored = config.mirrored || false;
     const bounds = config.room_bounds;
 
+    if (config.calibration) {
+      this._sensorAngle = config.calibration.sensor_angle || 0;
+      this._offsetX = config.calibration.offset_x || 0;
+      this._offsetY = config.calibration.offset_y || 0;
+    }
+
     if (!placement) {
       this._setupStep = "placement";
       this._wizardRoomName = roomName;
@@ -202,34 +237,40 @@ export class EverythingPresenceProPanel extends LitElement {
     }
   }
 
-  private _updateTargets(): void {
-    if (!this.hass) return;
-    const targets: Target[] = [];
-    for (let i = 1; i <= 3; i++) {
-      const xEntity = this._findEntity(`target_${i}_x`);
-      const yEntity = this._findEntity(`target_${i}_y`);
-      const speedEntity = this._findEntity(`target_${i}_speed`);
+  private _subscribeTargets(entryId: string): void {
+    this._unsubscribeTargets();
+    if (!this.hass || !entryId) return;
 
-      if (xEntity && yEntity) {
-        const x = parseFloat(this.hass.states[xEntity]?.state ?? "0");
-        const y = parseFloat(this.hass.states[yEntity]?.state ?? "0");
-        const speed = speedEntity
-          ? parseFloat(this.hass.states[speedEntity]?.state ?? "0")
-          : 0;
-        const active = x !== 0 || y !== 0;
-        targets.push({ x, y, speed, active });
-      }
-    }
-    this._targets = targets;
+    const conn = this.hass.connection;
+
+    conn
+      .subscribeMessage(
+        (event: any) => {
+          const targets: Target[] = (event.targets || []).map((t: any) => ({
+            x: t.x,
+            y: t.y,
+            speed: 0,
+            active: t.active,
+          }));
+          this._targets = targets;
+        },
+        {
+          type: "everything_presence_pro/subscribe_targets",
+          entry_id: entryId,
+        }
+      )
+      .then((unsub: () => void) => {
+        // Store unsubscribe if we haven't already been asked to unsub
+        this._unsubTargets = unsub;
+      });
   }
 
-  private _findEntity(suffix: string): string | undefined {
-    if (!this.hass?.states) return undefined;
-    return Object.keys(this.hass.states).find(
-      (eid: string) =>
-        eid.startsWith("sensor.everything_presence_pro") &&
-        eid.endsWith(suffix)
-    );
+  private _unsubscribeTargets(): void {
+    if (this._unsubTargets) {
+      this._unsubTargets();
+      this._unsubTargets = undefined;
+    }
+    this._targets = [];
   }
 
   // -- Tool actions --
@@ -344,40 +385,31 @@ export class EverythingPresenceProPanel extends LitElement {
   private _sensorToRoom(
     tx: number,
     ty: number,
-    placement: Placement | "",
-    bounds: RoomBounds | null
   ): { rx: number; ry: number } {
-    switch (placement) {
-      case "left_corner":
-        return {
-          rx: ty * SIN45 + tx * SIN45,
-          ry: ty * SIN45 - tx * SIN45,
-        };
-      case "right_corner": {
-        const wallWidth = bounds?.right_x ?? 6000;
-        return {
-          rx: wallWidth - ty * SIN45 + tx * SIN45,
-          ry: ty * SIN45 + tx * SIN45,
-        };
-      }
-      case "wall":
-      default: {
-        const sensorX = bounds
-          ? (bounds.left_x + bounds.right_x) / 2
-          : 3000;
-        return { rx: sensorX + tx, ry: ty };
-      }
-    }
+    // Stage 1: distortion correction
+    const { cx, cy } = ld2450Correct(tx, ty);
+
+    // Stage 2: clockwise rotation by sensor_angle
+    const angle = this._sensorAngle;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    const rx = cx * cosA + cy * sinA;
+    const ry = -cx * sinA + cy * cosA;
+
+    // Stage 3: translation
+    return {
+      rx: rx + this._offsetX,
+      ry: ry + this._offsetY,
+    };
   }
 
   private _mapTargetToPercent(
     target: Target,
     mirrored: boolean,
-    placement: Placement | "",
     bounds: RoomBounds | null
   ): { x: number; y: number } {
     const tx = mirrored ? -target.x : target.x;
-    const { rx, ry } = this._sensorToRoom(tx, target.y, placement, bounds);
+    const { rx, ry } = this._sensorToRoom(tx, target.y);
 
     if (bounds && bounds.far_y > 0 && bounds.right_x > bounds.left_x) {
       const xPercent =
@@ -386,7 +418,6 @@ export class EverythingPresenceProPanel extends LitElement {
       return { x: xPercent, y: yPercent };
     }
 
-    // Fallback before bounds are set
     const xPercent = (rx / 6000) * 100;
     const yPercent = (ry / 6000) * 100;
     return { x: xPercent, y: yPercent };
@@ -396,7 +427,6 @@ export class EverythingPresenceProPanel extends LitElement {
     const { x, y } = this._mapTargetToPercent(
       target,
       this._mirrored,
-      this._placement,
       this._roomBounds
     );
     return `left: ${x}%; top: ${y}%;`;
@@ -407,6 +437,7 @@ export class EverythingPresenceProPanel extends LitElement {
   private async _onDeviceChange(e: Event): Promise<void> {
     const select = e.target as HTMLSelectElement;
     const entryId = select.value;
+    this._unsubscribeTargets();
     this._selectedEntryId = entryId;
     localStorage.setItem("epp_selected_entry", entryId);
     await this._loadEntryConfig(entryId);
@@ -426,6 +457,7 @@ export class EverythingPresenceProPanel extends LitElement {
     this._mirrored = this._wizardMirrored;
     this._wizardBounds = { far_y: 0, left_x: 0, right_x: 0 };
     this._wizardCapturedPoints = [];
+    this._wizardRawPoints = [];
     this._setupStep = "bounds_far";
   }
 
@@ -434,50 +466,104 @@ export class EverythingPresenceProPanel extends LitElement {
     if (!active) return;
 
     const tx = this._wizardMirrored ? -active.x : active.x;
-    const partialBounds = this._wizardBounds.right_x > 0 ? this._wizardBounds : null;
-    const { rx, ry } = this._sensorToRoom(
-      tx,
-      active.y,
-      this._wizardPlacement || "wall",
-      partialBounds
-    );
 
     switch (this._setupStep) {
       case "bounds_far":
-        this._wizardBounds = { ...this._wizardBounds, far_y: ry };
-        this._wizardCapturedPoints = [
-          ...this._wizardCapturedPoints,
-          { x: rx, y: ry },
+        this._wizardRawPoints = [
+          ...this._wizardRawPoints,
+          { x: tx, y: active.y, label: "far" },
         ];
         this._setupStep = "bounds_left";
         break;
       case "bounds_left":
-        this._wizardBounds = { ...this._wizardBounds, left_x: rx };
-        this._wizardCapturedPoints = [
-          ...this._wizardCapturedPoints,
-          { x: rx, y: ry },
+        this._wizardRawPoints = [
+          ...this._wizardRawPoints,
+          { x: tx, y: active.y, label: "left" },
         ];
         this._setupStep = "bounds_right";
         break;
-      case "bounds_right":
-        this._wizardBounds = { ...this._wizardBounds, right_x: rx };
-        this._wizardCapturedPoints = [
-          ...this._wizardCapturedPoints,
-          { x: rx, y: ry },
+      case "bounds_right": {
+        this._wizardRawPoints = [
+          ...this._wizardRawPoints,
+          { x: tx, y: active.y, label: "right" },
         ];
-        if (this._wizardBounds.left_x > this._wizardBounds.right_x) {
-          const tmp = this._wizardBounds.left_x;
-          this._wizardBounds = {
-            ...this._wizardBounds,
-            left_x: this._wizardBounds.right_x,
-            right_x: tmp,
-          };
-        }
-        this._roomBounds = { ...this._wizardBounds };
-        this._autoFillGrid();
+        this._computeCalibrationFromBounds();
         this._setupStep = "preview";
         break;
+      }
     }
+  }
+
+  private _computeCalibrationFromBounds(): void {
+    const farPt = this._wizardRawPoints.find((p) => p.label === "far");
+    const leftPt = this._wizardRawPoints.find((p) => p.label === "left");
+    const rightPt = this._wizardRawPoints.find((p) => p.label === "right");
+    if (!farPt || !leftPt || !rightPt) return;
+
+    const far = ld2450Correct(farPt.x, farPt.y);
+    const left = ld2450Correct(leftPt.x, leftPt.y);
+    const right = ld2450Correct(rightPt.x, rightPt.y);
+
+    const placement = this._wizardPlacement || "wall";
+    let sensorAngle: number;
+    if (placement === "left_corner" || placement === "right_corner") {
+      sensorAngle = Math.atan2(
+        right.cy - left.cy,
+        right.cx - left.cx
+      );
+    } else {
+      sensorAngle = Math.atan2(far.cx, far.cy);
+    }
+
+    const cosA = Math.cos(sensorAngle);
+    const sinA = Math.sin(sensorAngle);
+    const rotate = (cx: number, cy: number) => ({
+      rx: cx * cosA + cy * sinA,
+      ry: -cx * sinA + cy * cosA,
+    });
+
+    const farR = rotate(far.cx, far.cy);
+    const leftR = rotate(left.cx, left.cy);
+    const rightR = rotate(right.cx, right.cy);
+
+    const allX = [farR.rx, leftR.rx, rightR.rx];
+    let minX = Math.min(...allX);
+    let maxX = Math.max(...allX);
+    const roomWidth = maxX - minX;
+    const roomDepth = Math.max(farR.ry, leftR.ry, rightR.ry);
+
+    let leftX = leftR.rx;
+    let rightX = rightR.rx;
+    if (leftX > rightX) {
+      [leftX, rightX] = [rightX, leftX];
+    }
+
+    let offsetX = 0;
+    let offsetY = 0;
+    if (placement === "right_corner") {
+      offsetX = roomWidth;
+    } else if (placement === "wall") {
+      offsetX = roomWidth / 2;
+    }
+
+    this._sensorAngle = sensorAngle;
+    this._offsetX = offsetX;
+    this._offsetY = offsetY;
+
+    this._wizardBounds = {
+      far_y: roomDepth,
+      left_x: 0,
+      right_x: roomWidth,
+    };
+    this._roomBounds = { ...this._wizardBounds };
+
+    this._wizardCapturedPoints = [
+      { x: farR.rx + offsetX, y: farR.ry + offsetY },
+      { x: leftR.rx + offsetX, y: leftR.ry + offsetY },
+      { x: rightR.rx + offsetX, y: rightR.ry + offsetY },
+    ];
+
+    this._autoFillGrid();
   }
 
   private async _wizardFinish(): Promise<void> {
@@ -492,6 +578,7 @@ export class EverythingPresenceProPanel extends LitElement {
         placement: this._wizardPlacement,
         mirrored: this._wizardMirrored,
         room_bounds: this._wizardBounds,
+        calibration: { sensor_angle: this._sensorAngle },
       });
       this._placement = this._wizardPlacement;
       this._roomName = this._wizardRoomName.trim();
@@ -504,6 +591,60 @@ export class EverythingPresenceProPanel extends LitElement {
     } finally {
       this._wizardSaving = false;
     }
+  }
+
+  // -- Recalibration --
+
+  private _startRecalibration(): void {
+    this._recalibrating = true;
+  }
+
+  private async _markRecalibration(): Promise<void> {
+    const active = this._targets.find((t) => t.active);
+    if (!active) return;
+
+    const tx = this._mirrored ? -active.x : active.x;
+    const bounds = this._roomBounds;
+    if (!bounds || !bounds.far_y || !bounds.right_x) return;
+
+    const roomWidth = bounds.right_x - bounds.left_x;
+    const roomDepth = bounds.far_y;
+    const placement = this._placement;
+
+    let expectedX: number;
+    let expectedY: number;
+    if (placement === "left_corner") {
+      expectedX = roomWidth;
+      expectedY = roomDepth;
+    } else if (placement === "right_corner") {
+      expectedX = 0;
+      expectedY = roomDepth;
+    } else {
+      expectedX = roomWidth / 2;
+      expectedY = roomDepth;
+    }
+
+    try {
+      await this.hass.callWS({
+        type: "everything_presence_pro/recalibrate",
+        entry_id: this._selectedEntryId,
+        sensor_x: tx,
+        sensor_y: active.y,
+        expected_room_x: expectedX,
+        expected_room_y: expectedY,
+      });
+      const { cx, cy } = ld2450Correct(tx, active.y);
+      const sensorFrameAngle = Math.atan2(cx, cy);
+      const roomFrameAngle = Math.atan2(
+        expectedX - this._offsetX,
+        expectedY - this._offsetY,
+      );
+      this._sensorAngle = sensorFrameAngle - roomFrameAngle;
+    } catch (e) {
+      console.error("Recalibration failed:", e);
+    }
+
+    this._recalibrating = false;
   }
 
   // -- Sensor overlay geometry --
@@ -552,7 +693,6 @@ export class EverythingPresenceProPanel extends LitElement {
     const { x, y } = this._mapTargetToPercent(
       target,
       this._wizardMirrored,
-      this._wizardPlacement || "wall",
       null // no bounds during orientation/bounds steps
     );
     return `left: ${x}%; top: ${y}%;`;
@@ -1110,6 +1250,43 @@ export class EverythingPresenceProPanel extends LitElement {
       font-size: 13px;
       text-align: center;
     }
+
+    .recalibrate-overlay {
+      margin-top: 16px;
+      padding: 16px 24px;
+      background: var(--card-background-color, #fff);
+      border: 2px solid var(--primary-color, #03a9f4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .recalibrate-overlay p {
+      margin: 0;
+      font-size: 14px;
+      flex: 1;
+    }
+
+    .recalibrate-overlay button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .recalibrate-overlay button:first-of-type {
+      background: var(--primary-color, #03a9f4);
+      color: #fff;
+    }
+
+    .recalibrate-overlay button:last-of-type {
+      background: var(--secondary-background-color, #e0e0e0);
+      color: var(--primary-text-color, #212121);
+    }
   `;
 
   // -- Render methods --
@@ -1141,6 +1318,7 @@ export class EverythingPresenceProPanel extends LitElement {
       ? { ...this._roomBounds }
       : { far_y: 0, left_x: 0, right_x: 0 };
     this._wizardCapturedPoints = [];
+    this._wizardRawPoints = [];
   }
 
   private _renderHeader() {
@@ -1404,12 +1582,14 @@ export class EverythingPresenceProPanel extends LitElement {
                   0,
                   -1
                 );
+                this._wizardRawPoints = this._wizardRawPoints.slice(0, -1);
                 this._setupStep = "bounds_far";
               } else {
                 this._wizardCapturedPoints = this._wizardCapturedPoints.slice(
                   0,
                   -1
                 );
+                this._wizardRawPoints = this._wizardRawPoints.slice(0, -1);
                 this._setupStep = "bounds_left";
               }
             }}
@@ -1458,7 +1638,6 @@ export class EverythingPresenceProPanel extends LitElement {
                   const { x, y } = this._mapTargetToPercent(
                     t,
                     this._wizardMirrored,
-                    this._wizardPlacement || "wall",
                     this._wizardBounds
                   );
                   return html`
@@ -1477,6 +1656,7 @@ export class EverythingPresenceProPanel extends LitElement {
             class="wizard-btn wizard-btn-back"
             @click=${() => {
               this._wizardCapturedPoints = this._wizardCapturedPoints.slice(0, -1);
+              this._wizardRawPoints = this._wizardRawPoints.slice(0, -1);
               this._roomBounds = null;
               this._setupStep = "bounds_right";
             }}
@@ -1562,11 +1742,11 @@ export class EverythingPresenceProPanel extends LitElement {
           Zone
         </button>
         <button
-          class="tool-btn ${this._activeTool === "calibrate" ? "active" : ""}"
-          @click=${() => this._selectTool("calibrate")}
+          class="tool-btn"
+          @click=${() => this._startRecalibration()}
         >
-          <ha-icon icon="mdi:crosshairs-gps"></ha-icon>
-          Calibrate
+          <ha-icon icon="mdi:compass-outline"></ha-icon>
+          Recalibrate
         </button>
       </div>
 
@@ -1605,6 +1785,15 @@ export class EverythingPresenceProPanel extends LitElement {
               )}
           </div>
         </div>
+        ${this._recalibrating
+          ? html`
+            <div class="recalibrate-overlay">
+              <p>Stand in the far corner and tap Mark</p>
+              <button @click=${() => this._markRecalibration()}>Mark</button>
+              <button @click=${() => { this._recalibrating = false; }}>Cancel</button>
+            </div>
+          `
+          : nothing}
       </div>
 
       ${this._activeTool === "zone"
