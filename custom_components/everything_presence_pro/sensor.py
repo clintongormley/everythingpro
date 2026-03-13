@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from math import isfinite
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -22,6 +24,7 @@ from . import EverythingPresenceProConfigEntry
 from .const import DOMAIN
 from .coordinator import (
     EverythingPresenceProCoordinator,
+    SIGNAL_SENSORS_UPDATED,
     SIGNAL_TARGETS_UPDATED,
     SIGNAL_ZONES_UPDATED,
 )
@@ -98,14 +101,17 @@ class EverythingPresenceProIlluminanceSensor(SensorEntity):
     @property
     def native_value(self) -> float | None:
         """Return the illuminance value."""
-        return self._coordinator.illuminance
+        value = self._coordinator.illuminance
+        if value is None or not isfinite(value):
+            return None
+        return value
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to target updates when added to hass."""
+        """Subscribe to sensor updates when added to hass."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                f"{SIGNAL_TARGETS_UPDATED}_{self._coordinator.entry.entry_id}",
+                f"{SIGNAL_SENSORS_UPDATED}_{self._coordinator.entry.entry_id}",
                 self._on_update,
             )
         )
@@ -139,11 +145,11 @@ class EverythingPresenceProTemperatureSensor(SensorEntity):
         return self._coordinator.temperature
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to target updates when added to hass."""
+        """Subscribe to sensor updates when added to hass."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                f"{SIGNAL_TARGETS_UPDATED}_{self._coordinator.entry.entry_id}",
+                f"{SIGNAL_SENSORS_UPDATED}_{self._coordinator.entry.entry_id}",
                 self._on_update,
             )
         )
@@ -177,11 +183,11 @@ class EverythingPresenceProHumiditySensor(SensorEntity):
         return self._coordinator.humidity
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to target updates when added to hass."""
+        """Subscribe to sensor updates when added to hass."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                f"{SIGNAL_TARGETS_UPDATED}_{self._coordinator.entry.entry_id}",
+                f"{SIGNAL_SENSORS_UPDATED}_{self._coordinator.entry.entry_id}",
                 self._on_update,
             )
         )
@@ -215,11 +221,11 @@ class EverythingPresenceProCO2Sensor(SensorEntity):
         return self._coordinator.co2
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to target updates when added to hass."""
+        """Subscribe to sensor updates when added to hass."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                f"{SIGNAL_TARGETS_UPDATED}_{self._coordinator.entry.entry_id}",
+                f"{SIGNAL_SENSORS_UPDATED}_{self._coordinator.entry.entry_id}",
                 self._on_update,
             )
         )

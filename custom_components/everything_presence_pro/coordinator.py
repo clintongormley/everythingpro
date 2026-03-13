@@ -25,6 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 SIGNAL_ZONES_UPDATED = f"{DOMAIN}_zones_updated"
 SIGNAL_TARGETS_UPDATED = f"{DOMAIN}_targets_updated"
+SIGNAL_SENSORS_UPDATED = f"{DOMAIN}_sensors_updated"
 
 
 class EverythingPresenceProCoordinator:
@@ -81,6 +82,7 @@ class EverythingPresenceProCoordinator:
 
         # Processing result
         self._last_result: ProcessingResult = ProcessingResult()
+        self._rebuild_scheduled: bool = False
 
         # ESPHome entity key mapping (populated during subscription)
         self._sensor_key_map: dict[int, str] = {}
@@ -326,46 +328,57 @@ class EverythingPresenceProCoordinator:
         """Handle a binary sensor state update."""
         if name == "static_presence":
             self._static_present = value
-            self._dispatch_update()
+            self._dispatch_sensor_update()
         elif name == "pir_motion":
             self._pir_motion = value
-            self._dispatch_update()
+            self._dispatch_sensor_update()
         elif name.startswith("target_") and name.endswith("_active"):
             idx = self._target_index(name)
             if idx is not None:
                 self._target_active[idx] = value
-                self._rebuild_targets()
+                self._schedule_rebuild()
 
     def _handle_sensor(self, name: str, value: float) -> None:
         """Handle a sensor state update."""
         if name == "illuminance":
             self._illuminance = value
-            self._dispatch_update()
+            self._dispatch_sensor_update()
         elif name == "temperature":
             self._temperature = value
-            self._dispatch_update()
+            self._dispatch_sensor_update()
         elif name == "humidity":
             self._humidity = value
-            self._dispatch_update()
+            self._dispatch_sensor_update()
         elif name == "co2":
             self._co2 = value
-            self._dispatch_update()
+            self._dispatch_sensor_update()
         elif name.startswith("target_") and name.endswith("_x"):
             idx = self._target_index(name)
             if idx is not None:
                 self._target_x[idx] = value
-                self._rebuild_targets()
+                self._schedule_rebuild()
         elif name.startswith("target_") and name.endswith("_y"):
             idx = self._target_index(name)
             if idx is not None:
                 self._target_y[idx] = value
-                self._rebuild_targets()
+                self._schedule_rebuild()
 
-    def _dispatch_update(self) -> None:
-        """Dispatch a signal to update HA entities."""
+    def _dispatch_sensor_update(self) -> None:
+        """Dispatch a signal for environment sensor updates only."""
         async_dispatcher_send(
-            self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
+            self.hass, f"{SIGNAL_SENSORS_UPDATED}_{self.entry.entry_id}"
         )
+
+    def _schedule_rebuild(self) -> None:
+        """Schedule a target rebuild on the next event loop iteration.
+
+        Batches multiple x/y/active updates from the same ESPHome message
+        into a single rebuild + dispatch cycle.
+        """
+        if self._rebuild_scheduled:
+            return
+        self._rebuild_scheduled = True
+        self.hass.loop.call_soon(self._do_rebuild)
 
     def _target_index(self, name: str) -> int | None:
         """Extract the 0-based target index from a name like target_1_x."""
@@ -379,8 +392,9 @@ class EverythingPresenceProCoordinator:
                 pass
         return None
 
-    def _rebuild_targets(self) -> None:
+    def _do_rebuild(self) -> None:
         """Rebuild target list, apply calibration, run zone engine, dispatch."""
+        self._rebuild_scheduled = False
         calibrated: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
             if self._target_active[i]:

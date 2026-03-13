@@ -15,6 +15,7 @@ from . import EverythingPresenceProConfigEntry
 from .const import DOMAIN
 from .coordinator import (
     EverythingPresenceProCoordinator,
+    SIGNAL_SENSORS_UPDATED,
     SIGNAL_TARGETS_UPDATED,
     SIGNAL_ZONES_UPDATED,
 )
@@ -125,18 +126,18 @@ class EverythingPresenceProMotionSensor(BinarySensorEntity):
         return self._coordinator.pir_motion
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to target updates when added to hass."""
+        """Subscribe to sensor updates when added to hass."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                f"{SIGNAL_TARGETS_UPDATED}_{self._coordinator.entry.entry_id}",
+                f"{SIGNAL_SENSORS_UPDATED}_{self._coordinator.entry.entry_id}",
                 self._on_update,
             )
         )
 
     @callback
     def _on_update(self) -> None:
-        """Handle target update."""
+        """Handle sensor update."""
         self.async_write_ha_state()
 
 
@@ -161,18 +162,18 @@ class EverythingPresenceProStaticPresenceSensor(BinarySensorEntity):
         return self._coordinator.static_present
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to target updates when added to hass."""
+        """Subscribe to sensor updates when added to hass."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                f"{SIGNAL_TARGETS_UPDATED}_{self._coordinator.entry.entry_id}",
+                f"{SIGNAL_SENSORS_UPDATED}_{self._coordinator.entry.entry_id}",
                 self._on_update,
             )
         )
 
     @callback
     def _on_update(self) -> None:
-        """Handle target update."""
+        """Handle sensor update."""
         self.async_write_ha_state()
 
 
