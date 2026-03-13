@@ -127,7 +127,8 @@
         </select>
       </label>
       <label><input type="checkbox" id="ctl-mirror" /> Mirrored</label>
-      <label><input type="checkbox" id="ctl-corrected" /> Show corrected</label>
+      <label><input type="checkbox" id="ctl-corrected" checked /> Show corrected</label>
+      <label>Angle (°) <input type="range" id="ctl-angle" min="-90" max="90" value="45" style="width:100px" /><span id="ctl-angle-val">45</span></label>
       <label>Width (m) <input type="number" id="ctl-width" step="0.1" value="6" style="width:60px" /></label>
       <label>Depth (m) <input type="number" id="ctl-depth" step="0.1" value="6" style="width:60px" /></label>
       <button id="btn-use-saved">Use saved</button>
@@ -201,12 +202,11 @@ let targets = [
   { x: 0, y: 0, active: false },
   { x: 0, y: 0, active: false },
 ];
-let config = { placement: '', mirrored: false, room_bounds: {}, room_name: '' };
+let config = { placement: '', mirrored: false, room_bounds: {}, room_name: '', calibration: {} };
 
 // ============================================================
 // Constants
 // ============================================================
-const SIN45 = Math.sin(Math.PI / 4);
 const MAX_RANGE = 6000;
 
 const LD2450_SCALE_FACTOR = 0.78;
@@ -350,6 +350,7 @@ function connect() {
           mirrored: msg.result.mirrored || false,
           room_bounds: msg.result.room_bounds || {},
           room_name: msg.result.room_name || '',
+          calibration: msg.result.calibration || {},
         };
         applyConfigToUI();
       }
@@ -396,25 +397,31 @@ document.getElementById('connect-btn').addEventListener('click', connect);
 // Sensor-to-room transform
 // ============================================================
 function sensorToRoom(tx, ty, placement, bounds) {
-  const leftX = bounds.left_x || 0;
-  const rightX = bounds.right_x || 6000;
-  const wallWidth = rightX - leftX;
+  const useCorrected = document.getElementById('ctl-corrected').checked;
+  const angleDeg = parseFloat(document.getElementById('ctl-angle').value);
+  const angle = angleDeg * Math.PI / 180;
 
-  if (placement === 'wall') {
-    const sensorX = (leftX + rightX) / 2;
-    return { rx: sensorX + tx, ry: ty };
-  } else if (placement === 'left_corner') {
-    return {
-      rx: ty * SIN45 + tx * SIN45,
-      ry: ty * SIN45 - tx * SIN45,
-    };
-  } else if (placement === 'right_corner') {
-    return {
-      rx: wallWidth - ty * SIN45 + tx * SIN45,
-      ry: ty * SIN45 + tx * SIN45,
-    };
+  // Stage 1: distortion correction
+  let cx = tx, cy = ty;
+  if (useCorrected) {
+    const c = ld2450Correct(tx, ty);
+    cx = c.cx;
+    cy = c.cy;
   }
-  return { rx: tx, ry: ty };
+
+  // Stage 2: clockwise rotation by sensor angle
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const rx = cx * cosA + cy * sinA;
+  const ry = -cx * sinA + cy * cosA;
+
+  // Stage 3: translation based on placement
+  const roomW = (bounds.right_x || 6000) - (bounds.left_x || 0);
+  let offsetX = 0;
+  if (placement === 'right_corner') offsetX = roomW;
+  else if (placement === 'wall') offsetX = roomW / 2;
+
+  return { rx: rx + offsetX, ry: ry };
 }
 
 function getUIPlacement() { return document.getElementById('ctl-placement').value; }
@@ -484,31 +491,60 @@ function drawRawCanvas() {
     }
   }
 
-  // Draw active targets
+  // Draw active targets — show both raw (dim) and corrected (bright)
   const showCorrected = document.getElementById('ctl-corrected').checked;
   let readout = '';
   for (let i = 0; i < 3; i++) {
     const t = targets[i];
     if (!t.active) continue;
-    let px = t.x, py = t.y;
+
+    // Always draw raw dot
+    const pRaw = toCanvas(t.x, t.y);
+    pushTrail(i, t.x, t.y);
+
     if (showCorrected) {
+      // Dim raw dot
+      ctx.beginPath();
+      ctx.arc(pRaw.cx, pRaw.cy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = colorWithAlpha(i, 0.25);
+      ctx.fill();
+
+      // Bright corrected dot
       const c = ld2450Correct(t.x, t.y);
-      px = c.cx;
-      py = c.cy;
+      const pCorr = toCanvas(c.cx, c.cy);
+      ctx.beginPath();
+      ctx.arc(pCorr.cx, pCorr.cy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = TARGET_COLORS[i];
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Line connecting raw → corrected
+      ctx.beginPath();
+      ctx.moveTo(pRaw.cx, pRaw.cy);
+      ctx.lineTo(pCorr.cx, pCorr.cy);
+      ctx.strokeStyle = 'rgba(255,255,0,0.3)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(`T${i + 1}`, pCorr.cx + 9, pCorr.cy + 4);
+      readout += `T${i + 1}: raw(${t.x.toFixed(0)},${t.y.toFixed(0)}) corr(${c.cx.toFixed(0)},${c.cy.toFixed(0)})  `;
+    } else {
+      ctx.beginPath();
+      ctx.arc(pRaw.cx, pRaw.cy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = TARGET_COLORS[i];
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(`T${i + 1}`, pRaw.cx + 9, pRaw.cy + 4);
+      readout += `T${i + 1}: x=${t.x.toFixed(0)}mm  y=${t.y.toFixed(0)}mm    `;
     }
-    pushTrail(i, px, py);
-    const p = toCanvas(px, py);
-    ctx.beginPath();
-    ctx.arc(p.cx, p.cy, 6, 0, Math.PI * 2);
-    ctx.fillStyle = TARGET_COLORS[i];
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.font = '11px sans-serif';
-    ctx.fillText(`T${i + 1}`, p.cx + 9, p.cy + 4);
-    readout += `T${i + 1}: x=${px.toFixed(0)}mm  y=${py.toFixed(0)}mm    `;
   }
   document.getElementById('raw-readout').textContent = readout || 'No active targets';
 }
@@ -723,10 +759,20 @@ function applyConfigToUI() {
   if (config.room_bounds.far_y) {
     document.getElementById('ctl-depth').value = (config.room_bounds.far_y / 1000).toFixed(1);
   }
+  if (config.calibration && config.calibration.sensor_angle !== undefined) {
+    const deg = (config.calibration.sensor_angle * 180 / Math.PI).toFixed(0);
+    document.getElementById('ctl-angle').value = deg;
+    document.getElementById('ctl-angle-val').textContent = deg;
+  }
+  clearAllTrails();
 }
 
 document.getElementById('btn-clear-trails').addEventListener('click', clearAllTrails);
 document.getElementById('btn-use-saved').addEventListener('click', applyConfigToUI);
+document.getElementById('ctl-angle').addEventListener('input', (e) => {
+  document.getElementById('ctl-angle-val').textContent = e.target.value;
+  clearAllTrails();
+});
 
 // Mode tabs
 document.querySelectorAll('.tab').forEach(tab => {
