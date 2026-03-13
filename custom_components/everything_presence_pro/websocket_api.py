@@ -37,7 +37,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_list_entries)
     websocket_api.async_register_command(hass, websocket_get_config)
     websocket_api.async_register_command(hass, websocket_set_zones)
-    websocket_api.async_register_command(hass, websocket_set_calibration)
+    websocket_api.async_register_command(hass, websocket_recalibrate)
     websocket_api.async_register_command(hass, websocket_set_room_layout)
     websocket_api.async_register_command(hass, websocket_set_setup)
     websocket_api.async_register_command(hass, websocket_subscribe_targets)
@@ -85,6 +85,9 @@ def websocket_list_entries(
             vol.Optional("left_x"): vol.Coerce(float),
             vol.Optional("right_x"): vol.Coerce(float),
         },
+        vol.Optional("calibration", default={}): {
+            vol.Optional("sensor_angle"): vol.Coerce(float),
+        },
     }
 )
 @websocket_api.async_response
@@ -109,6 +112,36 @@ async def websocket_set_setup(
     config["placement"] = msg["placement"]
     config["mirrored"] = msg["mirrored"]
     config["room_bounds"] = msg["room_bounds"]
+
+    # Compute and persist sensor transform from placement + bounds
+    bounds = msg.get("room_bounds", {})
+    placement = msg["placement"]
+    if (
+        bounds.get("far_y")
+        and bounds.get("left_x") is not None
+        and bounds.get("right_x") is not None
+    ):
+        room_width = bounds["right_x"] - bounds["left_x"]
+        if placement == "left_corner":
+            offset_x = 0.0
+            offset_y = 0.0
+        elif placement == "right_corner":
+            offset_x = room_width
+            offset_y = 0.0
+        else:  # wall
+            offset_x = room_width / 2
+            offset_y = 0.0
+
+        cal_msg = msg.get("calibration", {})
+        sensor_angle = cal_msg.get("sensor_angle", 0.0)
+        transform = SensorTransform(
+            sensor_angle=sensor_angle,
+            offset_x=offset_x,
+            offset_y=offset_y,
+        )
+        coordinator.set_sensor_transform(transform)
+        config["calibration"] = transform.to_dict()
+
     hass.config_entries.async_update_entry(
         entry, options={**entry.options, "config": config}
     )
@@ -195,39 +228,41 @@ async def websocket_set_zones(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "everything_presence_pro/set_calibration",
+        vol.Required("type"): "everything_presence_pro/recalibrate",
         vol.Required("entry_id"): str,
-        vol.Optional("sensor_angle", default=0.0): vol.Coerce(float),
-        vol.Optional("offset_x", default=0.0): vol.Coerce(float),
-        vol.Optional("offset_y", default=0.0): vol.Coerce(float),
+        vol.Required("sensor_x"): vol.Coerce(float),
+        vol.Required("sensor_y"): vol.Coerce(float),
+        vol.Required("expected_room_x"): vol.Coerce(float),
+        vol.Required("expected_room_y"): vol.Coerce(float),
     }
 )
 @websocket_api.async_response
-async def websocket_set_calibration(
+async def websocket_recalibrate(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle set_calibration command."""
+    """Handle recalibrate command — recompute sensor angle from a reference point."""
     coordinator = _get_coordinator(hass, msg["entry_id"])
     if coordinator is None:
         connection.send_error(msg["id"], "not_found", "Config entry not found")
         return
 
-    transform = SensorTransform(
-        sensor_angle=msg["sensor_angle"],
-        offset_x=msg["offset_x"],
-        offset_y=msg["offset_y"],
+    coordinator.sensor_transform.recalibrate(
+        raw_sensor_x=msg["sensor_x"],
+        raw_sensor_y=msg["sensor_y"],
+        expected_room_x=msg["expected_room_x"],
+        expected_room_y=msg["expected_room_y"],
     )
-
-    coordinator.set_calibration(transform)
 
     # Persist to config entry options
     entry = hass.config_entries.async_get_entry(msg["entry_id"])
     if entry is not None:
         config = dict(entry.options.get("config", {}))
-        config["calibration"] = coordinator._calibration.to_dict()
-        hass.config_entries.async_update_entry(entry, options={**entry.options, "config": config})
+        config["calibration"] = coordinator.sensor_transform.to_dict()
+        hass.config_entries.async_update_entry(
+            entry, options={**entry.options, "config": config}
+        )
 
     connection.send_result(msg["id"])
 

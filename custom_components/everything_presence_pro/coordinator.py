@@ -50,7 +50,7 @@ class EverythingPresenceProCoordinator:
         self._zones: list[Zone] = []
 
         # Calibration
-        self._calibration = SensorTransform()
+        self._sensor_transform = SensorTransform()
 
         # Room layout
         self._room_layout: dict[str, Any] = {}
@@ -161,6 +161,11 @@ class EverythingPresenceProCoordinator:
         """Return the current target positions."""
         return list(self._targets)
 
+    @property
+    def sensor_transform(self) -> SensorTransform:
+        """Return the sensor transform."""
+        return self._sensor_transform
+
     # -- Configuration methods --
 
     def set_zones(self, zones: list[Zone]) -> None:
@@ -168,9 +173,9 @@ class EverythingPresenceProCoordinator:
         self._zones = zones
         self._zone_engine.set_zones(zones)
 
-    def set_calibration(self, transform: SensorTransform) -> None:
-        """Set the sensor calibration transform."""
-        self._calibration = transform
+    def set_sensor_transform(self, transform: SensorTransform) -> None:
+        """Set the sensor transform."""
+        self._sensor_transform = transform
 
     def set_room_layout(self, layout: dict[str, Any]) -> None:
         """Set the room layout configuration."""
@@ -355,7 +360,7 @@ class EverythingPresenceProCoordinator:
         calibrated: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
             if self._target_active[i]:
-                cx, cy = self._calibration.apply(
+                cx, cy = self._sensor_transform.apply(
                     self._target_x[i], self._target_y[i]
                 )
                 calibrated.append((cx, cy, True))
@@ -386,7 +391,7 @@ class EverythingPresenceProCoordinator:
                 }
                 for z in self._zones
             ],
-            "calibration": self._calibration.to_dict(),
+            "calibration": self._sensor_transform.to_dict(),
             "room_layout": self._room_layout,
             "room_name": self._room_name,
             "placement": self._placement,
@@ -415,7 +420,7 @@ class EverythingPresenceProCoordinator:
         # Load calibration
         cal_data = data.get("calibration")
         if cal_data:
-            self._calibration = SensorTransform.from_dict(cal_data)
+            self._sensor_transform = SensorTransform.from_dict(cal_data)
 
         # Load room layout
         self._room_layout = data.get("room_layout", {})
