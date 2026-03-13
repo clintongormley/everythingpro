@@ -9,6 +9,7 @@ from aioesphomeapi import (
     APIClient,
     BinarySensorInfo,
     BinarySensorState,
+    ReconnectLogic,
     SensorInfo,
     SensorState,
 )
@@ -43,6 +44,7 @@ class EverythingPresenceProCoordinator:
         self._port: int = entry.data.get("port", DEFAULT_PORT)
 
         self._client: APIClient | None = None
+        self._reconnect_logic: ReconnectLogic | None = None
         self._connected: bool = False
 
         # Zone engine
@@ -184,7 +186,7 @@ class EverythingPresenceProCoordinator:
     # -- Connection management --
 
     async def async_connect(self) -> None:
-        """Connect to the ESPHome device and subscribe to states."""
+        """Connect to the ESPHome device with automatic reconnection."""
         self._client = APIClient(
             self._host,
             self._port,
@@ -192,19 +194,41 @@ class EverythingPresenceProCoordinator:
             noise_psk=self._noise_psk,
         )
 
-        try:
-            await self._client.connect(login=True)
-        except Exception:
-            _LOGGER.error("Failed to connect to %s", self._host)
-            raise
+        self._reconnect_logic = ReconnectLogic(
+            client=self._client,
+            on_connect=self._on_connect,
+            on_disconnect=self._on_disconnect,
+            zeroconf_instance=None,
+            name=self._host,
+            on_connect_error=self._on_connect_error,
+        )
+        await self._reconnect_logic.start()
 
+    async def _on_connect(self) -> None:
+        """Handle successful connection."""
         self._connected = True
         _LOGGER.debug("Connected to %s", self._host)
-
+        self._sensor_key_map.clear()
+        self._binary_sensor_key_map.clear()
         await self.subscribe_targets()
 
+    async def _on_disconnect(self, expected_disconnect: bool) -> None:
+        """Handle disconnection — ReconnectLogic will auto-retry."""
+        self._connected = False
+        if not expected_disconnect:
+            _LOGGER.warning("Disconnected from %s, will retry", self._host)
+        else:
+            _LOGGER.debug("Disconnected from %s (expected)", self._host)
+
+    async def _on_connect_error(self, error: Exception) -> None:
+        """Handle connection error during reconnection attempt."""
+        _LOGGER.debug("Connection error for %s: %s", self._host, error)
+
     async def async_disconnect(self) -> None:
-        """Disconnect from the device."""
+        """Disconnect from the device and stop reconnection."""
+        if self._reconnect_logic is not None:
+            await self._reconnect_logic.stop()
+            self._reconnect_logic = None
         if self._client is not None:
             try:
                 await self._client.disconnect()
