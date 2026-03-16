@@ -2629,25 +2629,110 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderNeedsCalibration() {
+    // SVG diagrams for positioning guide
+    const heightDiagram = svg`
+      <svg viewBox="0 0 200 160" width="200" height="160" style="display: block;">
+        <!-- Floor and wall -->
+        <line x1="20" y1="150" x2="180" y2="150" stroke="var(--divider-color, #ccc)" stroke-width="2"/>
+        <line x1="20" y1="10" x2="20" y2="150" stroke="var(--divider-color, #ccc)" stroke-width="2"/>
+        <!-- Person outline -->
+        <circle cx="130" cy="50" r="10" fill="none" stroke="var(--secondary-text-color, #888)" stroke-width="1.5"/>
+        <line x1="130" y1="60" x2="130" y2="105" stroke="var(--secondary-text-color, #888)" stroke-width="1.5"/>
+        <line x1="130" y1="105" x2="118" y2="148" stroke="var(--secondary-text-color, #888)" stroke-width="1.5"/>
+        <line x1="130" y1="105" x2="142" y2="148" stroke="var(--secondary-text-color, #888)" stroke-width="1.5"/>
+        <line x1="130" y1="75" x2="115" y2="95" stroke="var(--secondary-text-color, #888)" stroke-width="1.5"/>
+        <line x1="130" y1="75" x2="145" y2="95" stroke="var(--secondary-text-color, #888)" stroke-width="1.5"/>
+        <!-- Sensor on wall -->
+        <rect x="14" y="52" width="12" height="8" rx="2" fill="var(--primary-color, #03a9f4)"/>
+        <!-- Height bracket -->
+        <line x1="40" y1="56" x2="40" y2="150" stroke="var(--primary-color, #03a9f4)" stroke-width="1" stroke-dasharray="4 2"/>
+        <line x1="36" y1="56" x2="44" y2="56" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5"/>
+        <line x1="36" y1="150" x2="44" y2="150" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5"/>
+        <text x="48" y="108" font-size="11" fill="var(--primary-color, #03a9f4)">1.5–2m</text>
+        <!-- Detection cone -->
+        <path d="M 26 56 L 100 30 L 100 82 Z" fill="var(--primary-color, #03a9f4)" opacity="0.1" stroke="var(--primary-color, #03a9f4)" stroke-width="0.5"/>
+      </svg>
+    `;
+
+    const cornerDiagram = svg`
+      <svg viewBox="0 0 200 160" width="200" height="160" style="display: block;">
+        <!-- Room outline (top-down) -->
+        <rect x="20" y="20" width="160" height="120" fill="none" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="2"/>
+        <!-- Sensor in corner -->
+        <circle cx="28" cy="28" r="6" fill="var(--primary-color, #03a9f4)"/>
+        <!-- Detection cone -->
+        <path d="M 34 28 L 170 80 L 170 130 L 28 130 L 28 34 Z" fill="var(--primary-color, #03a9f4)" opacity="0.08"/>
+        <!-- Arrow to opposite corner -->
+        <line x1="34" y1="34" x2="160" y2="128" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5" stroke-dasharray="6 3"/>
+        <polygon points="160,128 150,122 154,132" fill="var(--primary-color, #03a9f4)"/>
+        <!-- Labels -->
+        <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
+        <text x="95" y="88" font-size="10" fill="var(--secondary-text-color, #888)">Coverage area</text>
+      </svg>
+    `;
+
+    const horizontalDiagram = svg`
+      <svg viewBox="0 0 200 160" width="200" height="160" style="display: block;">
+        <!-- Wall -->
+        <line x1="20" y1="10" x2="20" y2="150" stroke="var(--divider-color, #ccc)" stroke-width="2"/>
+        <line x1="20" y1="150" x2="180" y2="150" stroke="var(--divider-color, #ccc)" stroke-width="2"/>
+        <!-- Sensor -->
+        <rect x="14" y="56" width="12" height="8" rx="2" fill="var(--primary-color, #03a9f4)"/>
+        <!-- Correct: horizontal beam -->
+        <line x1="26" y1="60" x2="170" y2="60" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5"/>
+        <polygon points="170,60 162,56 162,64" fill="var(--primary-color, #03a9f4)"/>
+        <text x="70" y="52" font-size="10" fill="var(--primary-color, #03a9f4)">Horizontal ✓</text>
+        <!-- Wrong: angled down -->
+        <line x1="26" y1="60" x2="140" y2="140" stroke="var(--error-color, #f44336)" stroke-width="1" stroke-dasharray="4 2" opacity="0.6"/>
+        <text x="90" y="118" font-size="10" fill="var(--error-color, #f44336)" opacity="0.7">Angled ✗</text>
+        <!-- Wrong: angled up -->
+        <line x1="26" y1="60" x2="120" y2="22" stroke="var(--error-color, #f44336)" stroke-width="1" stroke-dasharray="4 2" opacity="0.6"/>
+        <text x="75" y="18" font-size="10" fill="var(--error-color, #f44336)" opacity="0.7">Angled ✗</text>
+      </svg>
+    `;
+
     return html`
       <div class="panel">
         ${this._renderHeader()}
-        <div style="max-width: 520px; margin: 0 auto; padding: 0 24px;">
+        <div style="max-width: 560px; margin: 0 auto; padding: 0 24px;">
           <div class="setting-group">
             <h4>How to position your sensor</h4>
-            <div style="display: flex; flex-direction: column; gap: 12px; padding: 4px 0;">
-              <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <ha-icon icon="mdi:human-male-height" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 2px;"></ha-icon>
-                <span>Mount <strong>1.5 to 2 meters</strong> from the floor</span>
+            <div style="display: flex; flex-direction: column; gap: 20px; padding: 8px 0;">
+
+              <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="flex-shrink: 0;">${heightDiagram}</div>
+                <div>
+                  <div style="font-weight: 500; margin-bottom: 4px;">Mount height</div>
+                  <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
+                    Place the sensor <strong>1.5 to 2 meters</strong> from the floor
+                  </div>
+                </div>
               </div>
-              <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <ha-icon icon="mdi:arrow-top-right" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 2px;"></ha-icon>
-                <span>Place in a <strong>corner or on a wall</strong>, pointing toward the most distant opposite corner or wall</span>
+
+              <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 0;"/>
+
+              <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="flex-shrink: 0;">${cornerDiagram}</div>
+                <div>
+                  <div style="font-weight: 500; margin-bottom: 4px;">Placement</div>
+                  <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
+                    Place in a <strong>corner or on a wall</strong>, pointing toward the most distant opposite corner
+                  </div>
+                </div>
               </div>
-              <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <ha-icon icon="mdi:swap-horizontal" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 2px;"></ha-icon>
-                <span>Keep the beam <strong>horizontal</strong> — not angled up or down</span>
+
+              <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 0;"/>
+
+              <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="flex-shrink: 0;">${horizontalDiagram}</div>
+                <div>
+                  <div style="font-weight: 500; margin-bottom: 4px;">Beam direction</div>
+                  <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
+                    Keep the beam <strong>horizontal</strong> — not angled up or down
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
 
@@ -2656,7 +2741,6 @@ export class EverythingPresenceProPanel extends LitElement {
               class="wizard-btn wizard-btn-primary"
               @click=${() => { this._setupStep = "corners"; }}
             >
-              <ha-icon icon="mdi:target" style="--mdc-icon-size: 18px; margin-right: 8px;"></ha-icon>
               Start room size calibration
             </button>
           </div>
