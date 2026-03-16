@@ -218,6 +218,13 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _view: "editor" | "settings" = "editor";
   @state() private _settingsSection = "tracking";
 
+  // Add sensor form
+  @state() private _addHost = "";
+  @state() private _addPort = 6053;
+  @state() private _addEncryptionKey = "";
+  @state() private _addError = "";
+  @state() private _addLoading = false;
+
   // Perspective transform state (client-side, set after corner marking)
   @state() private _perspective: number[] | null = null;
   @state() private _roomWidth = 0; // mm
@@ -307,7 +314,10 @@ export class EverythingPresenceProPanel extends LitElement {
       const result = await this.hass.callWS({
         type: "everything_presence_pro/list_entries",
       });
-      this._entries = result as EntryInfo[];
+      // Sort alphabetically by title
+      this._entries = (result as EntryInfo[]).sort((a, b) =>
+        (a.title || "").localeCompare(b.title || "")
+      );
     } catch {
       this._entries = [];
       return;
@@ -2257,9 +2267,7 @@ export class EverythingPresenceProPanel extends LitElement {
     }
 
     if (!this._entries.length) {
-      return html`<div class="loading-container">
-        No Everything Presence Pro devices configured
-      </div>`;
+      return this._renderNoSensors();
     }
 
     if (this._setupStep !== null) {
@@ -2616,6 +2624,105 @@ export class EverythingPresenceProPanel extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  private _renderNoSensors() {
+    return html`
+      <div class="panel" style="max-width: 480px; margin: 0 auto; padding: 48px 24px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <ha-icon icon="mdi:motion-sensor" style="--mdc-icon-size: 48px; color: var(--secondary-text-color, #757575);"></ha-icon>
+          <h2 style="margin: 16px 0 8px; font-size: 20px;">No sensors detected</h2>
+          <p style="color: var(--secondary-text-color, #757575); margin: 0;">Add a sensor to begin</p>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-row">
+            <label>Host</label>
+            <input
+              type="text"
+              class="setting-input"
+              style="width: 200px; text-align: left;"
+              placeholder="192.168.1.100"
+              .value=${this._addHost}
+              @input=${(e: Event) => { this._addHost = (e.target as HTMLInputElement).value; }}
+            />
+          </div>
+          <div class="setting-row">
+            <label>Port</label>
+            <input
+              type="number"
+              class="setting-input"
+              .value=${String(this._addPort)}
+              @input=${(e: Event) => { this._addPort = parseInt((e.target as HTMLInputElement).value) || 6053; }}
+            />
+          </div>
+          <div class="setting-row">
+            <label>Encryption key</label>
+            <span class="setting-hint">Required if the device has API encryption enabled</span>
+            <input
+              type="text"
+              class="setting-input"
+              style="width: 200px; text-align: left;"
+              placeholder="Optional"
+              .value=${this._addEncryptionKey}
+              @input=${(e: Event) => { this._addEncryptionKey = (e.target as HTMLInputElement).value; }}
+            />
+          </div>
+          ${this._addError ? html`
+            <div style="color: var(--error-color, #f44336); font-size: 13px; padding: 8px 0;">
+              ${this._addError}
+            </div>
+          ` : nothing}
+          <div style="display: flex; justify-content: flex-end; padding-top: 12px;">
+            <button
+              class="wizard-btn wizard-btn-primary"
+              ?disabled=${this._addLoading || !this._addHost.trim()}
+              @click=${this._addSensor}
+            >${this._addLoading ? "Connecting..." : "Add sensor"}</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private async _addSensor(): Promise<void> {
+    this._addError = "";
+    this._addLoading = true;
+    try {
+      // Use HA's config flow API to add the device
+      const flow = await this.hass.callApi("POST", "config/config_entries/flow", {
+        handler: "everything_presence_pro",
+        show_advanced_options: false,
+      });
+      const result = await this.hass.callApi(
+        "POST",
+        `config/config_entries/flow/${flow.flow_id}`,
+        {
+          host: this._addHost.trim(),
+          noise_psk: this._addEncryptionKey.trim(),
+        },
+      );
+      if (result.type === "create_entry") {
+        // Reload entries
+        await this._loadEntries();
+        if (this._entries.length) {
+          this._selectedEntryId = this._entries[0].entry_id;
+          await this._loadEntryConfig(this._selectedEntryId);
+        }
+        this._loading = false;
+      } else if (result.errors) {
+        const errKey = result.errors.base || Object.values(result.errors)[0];
+        this._addError = errKey === "cannot_connect"
+          ? "Could not connect to the device. Check the host and port."
+          : errKey === "invalid_auth"
+          ? "Invalid encryption key."
+          : `Error: ${errKey}`;
+      }
+    } catch (err: any) {
+      this._addError = err?.message || "Failed to add sensor";
+    } finally {
+      this._addLoading = false;
+    }
   }
 
   private _renderSettings() {
