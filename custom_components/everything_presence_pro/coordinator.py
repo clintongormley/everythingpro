@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 from statistics import median
 from typing import Any
@@ -20,7 +21,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .calibration import SensorTransform
-from .const import CELL_ROOM_INSIDE, DEFAULT_PORT, DOMAIN, MAX_TARGETS, SMOOTH_WINDOW_S
+from .const import (
+    CELL_ROOM_INSIDE,
+    DEFAULT_PORT,
+    DOMAIN,
+    GRID_CELL_SIZE_MM,
+    MAX_TARGETS,
+    SMOOTH_WINDOW_S,
+)
 from .zone_engine import Grid, ProcessingResult, Zone, ZoneEngine
 
 _LOGGER = logging.getLogger(__name__)
@@ -227,7 +235,37 @@ class EverythingPresenceProCoordinator:
         self._room_layout = layout
         grid_bytes = layout.get("grid_bytes")
         if grid_bytes and isinstance(grid_bytes, list):
-            self._zone_engine.grid.load_from_bytes(bytes(grid_bytes))
+            self._load_frontend_grid(grid_bytes)
+
+    def _load_frontend_grid(self, grid_bytes: list[int]) -> None:
+        """Create a 20x16 grid matching the frontend layout and load cell bytes.
+
+        The frontend uses a fixed 20x16 grid (300mm cells) with the room
+        centered horizontally. We compute the grid origin so that room
+        coordinate (0, 0) maps to the correct cell.
+        """
+        cols = 20
+        rows = 16
+        cell_size = GRID_CELL_SIZE_MM
+        # Room is centered horizontally in the 20-col grid
+        t = self._sensor_transform
+        room_cols = max(1, int(math.ceil(t.room_width / cell_size))) if t.room_width > 0 else cols
+        start_col = (cols - room_cols) // 2
+        # Grid origin: room x=0 is at start_col, room y=0 is at row 0
+        origin_x = -start_col * cell_size
+        origin_y = 0.0
+        grid = Grid(
+            origin_x=origin_x, origin_y=origin_y,
+            cols=cols, rows=rows, cell_size=cell_size,
+        )
+        grid.load_from_bytes(bytes(grid_bytes))
+        _LOGGER.debug(
+            "Loaded frontend grid: %dx%d, origin=(%.0f, %.0f), "
+            "room_width=%.0f, start_col=%d",
+            cols, rows, origin_x, origin_y,
+            t.room_width, start_col,
+        )
+        self._zone_engine.set_grid(grid)
 
     def _rebuild_grid(self) -> None:
         """Compute grid dimensions from perspective + room size and set on zone engine."""
@@ -474,6 +512,36 @@ class EverythingPresenceProCoordinator:
         self._targets = calibrated
         self._last_result = self._zone_engine.process_targets(calibrated)
 
+        # Temporary debug logging
+        grid = self._zone_engine.grid
+        _LOGGER.debug(
+            "Grid: %dx%d (%d cells), origin=(%.0f, %.0f), zones=%s",
+            grid.cols, grid.rows, grid.cell_count,
+            grid.origin_x, grid.origin_y,
+            [z.id for z in self._zones],
+        )
+        for x, y, active in calibrated:
+            if active:
+                cell = grid.xy_to_cell(x, y)
+                if cell is not None:
+                    cell_val = grid.cells[cell]
+                    is_room = grid.cell_is_room(cell)
+                    zone_id = grid.cell_zone(cell)
+                    _LOGGER.debug(
+                        "Target at (%.0f, %.0f) -> cell %d, byte=0x%02x, "
+                        "is_room=%s, zone=%d | result: tracking=%s zones=%s",
+                        x, y, cell, cell_val, is_room, zone_id,
+                        self._last_result.device_tracking_present,
+                        self._last_result.zone_occupancy,
+                    )
+                else:
+                    _LOGGER.debug(
+                        "Target at (%.0f, %.0f) -> OUTSIDE grid "
+                        "(grid: %dx%d, origin=(%.0f,%.0f))",
+                        x, y, grid.cols, grid.rows,
+                        grid.origin_x, grid.origin_y,
+                    )
+
         async_dispatcher_send(
             self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
         )
@@ -533,8 +601,7 @@ class EverythingPresenceProCoordinator:
         # Load grid bytes from room layout (overrides base64 grid if present)
         grid_bytes = self._room_layout.get("grid_bytes")
         if grid_bytes and isinstance(grid_bytes, list):
-            grid = self._zone_engine.grid
-            grid.load_from_bytes(bytes(grid_bytes))
+            self._load_frontend_grid(grid_bytes)
 
         # Load zones from room_layout.zone_slots (new format) or data.zones (legacy)
         zone_slots = self._room_layout.get("zone_slots")
