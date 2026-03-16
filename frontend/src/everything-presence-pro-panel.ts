@@ -2397,7 +2397,7 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderHeader() {
-    const headerBtns = this._setupStep === null ? html`
+    const headerBtns = this._setupStep === null && this._perspective ? html`
       <button
         class="header-settings-btn"
         @click=${() => { this._view = this._view === "settings" ? "editor" : "settings"; }}
