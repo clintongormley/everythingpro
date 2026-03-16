@@ -2509,13 +2509,19 @@ export class EverythingPresenceProPanel extends LitElement {
         ${walker(170, 72)}
         ${arrow(TR.x, TR.y, BR.x, BR.y)}
         ${walker(265, 145, false, 90)}
-        ${arrow(BR.x, BR.y, BL.x, BL.y)}
-        ${walker(170, 218, true)}
+        <!-- 3rd arrow shortened: stops at ~120 to leave room for "4" badge -->
+        ${arrow(BR.x, BR.y, BL.x + 80, BL.y)}
+        ${walker(190, 218, true)}
 
-        <!-- Pot plant blocking corner 4 (BL), inside the room -->
+        <!-- Corner 4 badge: between arrow end and plant -->
+        <circle cx="${BL.x + 55}" cy="${BL.y}" r="14" fill="#FF9800" opacity="0.15"/>
+        <circle cx="${BL.x + 55}" cy="${BL.y}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
+        <text x="${BL.x + 55}" y="${BL.y + 5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
+
+        <!-- Pot plant in the corner (BL) -->
         <g transform="translate(${BL.x + 5}, ${BL.y - 5})">
           <!-- Pot -->
-          <path d="M -12 -2 L -10 12 L 10 12 L 12 -2 Z" fill="#C68642" stroke="#A0522D" stroke-width="1.5" rx="2"/>
+          <path d="M -12 -2 L -10 12 L 10 12 L 12 -2 Z" fill="#C68642" stroke="#A0522D" stroke-width="1.5"/>
           <rect x="-14" y="-5" width="28" height="5" rx="2" fill="#A0522D"/>
           <!-- Plant leaves -->
           <ellipse cx="0" cy="-18" rx="12" ry="10" fill="#66BB6A" stroke="#43A047" stroke-width="1"/>
@@ -2525,15 +2531,11 @@ export class EverythingPresenceProPanel extends LitElement {
           <ellipse cx="6" cy="-22" rx="7" ry="6" fill="#A5D6A7" stroke="#66BB6A" stroke-width="1"/>
         </g>
 
-        <!-- Offset dimensions from corner 4 position to walls -->
-        <!-- Offset dimension: distance from back wall (vertical) -->
-        <line x1="${BL.x + 55}" y1="${BL.y - 29}" x2="${BL.x + 55}" y2="${BL.y}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
-        <line x1="${BL.x + 48}" y1="${BL.y}" x2="${BL.x + 62}" y2="${BL.y}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${BL.x + 68}" y="${BL.y - 12}" font-size="8" fill="#FF9800">50cm</text>
-        <!-- Offset dimension: distance from left wall (horizontal) -->
-        <line x1="${BL.x + 49}" y1="${BL.y - 35}" x2="${BL.x}" y2="${BL.y - 35}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
-        <line x1="${BL.x}" y1="${BL.y - 42}" x2="${BL.x}" y2="${BL.y - 28}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${BL.x + 25}" y="${BL.y - 40}" font-size="8" fill="#FF9800" text-anchor="middle">65cm</text>
+        <!-- Horizontal distance measure from left wall through plant to corner 4 -->
+        <line x1="${BL.x - 5}" y1="${BL.y + 16}" x2="${BL.x + 55}" y2="${BL.y + 16}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="${BL.x - 5}" y1="${BL.y + 10}" x2="${BL.x - 5}" y2="${BL.y + 22}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="${BL.x + 55}" y1="${BL.y + 10}" x2="${BL.x + 55}" y2="${BL.y + 22}" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="${BL.x + 25}" y="${BL.y + 28}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
 
         <!-- Corner 1: front-left -->
         <circle cx="${TL.x}" cy="${TL.y}" r="14" fill="#4CAF50" opacity="0.15"/>
@@ -2550,17 +2552,12 @@ export class EverythingPresenceProPanel extends LitElement {
         <circle cx="${BR.x}" cy="${BR.y}" r="14" fill="none" stroke="#4CAF50" stroke-width="2.5"/>
         <text x="${BR.x}" y="${BR.y + 5}" font-size="14" fill="#4CAF50" font-weight="bold" text-anchor="middle">3</text>
 
-        <!-- Corner 4: at the offset "You" position (obstructed corner) -->
-        <circle cx="${BL.x + 55}" cy="${BL.y - 35}" r="14" fill="#FF9800" opacity="0.15"/>
-        <circle cx="${BL.x + 55}" cy="${BL.y - 35}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
-        <text x="${BL.x + 55}" y="${BL.y - 30}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
-
-        <!-- Sensor icon right at the corner junction -->
-        <g transform="translate(${TR.x + 3}, ${TR.y - 3}) rotate(-45)">
+        <!-- Sensor icon outside the top-right corner -->
+        <g transform="translate(${TR.x + 18}, ${TR.y - 18}) rotate(-45)">
           <rect x="-5" y="-7" width="10" height="14" rx="3" fill="var(--primary-color, #03a9f4)"/>
           <circle cx="0" cy="-11" r="3.5" fill="var(--primary-color, #03a9f4)" opacity="0.4"/>
         </g>
-        <text x="${TR.x + 14}" y="${TR.y - 14}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
+        <text x="${TR.x + 24}" y="${TR.y - 24}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
       </svg>
     `;
 
