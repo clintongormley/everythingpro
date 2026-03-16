@@ -155,10 +155,12 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         <circle cx="${l}" cy="${d}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
         <text x="${l}" y="${d+5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
 
-        <!-- Sensor icon outside the top-right corner -->
-        <rect x="${o+4}" y="${s-14}" width="6" height="10" rx="2" fill="var(--primary-color, #03a9f4)"/>
-        <circle cx="${o+7}" cy="${s-14}" r="3" fill="var(--primary-color, #03a9f4)" opacity="0.4"/>
-        <text x="${o+7}" y="${s-20}" font-size="9" fill="var(--primary-color, #03a9f4)" text-anchor="middle" font-weight="500">Sensor</text>
+        <!-- Sensor icon diagonally outside the top-right corner -->
+        <g transform="translate(${o+10}, ${s-10}) rotate(-45)">
+          <rect x="-4" y="-6" width="8" height="12" rx="2" fill="var(--primary-color, #03a9f4)"/>
+          <circle cx="0" cy="-9" r="3" fill="var(--primary-color, #03a9f4)" opacity="0.4"/>
+        </g>
+        <text x="${o+16}" y="${s-18}" font-size="9" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
       </svg>
     `;return L`
       <div style="max-width: 560px; margin: 0 auto;">
