@@ -2594,15 +2594,31 @@ export class EverythingPresenceProPanel extends LitElement {
         ${this._showTemplateLoad ? this._renderTemplateLoadDialog() : nothing}
         ${this._showRenameDialog ? html`
           <div class="template-dialog">
-            <div class="template-dialog-card">
+            <div class="template-dialog-card" style="max-width: 520px;">
               <h3>Update entity IDs?</h3>
-              <p class="overlay-help">Zone names changed. Update entity IDs to match?</p>
-              <div style="max-height: 200px; overflow-y: auto; margin: 8px 0; font-size: 13px;">
-                ${this._pendingRenames.map((r) => html`
-                  <div style="margin: 4px 0; font-family: monospace; font-size: 12px;">
-                    ${r.old_entity_id} → ${r.new_entity_id}
-                  </div>
-                `)}
+              <p class="overlay-help">Zone names changed. Would you like to update the entity IDs to match?</p>
+              <div style="max-height: 240px; overflow-y: auto; margin: 12px 0;">
+                ${this._pendingRenames.map((r) => {
+                  const oldShort = r.old_entity_id.split(".")[1] || r.old_entity_id;
+                  const newShort = r.new_entity_id.split(".")[1] || r.new_entity_id;
+                  const platform = r.old_entity_id.split(".")[0] || "";
+                  return html`
+                    <div style="
+                      padding: 8px 12px; margin: 4px 0;
+                      background: var(--secondary-background-color, #f5f5f5);
+                      border-radius: 8px; font-size: 13px;
+                    ">
+                      <div style="color: var(--secondary-text-color, #888); font-size: 11px; margin-bottom: 2px;">
+                        ${platform}
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; font-size: 12px;">
+                        <span style="color: var(--secondary-text-color, #888); text-decoration: line-through;">${oldShort}</span>
+                        <span style="color: var(--secondary-text-color, #888);">→</span>
+                        <span style="font-weight: 500;">${newShort}</span>
+                      </div>
+                    </div>
+                  `;
+                })}
               </div>
               <div class="template-dialog-actions">
                 <button class="wizard-btn wizard-btn-back"
@@ -2610,7 +2626,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 >Skip</button>
                 <button class="wizard-btn wizard-btn-primary"
                   @click=${this._applyRenames}
-                >Rename IDs</button>
+                >Rename</button>
               </div>
             </div>
           </div>
