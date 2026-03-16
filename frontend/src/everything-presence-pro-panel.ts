@@ -2933,6 +2933,7 @@ export class EverythingPresenceProPanel extends LitElement {
                     ></div>
                   `;
                 })}
+            </div>
           </div>
 
           <!-- Sidebar -->

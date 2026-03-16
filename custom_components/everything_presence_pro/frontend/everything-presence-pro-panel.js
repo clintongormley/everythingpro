@@ -527,6 +527,7 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const _t=(t=>(
                       style="left: ${s}%; top: ${l}%; background: ${Dt[e]||Dt[0]};"
                     ></div>
                   `})}
+            </div>
           </div>
 
           <!-- Sidebar -->
