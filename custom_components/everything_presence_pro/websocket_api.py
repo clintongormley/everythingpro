@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
-from homeassistant.helpers import entity_registry
+from homeassistant.helpers import device_registry as dr, entity_registry
 
 from .calibration import SensorTransform
 from .const import DOMAIN, MAX_ZONES
@@ -332,9 +332,9 @@ async def websocket_set_room_layout(
                 if zone_name:
                     slug = zone_name.lower().replace(" ", "_")
                     # Get device name for entity_id prefix
+                    dev_reg = dr.async_get(hass)
                     device_entry = (
-                        hass.helpers.device_registry.async_get(hass)
-                        .async_get(ent_entry.device_id)
+                        dev_reg.async_get(ent_entry.device_id)
                         if ent_entry.device_id
                         else None
                     )
