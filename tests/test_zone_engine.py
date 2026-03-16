@@ -192,3 +192,28 @@ def test_zone_engine_low_sensitivity():
     # 8th frame should trigger
     result = engine.process_targets([(150, 150, True)])
     assert result.zone_occupancy[1] is True
+
+
+def test_zone_engine_sparse_zone_ids():
+    """Test zone engine works with non-contiguous zone IDs."""
+    engine = ZoneEngine()
+    grid = _make_grid()
+    # Zone 1 on cell (150, 150), zone 3 on cell (450, 450) — skip zone 2
+    cell1 = grid.xy_to_cell(150, 150)
+    grid.cells[cell1] = CELL_ROOM_INSIDE | (1 << CELL_ZONE_SHIFT)
+    cell3 = grid.xy_to_cell(450, 450)
+    grid.cells[cell3] = CELL_ROOM_INSIDE | (3 << CELL_ZONE_SHIFT)
+    engine.set_grid(grid)
+
+    zone1 = Zone(id=1, name="Desk", sensitivity=ZONE_HIGH)
+    zone3 = Zone(id=3, name="Bed", sensitivity=ZONE_HIGH)
+    engine.set_zones([zone1, zone3])
+
+    result = engine.process_targets([(150, 150, True)])
+    assert result.zone_occupancy[1] is True
+    assert result.zone_target_counts[1] == 1
+    assert result.zone_occupancy.get(3, False) is False
+
+    result = engine.process_targets([(450, 450, True)])
+    assert result.zone_occupancy.get(1, False) is False
+    assert result.zone_occupancy[3] is True
