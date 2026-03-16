@@ -89,7 +89,7 @@ class EverythingPresenceProCoordinator:
         self.entry = entry
 
         self._host: str = entry.data.get("host", "")
-        self._noise_psk: str = entry.data.get("noise_psk", "")  # legacy, EPP doesn't use encryption
+        self._noise_psk: str = entry.data.get("noise_psk", "")
         self._port: int = entry.data.get("port", DEFAULT_PORT)
 
         self._client: APIClient | None = None
