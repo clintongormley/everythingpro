@@ -220,8 +220,6 @@ export class EverythingPresenceProPanel extends LitElement {
 
   // Add sensor form
   @state() private _addHost = "";
-  @state() private _addPort = 6053;
-  @state() private _addEncryptionKey = "";
   @state() private _addError = "";
   @state() private _addLoading = false;
 
@@ -2647,27 +2645,6 @@ export class EverythingPresenceProPanel extends LitElement {
               @input=${(e: Event) => { this._addHost = (e.target as HTMLInputElement).value; }}
             />
           </div>
-          <div class="setting-row">
-            <label>Port</label>
-            <input
-              type="number"
-              class="setting-input"
-              .value=${String(this._addPort)}
-              @input=${(e: Event) => { this._addPort = parseInt((e.target as HTMLInputElement).value) || 6053; }}
-            />
-          </div>
-          <div class="setting-row">
-            <label>Encryption key</label>
-            <span class="setting-hint">Required if the device has API encryption enabled</span>
-            <input
-              type="text"
-              class="setting-input"
-              style="width: 200px; text-align: left;"
-              placeholder="Optional"
-              .value=${this._addEncryptionKey}
-              @input=${(e: Event) => { this._addEncryptionKey = (e.target as HTMLInputElement).value; }}
-            />
-          </div>
           ${this._addError ? html`
             <div style="color: var(--error-color, #f44336); font-size: 13px; padding: 8px 0;">
               ${this._addError}
@@ -2699,7 +2676,6 @@ export class EverythingPresenceProPanel extends LitElement {
         `config/config_entries/flow/${flow.flow_id}`,
         {
           host: this._addHost.trim(),
-          noise_psk: this._addEncryptionKey.trim(),
         },
       );
       if (result.type === "create_entry") {
@@ -2713,9 +2689,7 @@ export class EverythingPresenceProPanel extends LitElement {
       } else if (result.errors) {
         const errKey = result.errors.base || Object.values(result.errors)[0];
         this._addError = errKey === "cannot_connect"
-          ? "Could not connect to the device. Check the host and port."
-          : errKey === "invalid_auth"
-          ? "Invalid encryption key."
+          ? "Could not connect to the device. Check the host address."
           : `Error: ${errKey}`;
       }
     } catch (err: any) {

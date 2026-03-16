@@ -21,7 +21,6 @@ _LOGGER = logging.getLogger(__name__)
 USER_SCHEMA = vol.Schema(
     {
         vol.Required("host"): str,
-        vol.Optional("noise_psk", default=""): str,
     }
 )
 
@@ -39,13 +38,11 @@ class EverythingPresenceProConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             host = user_input["host"]
-            noise_psk = user_input.get("noise_psk", "")
 
             client = APIClient(
                 host,
                 DEFAULT_PORT,
                 "",
-                noise_psk=noise_psk or None,
             )
 
             try:
@@ -66,7 +63,6 @@ class EverythingPresenceProConfigFlow(ConfigFlow, domain=DOMAIN):
                     title=device_info.friendly_name or device_info.name,
                     data={
                         "host": host,
-                        "noise_psk": noise_psk,
                         "mac": device_info.mac_address,
                     },
                 )
