@@ -2771,14 +2771,23 @@ export class EverythingPresenceProPanel extends LitElement {
         <rect x="20" y="20" width="160" height="120" fill="none" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="2"/>
         <!-- Sensor in corner -->
         <circle cx="28" cy="28" r="6" fill="var(--primary-color, #03a9f4)"/>
-        <!-- Detection cone -->
-        <path d="M 34 28 L 170 80 L 170 130 L 28 130 L 28 34 Z" fill="var(--primary-color, #03a9f4)" opacity="0.08"/>
+        <!-- 120° FOV cone: sensor at (28,28), center aimed at ~135° (diagonal), ±60° -->
+        <!-- 75° edge: mostly right -->
+        <!-- 195° edge: mostly down -->
+        <path d="M 28 28 L 190 58 A 170 170 0 0 1 58 190 Z"
+              fill="var(--primary-color, #03a9f4)" opacity="0.08"
+              stroke="var(--primary-color, #03a9f4)" stroke-width="0.5" opacity="0.08"/>
+        <!-- Clipped to room -->
+        <clipPath id="room-clip"><rect x="20" y="20" width="160" height="120"/></clipPath>
+        <path d="M 28 28 L 190 58 A 170 170 0 0 1 58 190 Z"
+              fill="var(--primary-color, #03a9f4)" opacity="0.1"
+              clip-path="url(#room-clip)"/>
         <!-- Arrow to opposite corner -->
         <line x1="34" y1="34" x2="160" y2="128" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5" stroke-dasharray="6 3"/>
         <polygon points="160,128 150,122 154,132" fill="var(--primary-color, #03a9f4)"/>
         <!-- Labels -->
         <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
-        <text x="95" y="88" font-size="10" fill="var(--secondary-text-color, #888)">Coverage area</text>
+        <text x="80" y="85" font-size="10" fill="var(--secondary-text-color, #888)">120° FOV</text>
       </svg>
     `;
 
