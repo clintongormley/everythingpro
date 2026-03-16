@@ -2765,31 +2765,40 @@ export class EverythingPresenceProPanel extends LitElement {
       </svg>
     `;
 
-    const cornerDiagram = svg`
-      <svg viewBox="0 0 200 160" width="200" height="160" style="display: block;">
-        <!-- Room outline (top-down) -->
-        <rect x="20" y="20" width="160" height="120" fill="none" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="2"/>
-        <!-- Sensor in corner -->
-        <circle cx="28" cy="28" r="6" fill="var(--primary-color, #03a9f4)"/>
-        <!-- 120° FOV cone: sensor at (28,28), center aimed at ~135° (diagonal), ±60° -->
-        <!-- 75° edge: mostly right -->
-        <!-- 195° edge: mostly down -->
-        <path d="M 28 28 L 190 58 A 170 170 0 0 1 58 190 Z"
-              fill="var(--primary-color, #03a9f4)" opacity="0.08"
-              stroke="var(--primary-color, #03a9f4)" stroke-width="0.5" opacity="0.08"/>
-        <!-- Clipped to room -->
-        <clipPath id="room-clip"><rect x="20" y="20" width="160" height="120"/></clipPath>
-        <path d="M 28 28 L 190 58 A 170 170 0 0 1 58 190 Z"
-              fill="var(--primary-color, #03a9f4)" opacity="0.1"
-              clip-path="url(#room-clip)"/>
-        <!-- Arrow to opposite corner -->
-        <line x1="34" y1="34" x2="160" y2="128" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5" stroke-dasharray="6 3"/>
-        <polygon points="160,128 150,122 154,132" fill="var(--primary-color, #03a9f4)"/>
-        <!-- Labels -->
-        <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
-        <text x="80" y="85" font-size="10" fill="var(--secondary-text-color, #888)">120° FOV</text>
-      </svg>
-    `;
+    const cornerDiagram = (() => {
+      // 120° FOV from top-left corner, centered on diagonal (135°)
+      // ±60° from center → edges at 75° and 195°
+      const cx = 28, cy = 28, r = 180;
+      const centerDeg = 135;
+      const a1 = (centerDeg - 60) * Math.PI / 180; // 75°
+      const a2 = (centerDeg + 60) * Math.PI / 180; // 195°
+      const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+      const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+      return svg`
+        <svg viewBox="0 0 200 160" width="200" height="160" style="display: block;">
+          <defs>
+            <clipPath id="room-clip"><rect x="20" y="20" width="160" height="120"/></clipPath>
+          </defs>
+          <!-- Room outline -->
+          <rect x="20" y="20" width="160" height="120" fill="none" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="2"/>
+          <!-- 120° FOV wedge clipped to room -->
+          <path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z"
+                fill="var(--primary-color, #03a9f4)" opacity="0.1"
+                clip-path="url(#room-clip)"/>
+          <!-- Cone edge lines (clipped) -->
+          <line x1="${cx}" y1="${cy}" x2="${x1}" y2="${y1}" stroke="var(--primary-color, #03a9f4)" stroke-width="0.5" opacity="0.3" clip-path="url(#room-clip)"/>
+          <line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="var(--primary-color, #03a9f4)" stroke-width="0.5" opacity="0.3" clip-path="url(#room-clip)"/>
+          <!-- Sensor dot -->
+          <circle cx="${cx}" cy="${cy}" r="6" fill="var(--primary-color, #03a9f4)"/>
+          <!-- Arrow to opposite corner -->
+          <line x1="34" y1="34" x2="160" y2="128" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5" stroke-dasharray="6 3"/>
+          <polygon points="160,128 150,122 154,132" fill="var(--primary-color, #03a9f4)"/>
+          <!-- Labels -->
+          <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
+          <text x="75" y="85" font-size="10" fill="var(--secondary-text-color, #888)">120° FOV</text>
+        </svg>
+      `;
+    })();
 
     const horizontalDiagram = svg`
       <svg viewBox="0 0 200 160" width="200" height="160" style="display: block;">
