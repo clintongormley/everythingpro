@@ -3,9 +3,10 @@
     "step": {
       "user": {
         "title": "Connect to Everything Presence Pro",
+        "description": "Enter the IP address of your sensor. You can optionally give it a friendly name.",
         "data": {
           "host": "Host",
-          "noise_psk": "Encryption key"
+          "name": "Name (optional)"
         }
       }
     },
