@@ -2779,9 +2779,9 @@ export class EverythingPresenceProPanel extends LitElement {
       const arcPath = (ar: number, label: string) => {
         const ax1 = cx + ar * Math.cos(a1Rad), ay1 = cy + ar * Math.sin(a1Rad);
         const ax2 = cx + ar * Math.cos(a2Rad), ay2 = cy + ar * Math.sin(a2Rad);
-        // Label at center of arc
+        // Label just inside the arc
         const amid = (centerDeg) * Math.PI / 180;
-        const lx = cx + (ar + 8) * Math.cos(amid), ly = cy + (ar + 8) * Math.sin(amid);
+        const lx = cx + (ar - 10) * Math.cos(amid), ly = cy + (ar - 10) * Math.sin(amid);
         return svg`
           <path d="M ${ax1} ${ay1} A ${ar} ${ar} 0 0 1 ${ax2} ${ay2}"
                 fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="1"
