@@ -164,7 +164,8 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _grid: Uint8Array = new Uint8Array(GRID_CELL_COUNT);
   @state() private _zoneConfigs: (ZoneConfig | null)[] = new Array(MAX_ZONES).fill(null);
   @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones, -1/-2 = overlays
-  @state() private _sidebarTab: "zones" | "furniture" = "zones";
+  @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
+  @state() private _expandedSensorInfo: string | null = null;
   @state() private _showCustomIconPicker = false;
   @state() private _customIconValue = "";
   @state() private _furniture: FurnitureItem[] = [];
@@ -2152,6 +2153,114 @@ export class EverythingPresenceProPanel extends LitElement {
       white-space: nowrap;
     }
 
+    /* Live sidebar */
+    .live-section-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--secondary-text-color, #888);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 12px 6px;
+    }
+
+    .live-sensor-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+
+    .live-sensor-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .live-sensor-dot.on {
+      background: #4CAF50;
+    }
+
+    .live-sensor-dot.off {
+      background: var(--disabled-text-color, #bbb);
+    }
+
+    .live-sensor-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .live-sensor-state {
+      font-size: 12px;
+      color: var(--secondary-text-color, #888);
+      flex-shrink: 0;
+    }
+
+    .live-sensor-state.detected {
+      color: #4CAF50;
+      font-weight: 500;
+    }
+
+    .live-sensor-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--primary-text-color, #212121);
+      margin-left: auto;
+    }
+
+    .live-sensor-info-btn {
+      background: none;
+      border: none;
+      color: var(--secondary-text-color, #aaa);
+      cursor: pointer;
+      padding: 2px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .live-sensor-info-btn:hover {
+      color: var(--primary-color, #03a9f4);
+    }
+
+    .live-sensor-info-text {
+      font-size: 12px;
+      color: var(--secondary-text-color, #757575);
+      padding: 2px 12px 8px 30px;
+      line-height: 1.4;
+    }
+
+    .live-nav-links {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 16px 12px 8px;
+      margin-top: 8px;
+      border-top: 1px solid var(--divider-color, #eee);
+    }
+
+    .live-nav-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: none;
+      color: var(--primary-color, #03a9f4);
+      cursor: pointer;
+      padding: 6px 4px;
+      font-size: 13px;
+      border-radius: 6px;
+      text-align: left;
+    }
+
+    .live-nav-link:hover {
+      background: var(--secondary-background-color, #f5f5f5);
+    }
+
     /* Settings view */
     .settings-container {
       max-width: 560px;
@@ -3154,10 +3263,16 @@ export class EverythingPresenceProPanel extends LitElement {
                 class="sidebar-tab ${this._sidebarTab === "furniture" ? "active" : ""}"
                 @click=${() => { this._sidebarTab = "furniture"; }}
               >Furniture</button>
+              <button
+                class="sidebar-tab ${this._sidebarTab === "live" ? "active" : ""}"
+                @click=${() => { this._sidebarTab = "live"; this._selectedFurnitureId = null; }}
+              >Live</button>
             </div>
             ${this._sidebarTab === "zones"
               ? this._renderZoneSidebar()
-              : this._renderFurnitureSidebar()}
+              : this._sidebarTab === "furniture"
+              ? this._renderFurnitureSidebar()
+              : this._renderLiveSidebar()}
           </div>
         </div>
 
@@ -3528,6 +3643,135 @@ export class EverythingPresenceProPanel extends LitElement {
             </div>
           `;
         })}
+      </div>
+    `;
+  }
+
+  /** Find a HA entity state by unique_id suffix for the current entry */
+  private _entityState(uniqueSuffix: string): any | null {
+    if (!this.hass || !this._selectedEntryId) return null;
+    const uid = `${this._selectedEntryId}_${uniqueSuffix}`;
+    const entities = this.hass.entities || {};
+    for (const eid of Object.keys(entities)) {
+      if (entities[eid].unique_id === uid) {
+        return this.hass.states?.[eid] ?? null;
+      }
+    }
+    return null;
+  }
+
+  private _renderLiveSidebar() {
+    const binaryState = (suffix: string): boolean => {
+      const s = this._entityState(suffix);
+      return s?.state === "on";
+    };
+
+    const sensorValue = (suffix: string): string | null => {
+      const s = this._entityState(suffix);
+      return s?.state !== undefined && s.state !== "unavailable" && s.state !== "unknown"
+        ? s.state : null;
+    };
+
+    const sensorDefs: { id: string; label: string; on: boolean; info: string }[] = [
+      {
+        id: "occupancy",
+        label: "Occupancy",
+        on: binaryState("occupancy"),
+        info: "Combined occupancy from all sources — PIR motion, static mmWave presence, and zone tracking. Shows detected if any source detects presence.",
+      },
+      {
+        id: "static",
+        label: "Static presence",
+        on: binaryState("static_presence"),
+        info: "mmWave radar detects stationary people by measuring micro-movements like breathing. Works through furniture and blankets.",
+      },
+      {
+        id: "motion",
+        label: "PIR motion",
+        on: binaryState("motion"),
+        info: "Passive infrared sensor detects movement by sensing body heat. Fast response but only triggers on motion, not stationary presence.",
+      },
+    ];
+
+    // Add zone occupancy entries for configured zones
+    for (let i = 0; i < MAX_ZONES; i++) {
+      const zone = this._zoneConfigs[i];
+      if (!zone) continue;
+      const slot = i + 1;
+      const occupied = binaryState(`zone_${slot}`);
+      const countStr = sensorValue(`zone_${slot}_count`);
+      const count = countStr !== null ? parseInt(countStr) : 0;
+      sensorDefs.push({
+        id: `zone_${slot}`,
+        label: zone.name,
+        on: occupied,
+        info: `Zone ${slot} occupancy. Currently ${count} target${count !== 1 ? "s" : ""} detected. Sensitivity determines how many consecutive frames are needed to confirm presence.`,
+      });
+    }
+
+    // Environment sensors
+    const envSensors: { id: string; label: string; value: string }[] = [];
+    const lux = sensorValue("illuminance");
+    if (lux !== null) envSensors.push({ id: "illuminance", label: "Illuminance", value: `${parseFloat(lux).toFixed(1)} lux` });
+    const temp = sensorValue("temperature");
+    if (temp !== null) envSensors.push({ id: "temperature", label: "Temperature", value: `${parseFloat(temp).toFixed(1)} °C` });
+    const hum = sensorValue("humidity");
+    if (hum !== null) envSensors.push({ id: "humidity", label: "Humidity", value: `${parseFloat(hum).toFixed(1)} %` });
+    const co2 = sensorValue("co2");
+    if (co2 !== null) envSensors.push({ id: "co2", label: "CO₂", value: `${parseInt(co2)} ppm` });
+
+    return html`
+      <div style="padding: 8px 0;">
+        <div class="live-section-header">Presence</div>
+        ${sensorDefs.map((s) => html`
+          <div class="live-sensor-row">
+            <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>
+            <span class="live-sensor-label">${s.label}</span>
+            <span class="live-sensor-state ${s.on ? "detected" : ""}">${s.on ? "Detected" : "Clear"}</span>
+            <button class="live-sensor-info-btn"
+              @click=${() => { this._expandedSensorInfo = this._expandedSensorInfo === s.id ? null : s.id; }}
+            >
+              <ha-icon icon="mdi:information-outline" style="--mdc-icon-size: 16px;"></ha-icon>
+            </button>
+          </div>
+          ${this._expandedSensorInfo === s.id ? html`
+            <div class="live-sensor-info-text">${s.info}</div>
+          ` : nothing}
+        `)}
+
+        ${envSensors.length ? html`
+          <div class="live-section-header" style="padding-top: 16px;">Environment</div>
+          ${envSensors.map((s) => html`
+            <div class="live-sensor-row">
+              <span class="live-sensor-label">${s.label}</span>
+              <span class="live-sensor-value">${s.value}</span>
+            </div>
+          `)}
+        ` : nothing}
+
+        <div class="live-section-header" style="padding-top: 16px;">Targets</div>
+        ${this._targets.map((t, i) => html`
+          <div class="live-sensor-row">
+            <div class="live-sensor-dot" style="background: ${t.active ? (TARGET_COLORS[i] || TARGET_COLORS[0]) : "var(--disabled-text-color, #bbb)"};"></div>
+            <span class="live-sensor-label">Target ${i + 1}</span>
+            <span class="live-sensor-state">${t.active ? `(${Math.round(t.x)}, ${Math.round(t.y)})` : "Inactive"}</span>
+          </div>
+        `)}
+
+        <div class="live-nav-links">
+          <button class="live-nav-link" @click=${() => { this._sidebarTab = "zones"; }}>
+            <ha-icon icon="mdi:vector-square" style="--mdc-icon-size: 16px;"></ha-icon>
+            Detection zones
+          </button>
+          <button class="live-nav-link" @click=${() => { this._view = "settings"; }}>
+            <ha-icon icon="mdi:cog" style="--mdc-icon-size: 16px;"></ha-icon>
+            Configuration
+          </button>
+          <button class="live-nav-link" @click=${this._changePlacement}>
+            <ha-icon icon="mdi:target" style="--mdc-icon-size: 16px;"></ha-icon>
+            Redo room calibration
+          </button>
+        </div>
       </div>
     `;
   }
