@@ -2509,14 +2509,14 @@ export class EverythingPresenceProPanel extends LitElement {
         ${walker(170, 72)}
         ${arrow(TR.x, TR.y, BR.x, BR.y)}
         ${walker(265, 145, false, 90)}
-        <!-- 3rd arrow shortened: stops at ~120 to leave room for "4" badge -->
-        ${arrow(BR.x, BR.y, BL.x + 80, BL.y)}
+        <!-- 3rd arrow goes right up to corner 4 -->
+        ${arrow(BR.x, BR.y, BL.x + 55, BL.y)}
         ${walker(190, 218, true)}
 
-        <!-- Corner 4 badge: between arrow end and plant -->
-        <circle cx="${BL.x + 55}" cy="${BL.y}" r="14" fill="#FF9800" opacity="0.15"/>
-        <circle cx="${BL.x + 55}" cy="${BL.y}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
-        <text x="${BL.x + 55}" y="${BL.y + 5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
+        <!-- Corner 4 badge: just past arrow end, next to plant -->
+        <circle cx="${BL.x + 40}" cy="${BL.y}" r="14" fill="#FF9800" opacity="0.15"/>
+        <circle cx="${BL.x + 40}" cy="${BL.y}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
+        <text x="${BL.x + 40}" y="${BL.y + 5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
 
         <!-- Pot plant in the corner (BL) -->
         <g transform="translate(${BL.x + 5}, ${BL.y - 5})">
@@ -2531,11 +2531,11 @@ export class EverythingPresenceProPanel extends LitElement {
           <ellipse cx="6" cy="-22" rx="7" ry="6" fill="#A5D6A7" stroke="#66BB6A" stroke-width="1"/>
         </g>
 
-        <!-- Horizontal distance measure from left wall through plant to corner 4 -->
-        <line x1="${BL.x - 5}" y1="${BL.y + 16}" x2="${BL.x + 55}" y2="${BL.y + 16}" stroke="#FF9800" stroke-width="1.5"/>
-        <line x1="${BL.x - 5}" y1="${BL.y + 10}" x2="${BL.x - 5}" y2="${BL.y + 22}" stroke="#FF9800" stroke-width="1.5"/>
-        <line x1="${BL.x + 55}" y1="${BL.y + 10}" x2="${BL.x + 55}" y2="${BL.y + 22}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${BL.x + 25}" y="${BL.y + 28}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
+        <!-- Horizontal distance measure below the room -->
+        <line x1="${BL.x - 5}" y1="${BL.y + 18}" x2="${BL.x + 40}" y2="${BL.y + 18}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="${BL.x - 5}" y1="${BL.y + 12}" x2="${BL.x - 5}" y2="${BL.y + 24}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="${BL.x + 40}" y1="${BL.y + 12}" x2="${BL.x + 40}" y2="${BL.y + 24}" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="${BL.x + 17}" y="${BL.y + 32}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
 
         <!-- Corner 1: front-left -->
         <circle cx="${TL.x}" cy="${TL.y}" r="14" fill="#4CAF50" opacity="0.15"/>

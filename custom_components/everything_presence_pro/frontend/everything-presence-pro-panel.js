@@ -108,14 +108,14 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         ${t(170,72)}
         ${e(o,s,n,a)}
         ${t(265,145,!1,90)}
-        <!-- 3rd arrow shortened: stops at ~120 to leave room for "4" badge -->
-        ${e(n,a,l+80,d)}
+        <!-- 3rd arrow goes right up to corner 4 -->
+        ${e(n,a,l+55,d)}
         ${t(190,218,!0)}
 
-        <!-- Corner 4 badge: between arrow end and plant -->
-        <circle cx="${l+55}" cy="${d}" r="14" fill="#FF9800" opacity="0.15"/>
-        <circle cx="${l+55}" cy="${d}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
-        <text x="${l+55}" y="${d+5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
+        <!-- Corner 4 badge: just past arrow end, next to plant -->
+        <circle cx="${l+40}" cy="${d}" r="14" fill="#FF9800" opacity="0.15"/>
+        <circle cx="${l+40}" cy="${d}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
+        <text x="${l+40}" y="${d+5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
 
         <!-- Pot plant in the corner (BL) -->
         <g transform="translate(${l+5}, ${d-5})">
@@ -130,11 +130,11 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           <ellipse cx="6" cy="-22" rx="7" ry="6" fill="#A5D6A7" stroke="#66BB6A" stroke-width="1"/>
         </g>
 
-        <!-- Horizontal distance measure from left wall through plant to corner 4 -->
-        <line x1="${l-5}" y1="${d+16}" x2="${l+55}" y2="${d+16}" stroke="#FF9800" stroke-width="1.5"/>
-        <line x1="${l-5}" y1="${d+10}" x2="${l-5}" y2="${d+22}" stroke="#FF9800" stroke-width="1.5"/>
-        <line x1="${l+55}" y1="${d+10}" x2="${l+55}" y2="${d+22}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${l+25}" y="${d+28}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
+        <!-- Horizontal distance measure below the room -->
+        <line x1="${l-5}" y1="${d+18}" x2="${l+40}" y2="${d+18}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="${l-5}" y1="${d+12}" x2="${l-5}" y2="${d+24}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="${l+40}" y1="${d+12}" x2="${l+40}" y2="${d+24}" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="${l+17}" y="${d+32}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
 
         <!-- Corner 1: front-left -->
         <circle cx="${i}" cy="${r}" r="14" fill="#4CAF50" opacity="0.15"/>
