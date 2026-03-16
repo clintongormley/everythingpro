@@ -2771,10 +2771,25 @@ export class EverythingPresenceProPanel extends LitElement {
       // ±60° from center → edges at -15° and 105°
       const cx = 28, cy = 28, r = 180;
       const centerDeg = 45;
-      const a1 = (centerDeg - 60) * Math.PI / 180; // 75°
-      const a2 = (centerDeg + 60) * Math.PI / 180; // 195°
-      const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
-      const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+      const a1Rad = (centerDeg - 60) * Math.PI / 180; // -15°
+      const a2Rad = (centerDeg + 60) * Math.PI / 180; // 105°
+      const x1 = cx + r * Math.cos(a1Rad), y1 = cy + r * Math.sin(a1Rad);
+      const x2 = cx + r * Math.cos(a2Rad), y2 = cy + r * Math.sin(a2Rad);
+      // Range arcs at 2m and 4m (~32px per meter)
+      const arcPath = (ar: number, label: string) => {
+        const ax1 = cx + ar * Math.cos(a1Rad), ay1 = cy + ar * Math.sin(a1Rad);
+        const ax2 = cx + ar * Math.cos(a2Rad), ay2 = cy + ar * Math.sin(a2Rad);
+        // Label at center of arc
+        const amid = (centerDeg) * Math.PI / 180;
+        const lx = cx + (ar + 8) * Math.cos(amid), ly = cy + (ar + 8) * Math.sin(amid);
+        return svg`
+          <path d="M ${ax1} ${ay1} A ${ar} ${ar} 0 0 1 ${ax2} ${ay2}"
+                fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="1"
+                stroke-dasharray="4 3" opacity="0.35" clip-path="url(#room-clip)"/>
+          <text x="${lx}" y="${ly}" font-size="8" fill="var(--secondary-text-color, #aaa)"
+                text-anchor="middle" clip-path="url(#room-clip)">${label}</text>
+        `;
+      };
       return svg`
         <svg viewBox="0 0 200 160" width="200" height="160" style="display: block;">
           <defs>
@@ -2782,21 +2797,20 @@ export class EverythingPresenceProPanel extends LitElement {
           </defs>
           <!-- Room outline -->
           <rect x="20" y="20" width="160" height="120" fill="none" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="2"/>
-          <!-- 120° FOV wedge clipped to room (large-arc=0, sweep=1 for CW 120° arc) -->
+          <!-- 120° FOV wedge clipped to room -->
           <path d="M ${cx} ${cy} L ${x2} ${y2} A ${r} ${r} 0 0 0 ${x1} ${y1} Z"
-                fill="var(--primary-color, #03a9f4)" opacity="0.1"
+                fill="var(--primary-color, #03a9f4)" opacity="0.08"
                 clip-path="url(#room-clip)"/>
-          <!-- Cone edge lines (clipped) -->
+          <!-- Cone edge lines -->
           <line x1="${cx}" y1="${cy}" x2="${x1}" y2="${y1}" stroke="var(--primary-color, #03a9f4)" stroke-width="0.5" opacity="0.3" clip-path="url(#room-clip)"/>
           <line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="var(--primary-color, #03a9f4)" stroke-width="0.5" opacity="0.3" clip-path="url(#room-clip)"/>
+          <!-- Range arcs -->
+          ${arcPath(64, "2m")}
+          ${arcPath(128, "4m")}
           <!-- Sensor dot -->
           <circle cx="${cx}" cy="${cy}" r="6" fill="var(--primary-color, #03a9f4)"/>
-          <!-- Arrow to opposite corner -->
-          <line x1="34" y1="34" x2="160" y2="128" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5" stroke-dasharray="6 3"/>
-          <polygon points="160,128 150,122 154,132" fill="var(--primary-color, #03a9f4)"/>
           <!-- Labels -->
           <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
-          <text x="75" y="85" font-size="10" fill="var(--secondary-text-color, #888)">120° FOV</text>
         </svg>
       `;
     })();
