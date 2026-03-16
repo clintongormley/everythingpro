@@ -74,7 +74,7 @@ const FLOOR_PLAN_SVGS: Record<string, { viewBox: string; content: string }> = {
   "toilet": { viewBox: "0 0 300 400", content: `<rect x="75" y="30" width="150" height="80" rx="10" stroke="black" stroke-width="8" fill="none"/><path d="M 75 110 C 75 110, 50 160, 50 210 C 50 310, 125 360, 150 360 C 175 360, 250 310, 250 210 C 250 160, 225 110, 225 110 Z" stroke="black" stroke-width="8" fill="none"/><path d="M 100 150 C 100 150, 75 190, 75 220 C 75 300, 125 340, 150 340 C 175 340, 225 300, 225 220 C 225 190, 200 150, 200 150 Z" stroke="black" stroke-width="8" fill="none"/><circle cx="150" cy="70" r="15" stroke="black" stroke-width="8" fill="none"/>` },
 };
 
-type SetupStep = "corners" | "preview";
+type SetupStep = "guide" | "corners" | "preview";
 
 const FURNITURE_CATALOG: FurnitureSticker[] = [
   // Floor plan SVGs (top-down, independently scalable)
@@ -2387,7 +2387,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   private _changePlacement(): void {
     this._guardNavigation(() => {
-      this._setupStep = "corners";
+      this._setupStep = "guide";
       this._wizardCornerIndex = 0;
       this._wizardCorners = [null, null, null, null];
       this._wizardRoomWidth = this._roomWidth;
@@ -2439,6 +2439,9 @@ export class EverythingPresenceProPanel extends LitElement {
   private _renderWizard() {
     let stepContent;
     switch (this._setupStep) {
+      case "guide":
+        stepContent = this._renderWizardGuide();
+        break;
       case "corners":
         stepContent = this._renderWizardCorners();
         break;
@@ -2449,6 +2452,105 @@ export class EverythingPresenceProPanel extends LitElement {
     return html`
       <div class="wizard-container">
         ${this._renderHeader()} ${stepContent}
+      </div>
+    `;
+  }
+
+  private _renderWizardGuide() {
+    // Room diagram showing corner order and offset fields explanation
+    const roomDiagram = svg`
+      <svg viewBox="0 0 340 260" width="340" height="260" style="display: block; margin: 0 auto;">
+        <!-- Room -->
+        <rect x="20" y="20" width="300" height="220" fill="var(--secondary-background-color, #f5f5f5)" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="4"/>
+
+        <!-- Sensor in top-left corner -->
+        <circle cx="30" cy="30" r="8" fill="var(--primary-color, #03a9f4)"/>
+        <text x="42" y="35" font-size="11" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
+
+        <!-- Corner 1: front-left (accessible) -->
+        <circle cx="30" cy="230" r="12" fill="none" stroke="#4CAF50" stroke-width="2"/>
+        <text x="25" y="235" font-size="12" fill="#4CAF50" font-weight="bold" text-anchor="middle">1</text>
+        <text x="48" y="235" font-size="9" fill="var(--secondary-text-color, #888)">Front-left</text>
+
+        <!-- Corner 2: front-right (accessible) -->
+        <circle cx="310" cy="230" r="12" fill="none" stroke="#4CAF50" stroke-width="2"/>
+        <text x="305" y="235" font-size="12" fill="#4CAF50" font-weight="bold" text-anchor="middle">2</text>
+        <text x="258" y="235" font-size="9" fill="var(--secondary-text-color, #888)">Front-right</text>
+
+        <!-- Corner 3: back-right (blocked by furniture) -->
+        <circle cx="310" cy="30" r="12" fill="none" stroke="#FF9800" stroke-width="2" stroke-dasharray="4 2"/>
+        <text x="305" y="35" font-size="12" fill="#FF9800" font-weight="bold" text-anchor="middle">3</text>
+        <text x="260" y="52" font-size="9" fill="#FF9800">Blocked!</text>
+
+        <!-- Bookshelf blocking corner 3 -->
+        <rect x="280" y="20" width="40" height="50" fill="none" stroke="var(--secondary-text-color, #888)" stroke-width="1.5" rx="2" stroke-dasharray="4 2"/>
+        <text x="300" y="80" font-size="8" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Shelf</text>
+
+        <!-- Corner 4: back-left (accessible) -->
+        <circle cx="30" cy="30" r="12" fill="none" stroke="#4CAF50" stroke-width="2"/>
+        <text x="25" y="35" font-size="12" fill="#4CAF50" font-weight="bold" text-anchor="middle">4</text>
+
+        <!-- Dotted path showing walking order -->
+        <path d="M 30 228 L 308 228" stroke="var(--primary-color, #03a9f4)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
+        <path d="M 308 228 L 308 32" stroke="var(--primary-color, #03a9f4)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
+        <path d="M 308 32 L 32 32" stroke="var(--primary-color, #03a9f4)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
+
+        <!-- Offset example for blocked corner 3 -->
+        <!-- Person standing near corner 3 but offset -->
+        <circle cx="265" cy="55" r="5" fill="#FF9800" opacity="0.6"/>
+        <text x="265" y="45" font-size="7" fill="#FF9800" text-anchor="middle">You</text>
+
+        <!-- Offset arrows -->
+        <line x1="265" y1="55" x2="310" y2="55" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="288" y="67" font-size="7" fill="#FF9800" text-anchor="middle">45cm</text>
+        <line x1="265" y1="55" x2="265" y2="30" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="253" y="42" font-size="7" fill="#FF9800" text-anchor="end">25cm</text>
+
+        <!-- Wall labels -->
+        <text x="170" y="14" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Back wall (sensor side)</text>
+        <text x="170" y="252" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Front wall (far from sensor)</text>
+      </svg>
+    `;
+
+    return html`
+      <div style="max-width: 560px; margin: 0 auto;">
+        <div class="setting-group">
+          <h4 style="text-align: center; margin-bottom: 16px;">How room calibration works</h4>
+
+          ${roomDiagram}
+
+          <div style="display: flex; flex-direction: column; gap: 14px; padding: 16px 4px 0;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <div style="min-width: 22px; height: 22px; border-radius: 50%; border: 2px solid #4CAF50; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #4CAF50;">1</div>
+              <div style="font-size: 13px;">
+                <strong>Walk to each corner</strong> in order (1 → 2 → 3 → 4) and click Mark. Stand still for a few seconds so the sensor can lock on to your position.
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <div style="min-width: 22px; height: 22px; border-radius: 50%; border: 2px solid #FF9800; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #FF9800;">!</div>
+              <div style="font-size: 13px;">
+                <strong>Can't reach a corner?</strong> Stand as close as you can and enter the distance from the wall in the offset fields. For example, if a shelf blocks corner 3, stand 45cm from the right wall and 25cm from the back wall, and enter those distances.
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <ha-icon icon="mdi:information-outline" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 1px;"></ha-icon>
+              <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
+                Corner 4 is where your sensor is mounted. You can stand right under it.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+          <button class="wizard-btn wizard-btn-back"
+            @click=${() => { this._setupStep = null; }}
+          >Back</button>
+          <button class="wizard-btn wizard-btn-primary"
+            @click=${() => { this._setupStep = "corners"; }}
+          >Begin marking corners</button>
+        </div>
       </div>
     `;
   }
@@ -2885,7 +2987,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <div style="display: flex; justify-content: center; margin-top: 24px;">
             <button
               class="wizard-btn wizard-btn-primary"
-              @click=${() => { this._setupStep = "corners"; }}
+              @click=${() => { this._setupStep = "guide"; }}
             >
               Start room size calibration
             </button>
