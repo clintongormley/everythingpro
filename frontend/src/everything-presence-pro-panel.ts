@@ -159,7 +159,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   // Grid data: byte per cell using the encoding above
   @state() private _grid: Uint8Array = new Uint8Array(GRID_CELL_COUNT);
-  @state() private _zoneConfigs: ZoneConfig[] = []; // up to 7 zones (zone 0 = default room)
+  @state() private _zoneConfigs: (ZoneConfig | null)[] = new Array(MAX_ZONES).fill(null);
   @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones, -1/-2 = overlays
   @state() private _sidebarTab: "zones" | "furniture" = "zones";
   @state() private _showCustomIconPicker = false;
@@ -364,13 +364,17 @@ export class EverythingPresenceProPanel extends LitElement {
       this._grid = new Uint8Array(GRID_CELL_COUNT);
     }
 
-    // Load zone configs (stored inside room_layout)
-    const zones: ZoneConfig[] = (layout.zones || []).map((z: any, i: number) => ({
-      name: z.name || `Zone ${i + 1}`,
-      color: z.color || ZONE_COLORS[i % ZONE_COLORS.length],
-      sensitivity: z.sensitivity ?? 1,
-    }));
-    this._zoneConfigs = zones;
+    // Load zone configs (stored inside room_layout as zone_slots or legacy zones)
+    const slots = layout.zone_slots || layout.zones || [];
+    this._zoneConfigs = Array.from({ length: MAX_ZONES }, (_, i) => {
+      const z = slots[i];
+      if (!z) return null;
+      return {
+        name: z.name || `Zone ${i + 1}`,
+        color: z.color || ZONE_COLORS[i % ZONE_COLORS.length],
+        sensitivity: z.sensitivity ?? 1,
+      };
+    });
   }
 
   private _subscribeTargets(entryId: string): void {
@@ -487,48 +491,41 @@ export class EverythingPresenceProPanel extends LitElement {
   // -- Zone management --
 
   private _addZone(): void {
-    if (this._zoneConfigs.length >= MAX_ZONES) return;
-
-    // Find highest "Zone N" number and add 1
-    let maxNum = 0;
-    for (const z of this._zoneConfigs) {
-      const match = z.name.match(/^Zone (\d+)$/);
-      if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
-    }
+    const firstEmpty = this._zoneConfigs.findIndex((z) => z === null);
+    if (firstEmpty === -1) return; // All 7 slots full
 
     // Pick first unused color
-    const usedColors = new Set(this._zoneConfigs.map((z) => z.color));
+    const usedColors = new Set(
+      this._zoneConfigs.filter((z): z is ZoneConfig => z !== null).map((z) => z.color)
+    );
     const color = ZONE_COLORS.find((c) => !usedColors.has(c)) ??
-      ZONE_COLORS[this._zoneConfigs.length % ZONE_COLORS.length];
-    this._zoneConfigs = [
-      ...this._zoneConfigs,
-      {
-        name: `Zone ${maxNum + 1}`,
-        color,
-        sensitivity: 1,
-      },
-    ];
-    this._activeZone = this._zoneConfigs.length; // 1-based zone number
+      ZONE_COLORS[firstEmpty % ZONE_COLORS.length];
+    const configs = [...this._zoneConfigs];
+    configs[firstEmpty] = {
+      name: `Zone ${firstEmpty + 1}`,
+      color,
+      sensitivity: 1,
+    };
+    this._zoneConfigs = configs;
+    this._activeZone = firstEmpty + 1; // 1-based slot number
     this._dirty = true;
   }
 
-  private _removeZone(zoneNum: number): void {
-    if (zoneNum < 1 || zoneNum > this._zoneConfigs.length) return;
-    // Clear all cells with this zone back to zone 0
+  private _removeZone(slot: number): void {
+    if (slot < 1 || slot > MAX_ZONES || this._zoneConfigs[slot - 1] === null) return;
+    // Clear all grid cells with this zone back to zone 0
     this._grid = new Uint8Array(this._grid);
     for (let i = 0; i < GRID_CELL_COUNT; i++) {
-      if (cellZone(this._grid[i]) === zoneNum) {
+      if (cellZone(this._grid[i]) === slot) {
         this._grid[i] = cellSetZone(this._grid[i], 0);
       }
-      // Shift zones above this one down
-      const z = cellZone(this._grid[i]);
-      if (z > zoneNum) {
-        this._grid[i] = cellSetZone(this._grid[i], z - 1);
-      }
     }
-    this._zoneConfigs = this._zoneConfigs.filter((_, i) => i !== zoneNum - 1);
-    if (this._activeZone !== null && this._activeZone >= zoneNum) {
-      this._activeZone = Math.max(0, this._activeZone - 1);
+    // No renumbering — just null out the slot
+    const configs = [...this._zoneConfigs];
+    configs[slot - 1] = null;
+    this._zoneConfigs = configs;
+    if (this._activeZone === slot) {
+      this._activeZone = null;
     }
     this._dirty = true;
     this.requestUpdate();
@@ -705,8 +702,9 @@ export class EverythingPresenceProPanel extends LitElement {
     if (!cellIsInside(cell)) return "var(--secondary-background-color, #e0e0e0)";
 
     const zone = cellZone(cell);
-    if (zone > 0 && zone <= this._zoneConfigs.length) {
-      return this._zoneConfigs[zone - 1].color;
+    if (zone > 0 && zone <= MAX_ZONES) {
+      const config = this._zoneConfigs[zone - 1];
+      if (config) return config.color;
     }
     return "var(--card-background-color, #fff)"; // zone 0 = white
   }
@@ -749,11 +747,9 @@ export class EverythingPresenceProPanel extends LitElement {
         type: "everything_presence_pro/set_room_layout",
         entry_id: this._selectedEntryId,
         grid_bytes: Array.from(this._grid),
-        zones: this._zoneConfigs.map((z) => ({
-          name: z.name,
-          color: z.color,
-          sensitivity: z.sensitivity,
-        })),
+        zone_slots: this._zoneConfigs.map((z) =>
+          z !== null ? { name: z.name, color: z.color, sensitivity: z.sensitivity } : null
+        ),
         room_sensitivity: this._roomSensitivity,
         furniture: this._furniture.map((f) => ({
           type: f.type, icon: f.icon, label: f.label,
@@ -769,7 +765,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   // -- Template management (localStorage) --
 
-  private _getTemplates(): { name: string; grid: number[]; zones: ZoneConfig[]; roomWidth: number; roomDepth: number; roomSensitivity?: number; furniture?: FurnitureItem[] }[] {
+  private _getTemplates(): { name: string; grid: number[]; zones: (ZoneConfig | null)[]; roomWidth: number; roomDepth: number; roomSensitivity?: number; furniture?: FurnitureItem[] }[] {
     try {
       return JSON.parse(localStorage.getItem("epp_layout_templates") || "[]");
     } catch {
@@ -786,7 +782,7 @@ export class EverythingPresenceProPanel extends LitElement {
     const entry = {
       name,
       grid: Array.from(this._grid),
-      zones: this._zoneConfigs.map((z) => ({ ...z })),
+      zones: this._zoneConfigs.map((z) => z !== null ? { ...z } : null),
       roomWidth: this._roomWidth,
       roomDepth: this._roomDepth,
       roomSensitivity: this._roomSensitivity,
@@ -807,7 +803,9 @@ export class EverythingPresenceProPanel extends LitElement {
     const tmpl = templates.find((t) => t.name === name);
     if (!tmpl) return;
     this._grid = new Uint8Array(tmpl.grid);
-    this._zoneConfigs = tmpl.zones;
+    // Pad to 7 slots for backwards compat with old packed templates
+    const zones = tmpl.zones || [];
+    this._zoneConfigs = Array.from({ length: MAX_ZONES }, (_, i) => zones[i] ?? null);
     this._roomWidth = tmpl.roomWidth;
     this._roomDepth = tmpl.roomDepth;
     this._roomSensitivity = tmpl.roomSensitivity ?? 1;
@@ -2745,11 +2743,12 @@ export class EverythingPresenceProPanel extends LitElement {
       <div class="zone-scroll-area">
       <!-- Named zones 1..N -->
       ${this._zoneConfigs.map((zone, i) => {
-        const zoneNum = i + 1;
+        if (zone === null) return nothing;
+        const slot = i + 1;
         return html`
           <div
-            class="zone-item ${this._activeZone === zoneNum ? "active" : ""}"
-            @click=${() => { this._activeZone = zoneNum; }}
+            class="zone-item ${this._activeZone === slot ? "active" : ""}"
+            @click=${() => { this._activeZone = slot; }}
           >
             <div class="zone-item-row">
               <div class="zone-color-dot" style="background: ${zone.color};"></div>
@@ -2759,24 +2758,24 @@ export class EverythingPresenceProPanel extends LitElement {
                 .value=${zone.name}
                 @input=${(e: Event) => {
                   const val = (e.target as HTMLInputElement).value;
-                  this._zoneConfigs = this._zoneConfigs.map((z, j) =>
-                    j === i ? { ...z, name: val } : z
-                  );
+                  const configs = [...this._zoneConfigs];
+                  configs[i] = { ...zone, name: val };
+                  this._zoneConfigs = configs;
                 }}
-                @click=${(e: Event) => { e.stopPropagation(); this._activeZone = zoneNum; }}
-                @focus=${() => { this._activeZone = zoneNum; }}
+                @click=${(e: Event) => { e.stopPropagation(); this._activeZone = slot; }}
+                @focus=${() => { this._activeZone = slot; }}
               />
               <button
                 class="zone-remove-btn"
                 @click=${(e: Event) => {
                   e.stopPropagation();
-                  this._removeZone(zoneNum);
+                  this._removeZone(slot);
                 }}
               >
                 <ha-icon icon="mdi:close"></ha-icon>
               </button>
             </div>
-            ${this._activeZone === zoneNum ? html`
+            ${this._activeZone === slot ? html`
               <div class="zone-item-row zone-settings-row">
                 <label class="zone-setting-label">Sensitivity</label>
                 <select
@@ -2784,9 +2783,9 @@ export class EverythingPresenceProPanel extends LitElement {
                   .value=${String(zone.sensitivity)}
                   @change=${(e: Event) => {
                     const val = parseInt((e.target as HTMLSelectElement).value);
-                    this._zoneConfigs = this._zoneConfigs.map((z, j) =>
-                      j === i ? { ...z, sensitivity: val } : z
-                    );
+                    const configs = [...this._zoneConfigs];
+                    configs[i] = { ...zone, sensitivity: val };
+                    this._zoneConfigs = configs;
                   }}
                   @click=${(e: Event) => e.stopPropagation()}
                 >
@@ -2800,9 +2799,9 @@ export class EverythingPresenceProPanel extends LitElement {
                   .value=${zone.color}
                   @input=${(e: Event) => {
                     const val = (e.target as HTMLInputElement).value;
-                    this._zoneConfigs = this._zoneConfigs.map((z, j) =>
-                      j === i ? { ...z, color: val } : z
-                    );
+                    const configs = [...this._zoneConfigs];
+                    configs[i] = { ...zone, color: val };
+                    this._zoneConfigs = configs;
                   }}
                   @click=${(e: Event) => e.stopPropagation()}
                 />
@@ -2812,7 +2811,7 @@ export class EverythingPresenceProPanel extends LitElement {
         `;
       })}
 
-      ${this._zoneConfigs.length < MAX_ZONES
+      ${this._zoneConfigs.some((z) => z === null)
         ? html`
           <button class="add-zone-btn" @click=${this._addZone}>
             <ha-icon icon="mdi:plus"></ha-icon>
