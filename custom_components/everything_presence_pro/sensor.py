@@ -21,14 +21,12 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EverythingPresenceProConfigEntry
-from .const import DOMAIN
+from .const import DOMAIN, MAX_ZONES
 from .coordinator import (
     EverythingPresenceProCoordinator,
     SIGNAL_SENSORS_UPDATED,
     SIGNAL_TARGETS_UPDATED,
-    SIGNAL_ZONES_UPDATED,
 )
-from .zone_engine import Zone
 
 
 async def async_setup_entry(
@@ -49,36 +47,13 @@ async def async_setup_entry(
     if coordinator.co2 is not None:
         entities.append(EverythingPresenceProCO2Sensor(coordinator))
 
-    # Zone target count sensors
-    tracked_zone_ids: set[int] = set()
-    for zone in coordinator.zones:
+    # Pre-create all 7 zone target count entities (disabled by default)
+    for slot in range(1, MAX_ZONES + 1):
         entities.append(
-            EverythingPresenceProZoneTargetCountSensor(coordinator, zone)
+            EverythingPresenceProZoneTargetCountSensor(coordinator, slot)
         )
-        tracked_zone_ids.add(zone.id)
 
     async_add_entities(entities)
-
-    @callback
-    def _on_zones_updated() -> None:
-        """Add entities for newly created zones."""
-        new_entities: list[SensorEntity] = []
-        for zone in coordinator.zones:
-            if zone.id not in tracked_zone_ids:
-                new_entities.append(
-                    EverythingPresenceProZoneTargetCountSensor(coordinator, zone)
-                )
-                tracked_zone_ids.add(zone.id)
-        if new_entities:
-            async_add_entities(new_entities)
-
-    entry.async_on_unload(
-        async_dispatcher_connect(
-            hass,
-            f"{SIGNAL_ZONES_UPDATED}_{entry.entry_id}",
-            _on_zones_updated,
-        )
-    )
 
 
 class EverythingPresenceProIlluminanceSensor(SensorEntity):
@@ -239,19 +214,20 @@ class EverythingPresenceProCO2Sensor(SensorEntity):
 
 
 class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
-    """Per-zone target count sensor."""
+    """Per-zone target count sensor. One per slot (1-7), pre-created disabled."""
 
     _attr_has_entity_name = True
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
 
     def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, zone: Zone
+        self, coordinator: EverythingPresenceProCoordinator, slot: int
     ) -> None:
         """Initialize the zone target count sensor."""
         self._coordinator = coordinator
-        self._zone = zone
+        self._slot = slot
         self._attr_unique_id = (
-            f"{coordinator.entry.entry_id}_zone_{zone.id}_count"
+            f"{coordinator.entry.entry_id}_zone_{slot}_count"
         )
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)}
@@ -260,13 +236,16 @@ class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the sensor name."""
-        return f"{self._zone.name} target count"
+        zone = self._coordinator.get_zone_by_slot(self._slot)
+        if zone is not None:
+            return f"{zone.name} target count"
+        return f"Zone {self._slot} target count"
 
     @property
     def native_value(self) -> int:
         """Return the target count for this zone."""
         return self._coordinator.last_result.zone_target_counts.get(
-            self._zone.id, 0
+            self._slot, 0
         )
 
     async def async_added_to_hass(self) -> None:

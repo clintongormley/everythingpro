@@ -32,6 +32,10 @@ def mock_coordinator():
         zone_occupancy={1: True},
         zone_target_counts={1: 2},
     )
+    coordinator.get_zone_by_slot = lambda slot: (
+        Zone(id=1, name="Desk", sensitivity="normal") if slot == 1
+        else None
+    )
     return coordinator
 
 
@@ -61,8 +65,7 @@ def test_co2_sensor(mock_coordinator):
 
 def test_zone_target_count_sensor(mock_coordinator):
     """Test zone target count sensor."""
-    zone = Zone(id=1, name="Desk", sensitivity="normal")
-    sensor = EverythingPresenceProZoneTargetCountSensor(mock_coordinator, zone)
+    sensor = EverythingPresenceProZoneTargetCountSensor(mock_coordinator, slot=1)
     assert sensor.native_value == 2
     assert sensor.name == "Desk target count"
 
@@ -75,6 +78,12 @@ def test_illuminance_sensor_unique_id(mock_coordinator):
 
 def test_zone_target_count_unique_id(mock_coordinator):
     """Test zone target count sensor unique ID."""
-    zone = Zone(id=1, name="Desk", sensitivity="normal")
-    sensor = EverythingPresenceProZoneTargetCountSensor(mock_coordinator, zone)
+    sensor = EverythingPresenceProZoneTargetCountSensor(mock_coordinator, slot=1)
     assert sensor.unique_id == "test_entry_zone_1_count"
+
+
+def test_zone_target_count_disabled_by_default(mock_coordinator):
+    """Test zone target count entities are disabled by default."""
+    sensor = EverythingPresenceProZoneTargetCountSensor(mock_coordinator, slot=5)
+    assert sensor.entity_registry_enabled_default is False
+    assert sensor.name == "Zone 5 target count"
