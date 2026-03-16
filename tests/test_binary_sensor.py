@@ -30,6 +30,12 @@ def mock_coordinator():
         zone_occupancy={1: True, 2: False},
         zone_target_counts={1: 1, 2: 0},
     )
+    # Slot 1 has a zone, slot 2 has a zone, others empty
+    coordinator.get_zone_by_slot = lambda slot: (
+        Zone(id=1, name="Desk", sensitivity="normal") if slot == 1
+        else Zone(id=2, name="Sofa", sensitivity="normal") if slot == 2
+        else None
+    )
     return coordinator
 
 
@@ -53,23 +59,20 @@ def test_static_presence_sensor(mock_coordinator):
 
 def test_zone_occupancy_sensor_on(mock_coordinator):
     """Test zone occupancy sensor when zone is occupied."""
-    zone = Zone(id=1, name="Desk", sensitivity="normal")
-    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, zone)
+    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, slot=1)
     assert sensor.is_on is True
-    assert sensor.name == "Desk"
+    assert sensor.name == "Desk occupancy"
 
 
 def test_zone_occupancy_sensor_off(mock_coordinator):
     """Test zone occupancy sensor when zone is empty."""
-    zone = Zone(id=2, name="Sofa", sensitivity="normal")
-    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, zone)
+    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, slot=2)
     assert sensor.is_on is False
 
 
 def test_zone_occupancy_extra_attributes(mock_coordinator):
     """Test zone occupancy sensor has target_count attribute."""
-    zone = Zone(id=1, name="Desk", sensitivity="normal")
-    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, zone)
+    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, slot=1)
     assert sensor.extra_state_attributes["target_count"] == 1
 
 
@@ -81,6 +84,13 @@ def test_occupancy_sensor_unique_id(mock_coordinator):
 
 def test_zone_sensor_unique_id(mock_coordinator):
     """Test zone sensor unique ID format."""
-    zone = Zone(id=1, name="Desk", sensitivity="normal")
-    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, zone)
+    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, slot=1)
     assert sensor.unique_id == "test_entry_zone_1"
+
+
+def test_zone_sensor_disabled_by_default(mock_coordinator):
+    """Test all 7 zone occupancy entities are pre-created and disabled."""
+    sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, slot=5)
+    assert sensor.entity_registry_enabled_default is False
+    # Empty slot gets default name
+    assert sensor.name == "Zone 5 occupancy"

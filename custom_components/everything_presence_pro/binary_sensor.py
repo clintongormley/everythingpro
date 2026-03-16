@@ -12,14 +12,12 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EverythingPresenceProConfigEntry
-from .const import DOMAIN
+from .const import DOMAIN, MAX_ZONES
 from .coordinator import (
     EverythingPresenceProCoordinator,
     SIGNAL_SENSORS_UPDATED,
     SIGNAL_TARGETS_UPDATED,
-    SIGNAL_ZONES_UPDATED,
 )
-from .zone_engine import Zone
 
 
 async def async_setup_entry(
@@ -30,43 +28,19 @@ async def async_setup_entry(
     """Set up binary sensor entities from a config entry."""
     coordinator: EverythingPresenceProCoordinator = entry.runtime_data
 
-    # Static entities
     entities: list[BinarySensorEntity] = [
         EverythingPresenceProOccupancySensor(coordinator),
         EverythingPresenceProMotionSensor(coordinator),
         EverythingPresenceProStaticPresenceSensor(coordinator),
     ]
 
-    # Zone entities for existing zones
-    tracked_zone_ids: set[int] = set()
-    for zone in coordinator.zones:
+    # Pre-create all 7 zone occupancy entities (disabled by default)
+    for slot in range(1, MAX_ZONES + 1):
         entities.append(
-            EverythingPresenceProZoneOccupancySensor(coordinator, zone)
+            EverythingPresenceProZoneOccupancySensor(coordinator, slot)
         )
-        tracked_zone_ids.add(zone.id)
 
     async_add_entities(entities)
-
-    @callback
-    def _on_zones_updated() -> None:
-        """Add entities for newly created zones."""
-        new_entities: list[BinarySensorEntity] = []
-        for zone in coordinator.zones:
-            if zone.id not in tracked_zone_ids:
-                new_entities.append(
-                    EverythingPresenceProZoneOccupancySensor(coordinator, zone)
-                )
-                tracked_zone_ids.add(zone.id)
-        if new_entities:
-            async_add_entities(new_entities)
-
-    entry.async_on_unload(
-        async_dispatcher_connect(
-            hass,
-            f"{SIGNAL_ZONES_UPDATED}_{entry.entry_id}",
-            _on_zones_updated,
-        )
-    )
 
 
 class EverythingPresenceProOccupancySensor(BinarySensorEntity):
@@ -178,34 +152,36 @@ class EverythingPresenceProStaticPresenceSensor(BinarySensorEntity):
 
 
 class EverythingPresenceProZoneOccupancySensor(BinarySensorEntity):
-    """Per-zone occupancy sensor."""
+    """Per-zone occupancy sensor. One per slot (1-7), pre-created disabled."""
 
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.OCCUPANCY
+    _attr_entity_registry_enabled_default = False
 
     def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, zone: Zone
+        self, coordinator: EverythingPresenceProCoordinator, slot: int
     ) -> None:
         """Initialize the zone occupancy sensor."""
         self._coordinator = coordinator
-        self._zone = zone
-        self._attr_unique_id = (
-            f"{coordinator.entry.entry_id}_zone_{zone.id}"
-        )
+        self._slot = slot
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_zone_{slot}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)}
         )
 
     @property
     def name(self) -> str:
-        """Return the zone name."""
-        return self._zone.name
+        """Return the zone name from the coordinator's slot map."""
+        zone = self._coordinator.get_zone_by_slot(self._slot)
+        if zone is not None:
+            return f"{zone.name} occupancy"
+        return f"Zone {self._slot} occupancy"
 
     @property
     def is_on(self) -> bool:
         """Return true if zone is occupied."""
         return self._coordinator.last_result.zone_occupancy.get(
-            self._zone.id, False
+            self._slot, False
         )
 
     @property
@@ -213,7 +189,7 @@ class EverythingPresenceProZoneOccupancySensor(BinarySensorEntity):
         """Return extra state attributes including target count."""
         return {
             "target_count": self._coordinator.last_result.zone_target_counts.get(
-                self._zone.id, 0
+                self._slot, 0
             )
         }
 

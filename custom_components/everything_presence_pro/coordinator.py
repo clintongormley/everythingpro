@@ -130,6 +130,13 @@ class EverythingPresenceProCoordinator:
         """Return configured zones."""
         return self._zones
 
+    def get_zone_by_slot(self, slot: int) -> Zone | None:
+        """Return the zone configured in a slot, or None if empty."""
+        for zone in self._zones:
+            if zone.id == slot:
+                return zone
+        return None
+
     @property
     def last_result(self) -> ProcessingResult:
         """Return the last processing result."""
