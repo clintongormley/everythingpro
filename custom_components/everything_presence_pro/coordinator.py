@@ -223,8 +223,11 @@ class EverythingPresenceProCoordinator:
         self._rebuild_grid()
 
     def set_room_layout(self, layout: dict[str, Any]) -> None:
-        """Set the room layout configuration."""
+        """Set the room layout configuration and update the zone engine grid."""
         self._room_layout = layout
+        grid_bytes = layout.get("grid_bytes")
+        if grid_bytes and isinstance(grid_bytes, list):
+            self._zone_engine.grid.load_from_bytes(bytes(grid_bytes))
 
     def _rebuild_grid(self) -> None:
         """Compute grid dimensions from perspective + room size and set on zone engine."""
