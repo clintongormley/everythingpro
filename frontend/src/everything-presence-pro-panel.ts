@@ -2272,6 +2272,10 @@ export class EverythingPresenceProPanel extends LitElement {
       return this._renderWizard();
     }
 
+    if (!this._perspective) {
+      return this._renderNeedsCalibration();
+    }
+
     if (this._view === "settings") {
       return this._renderSettings();
     }
@@ -2619,6 +2623,43 @@ export class EverythingPresenceProPanel extends LitElement {
                 ></div>
               `
             )}
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderNeedsCalibration() {
+    return html`
+      <div class="panel">
+        ${this._renderHeader()}
+        <div style="max-width: 520px; margin: 0 auto; padding: 0 24px;">
+          <div class="setting-group">
+            <h4>How to position your sensor</h4>
+            <div style="display: flex; flex-direction: column; gap: 12px; padding: 4px 0;">
+              <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <ha-icon icon="mdi:human-male-height" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 2px;"></ha-icon>
+                <span>Mount <strong>1.5 to 2 meters</strong> from the floor</span>
+              </div>
+              <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <ha-icon icon="mdi:arrow-top-right" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 2px;"></ha-icon>
+                <span>Place in a <strong>corner or on a wall</strong>, pointing toward the most distant opposite corner or wall</span>
+              </div>
+              <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <ha-icon icon="mdi:swap-horizontal" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 2px;"></ha-icon>
+                <span>Keep the beam <strong>horizontal</strong> — not angled up or down</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: center; margin-top: 24px;">
+            <button
+              class="wizard-btn wizard-btn-primary"
+              @click=${() => { this._setupStep = "corners"; }}
+            >
+              <ha-icon icon="mdi:target" style="--mdc-icon-size: 18px; margin-right: 8px;"></ha-icon>
+              Start room size calibration
+            </button>
+          </div>
         </div>
       </div>
     `;
