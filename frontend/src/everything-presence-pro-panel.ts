@@ -2474,7 +2474,7 @@ export class EverythingPresenceProPanel extends LitElement {
       const dx = x2 - x1, dy = y2 - y1;
       const len = Math.sqrt(dx * dx + dy * dy);
       const ux = dx / len, uy = dy / len;
-      const inset = 24;
+      const inset = 40;
       const sx = x1 + ux * inset, sy = y1 + uy * inset;
       const ex = x2 - ux * inset, ey = y2 - uy * inset;
       // Arrowhead
@@ -2505,11 +2505,11 @@ export class EverythingPresenceProPanel extends LitElement {
 
         <!-- Arrows with walking figures: 1→2→3→4 -->
         ${arrow(TL.x, TL.y, TR.x, TR.y)}
-        ${walker(170, 32)}
+        ${walker(170, 52)}
         ${arrow(TR.x, TR.y, BR.x, BR.y)}
-        ${walker(308, 130, true)}
+        ${walker(288, 130, true)}
         ${arrow(BR.x, BR.y, BL.x, BL.y)}
-        ${walker(170, 228, true)}
+        ${walker(170, 208, true)}
 
         <!-- Pot plant blocking corner 4 (BL) -->
         <g transform="translate(${BL.x}, ${BL.y})">

@@ -89,8 +89,8 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         <line x1="0" y1="-4" x2="-5" y2="2" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
         <line x1="0" y1="-4" x2="5" y2="-1" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
       </g>
-    `,e=(t,e,i,r)=>{const o=i-t,s=r-e,n=Math.sqrt(o*o+s*s),a=o/n,l=s/n,d=i-24*a,c=r-24*l;return Z`
-        <line x1="${t+24*a}" y1="${e+24*l}" x2="${d}" y2="${c}" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+    `,e=(t,e,i,r)=>{const o=i-t,s=r-e,n=Math.sqrt(o*o+s*s),a=o/n,l=s/n,d=i-40*a,c=r-40*l;return Z`
+        <line x1="${t+40*a}" y1="${e+40*l}" x2="${d}" y2="${c}" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
         <polygon points="${d},${c} ${d-8*a+4*l},${c-8*l-4*a} ${d-8*a-4*l},${c-8*l+4*a}" fill="var(--primary-color, #03a9f4)" opacity="0.5"/>
       `},i=35,r=35,o=305,s=35,n=305,a=225,l=35,d=225,c=Z`
       <svg viewBox="0 0 340 270" width="340" height="270" style="display: block; margin: 0 auto;">
@@ -105,11 +105,11 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
 
         <!-- Arrows with walking figures: 1→2→3→4 -->
         ${e(i,r,o,s)}
-        ${t(170,32)}
+        ${t(170,52)}
         ${e(o,s,n,a)}
-        ${t(308,130,!0)}
+        ${t(288,130,!0)}
         ${e(n,a,l,d)}
-        ${t(170,228,!0)}
+        ${t(170,208,!0)}
 
         <!-- Pot plant blocking corner 4 (BL) -->
         <g transform="translate(${l}, ${d})">
