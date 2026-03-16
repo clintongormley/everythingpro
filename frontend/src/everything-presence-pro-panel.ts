@@ -2490,8 +2490,9 @@ export class EverythingPresenceProPanel extends LitElement {
     // Inset from room walls so badges and sensor don't clip
     const TL = { x: 50, y: 55 };   // Corner 1: front-left
     const TR = { x: 290, y: 55 };  // Corner 2: front-right (sensor here)
-    const BR = { x: 290, y: 215 }; // Corner 3: back-right (moved up from wall)
-    const BL = { x: 50, y: 235 };  // Corner 4: back-left (plant and 65cm stay near wall)
+    const BR = { x: 290, y: 225 }; // Corner 3: back-right (same distance from bottom as 1/2 from top)
+    const BL = { x: 50, y: 235 };  // Corner 4 plant/65cm position (stays near wall)
+    const BL_BADGE = { x: 90, y: 225 }; // Corner 4 badge at same height as 3
 
     const roomDiagram = svg`
       <svg viewBox="0 0 360 290" width="360" height="290" style="display: block; margin: 0 auto;">
@@ -2509,14 +2510,14 @@ export class EverythingPresenceProPanel extends LitElement {
         ${walker(170, 72)}
         ${arrow(TR.x, TR.y, BR.x, BR.y)}
         ${walker(265, 145, false, 90)}
-        <!-- 3rd arrow horizontal at BR.y, arrowhead stops just before 4 badge -->
-        ${arrow(BR.x, BR.y, BL.x + 5, BR.y)}
+        <!-- 3rd arrow flat from 3 to 4 badge, same gap as arrow 1 has from 2 -->
+        ${arrow(BR.x, BR.y, BL_BADGE.x - 15, BR.y)}
         ${walker(190, BR.y - 17, true)}
 
-        <!-- Corner 4 badge: just past arrow end, next to plant -->
-        <circle cx="${BL.x + 40}" cy="${BL.y}" r="14" fill="#FF9800" opacity="0.15"/>
-        <circle cx="${BL.x + 40}" cy="${BL.y}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
-        <text x="${BL.x + 40}" y="${BL.y + 5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
+        <!-- Corner 4 badge: same height as 3, just past arrow end -->
+        <circle cx="${BL_BADGE.x}" cy="${BL_BADGE.y}" r="14" fill="#FF9800" opacity="0.15"/>
+        <circle cx="${BL_BADGE.x}" cy="${BL_BADGE.y}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
+        <text x="${BL_BADGE.x}" y="${BL_BADGE.y + 5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
 
         <!-- Pot plant in the corner (BL) -->
         <g transform="translate(${BL.x + 5}, ${BL.y - 5})">
@@ -2532,10 +2533,10 @@ export class EverythingPresenceProPanel extends LitElement {
         </g>
 
         <!-- Horizontal distance measure below the room -->
-        <line x1="30" y1="${BL.y + 18}" x2="${BL.x + 40}" y2="${BL.y + 18}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="30" y1="${BL.y + 18}" x2="${BL_BADGE.x}" y2="${BL.y + 18}" stroke="#FF9800" stroke-width="1.5"/>
         <line x1="30" y1="${BL.y + 12}" x2="30" y2="${BL.y + 24}" stroke="#FF9800" stroke-width="1.5"/>
-        <line x1="${BL.x + 40}" y1="${BL.y + 12}" x2="${BL.x + 40}" y2="${BL.y + 24}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${(30 + BL.x + 40) / 2}" y="${BL.y + 32}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
+        <line x1="${BL_BADGE.x}" y1="${BL.y + 12}" x2="${BL_BADGE.x}" y2="${BL.y + 24}" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="${(30 + BL_BADGE.x) / 2}" y="${BL.y + 32}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
 
         <!-- Corner 1: front-left -->
         <circle cx="${TL.x}" cy="${TL.y}" r="14" fill="#4CAF50" opacity="0.15"/>
