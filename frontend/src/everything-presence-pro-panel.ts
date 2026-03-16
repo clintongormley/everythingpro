@@ -354,11 +354,8 @@ export class EverythingPresenceProPanel extends LitElement {
       this._perspective = null;
       this._roomWidth = 0;
       this._roomDepth = 0;
-      this._setupStep = "corners";
-      this._wizardCornerIndex = 0;
-      this._wizardCorners = [null, null, null, null];
-      this._wizardRoomWidth = 0;
-      this._wizardRoomDepth = 0;
+      // Don't auto-start wizard — render() will show the positioning guide
+      this._setupStep = null;
     }
 
     // Load grid from saved layout bytes, or initialize from room dimensions
