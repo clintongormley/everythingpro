@@ -142,6 +142,9 @@ const MAX_RANGE = 6000;
 // Corner capture duration (seconds)
 const CAPTURE_DURATION_S = 5;
 
+// Target dot colors (1 per target, high contrast)
+const TARGET_COLORS = ["#2196F3", "#FF5722", "#4CAF50"]; // blue, red-orange, green
+
 // Color-blind-friendly palette (distinguishable across protanopia, deuteranopia, tritanopia)
 const ZONE_COLORS = [
   "#E69F00", // orange
@@ -2291,29 +2294,24 @@ export class EverythingPresenceProPanel extends LitElement {
       </button>
     ` : nothing;
 
-    if (this._entries.length > 1) {
-      return html`
-        <div class="panel-header">
-          <select
-            class="device-select"
-            .value=${this._selectedEntryId}
-            @change=${this._onDeviceChange}
-          >
-            ${this._entries.map(
-              (e) => html`
-                <option value=${e.entry_id}>
-                  ${e.title}${e.room_name ? ` \u2014 ${e.room_name}` : ""}
-                </option>
-              `
-            )}
-          </select>
-          ${headerBtns}
-        </div>
-      `;
-    }
-    const entry = this._entries[0];
-    const title = entry?.title ?? "Everything Presence Pro";
-    return html`<div class="panel-header">${title} ${headerBtns}</div>`;
+    return html`
+      <div class="panel-header">
+        <select
+          class="device-select"
+          .value=${this._selectedEntryId}
+          @change=${this._onDeviceChange}
+        >
+          ${this._entries.map(
+            (e) => html`
+              <option value=${e.entry_id}>
+                ${e.title}${e.room_name ? ` \u2014 ${e.room_name}` : ""}
+              </option>
+            `
+          )}
+        </select>
+        ${headerBtns}
+      </div>
+    `;
   }
 
   private _renderWizard() {
@@ -2919,10 +2917,11 @@ export class EverythingPresenceProPanel extends LitElement {
             >
               ${this._renderVisibleCells(minCol, maxCol, minRow, maxRow, cellPx)}
             </div>
-            <div class="targets-overlay">
+            ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
+            <div class="targets-overlay" style="pointer-events: none;">
               ${this._targets
-                .filter((t) => t.active)
-                .map((t) => {
+                .map((t, i) => {
+                  if (!t.active) return nothing;
                   const pos = this._mapTargetToGridCell(t);
                   if (!pos) return nothing;
                   const xPct = ((pos.col - minCol) / visCols) * 100;
@@ -2930,12 +2929,10 @@ export class EverythingPresenceProPanel extends LitElement {
                   return html`
                     <div
                       class="target-dot"
-                      style="left: ${xPct}%; top: ${yPct}%;"
+                      style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]};"
                     ></div>
                   `;
                 })}
-            </div>
-            ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
           </div>
 
           <!-- Sidebar -->
@@ -2943,7 +2940,7 @@ export class EverythingPresenceProPanel extends LitElement {
             <div class="sidebar-tabs">
               <button
                 class="sidebar-tab ${this._sidebarTab === "zones" ? "active" : ""}"
-                @click=${() => { this._sidebarTab = "zones"; }}
+                @click=${() => { this._sidebarTab = "zones"; this._selectedFurnitureId = null; }}
               >Zones</button>
               <button
                 class="sidebar-tab ${this._sidebarTab === "furniture" ? "active" : ""}"
