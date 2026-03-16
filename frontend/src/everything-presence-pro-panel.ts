@@ -1,130 +1,289 @@
-import { LitElement, html, css, PropertyValues, nothing } from "lit";
+import { LitElement, html, svg, css, PropertyValues, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 
 interface Target {
   x: number;
   y: number;
+  raw_x: number;
+  raw_y: number;
   speed: number;
   active: boolean;
 }
 
-interface Zone {
-  id: string;
+interface ZoneConfig {
   name: string;
   color: string;
-  sensitivity: string;
-  cells: number[];
+  sensitivity: number; // 0-3
 }
 
 interface EntryInfo {
   entry_id: string;
   title: string;
   room_name: string;
-  placement: string;
+  has_perspective: boolean;
   has_layout: boolean;
 }
 
-interface RoomBounds {
-  far_y: number;
-  left_x: number;
-  right_x: number;
+interface WizardCorner {
+  raw_x: number;
+  raw_y: number;
+  offset_side: number;
+  offset_fb: number;
 }
 
-type Tool = "room" | "outside" | "furniture" | "zone";
-type Placement = "wall" | "left_corner" | "right_corner";
-type SetupStep =
-  | "placement"
-  | "orientation"
-  | "bounds_far"
-  | "bounds_left"
-  | "bounds_right"
-  | "preview";
+interface FurnitureItem {
+  id: string;
+  type: "icon" | "svg";
+  icon: string;       // mdi icon name (type=icon) or svg key (type=svg)
+  label: string;
+  x: number;          // mm from left edge of room
+  y: number;          // mm from top edge of room
+  width: number;      // mm
+  height: number;     // mm
+  rotation: number;   // degrees
+  lockAspect: boolean; // true for mdi icons, false for floor plan SVGs
+}
+
+interface FurnitureSticker {
+  type: "icon" | "svg";
+  icon: string;
+  label: string;
+  defaultWidth: number;  // mm
+  defaultHeight: number; // mm
+  lockAspect?: boolean;
+}
+
+// Top-down floor plan SVGs from frontend/images/
+const FLOOR_PLAN_SVGS: Record<string, { viewBox: string; content: string }> = {
+  "armchair": { viewBox: "0 0 256 256", content: `<rect x="16" y="16" width="224" height="224" rx="16" stroke="black" stroke-width="12" fill="none"/><rect x="16" y="16" width="224" height="48" rx="8" stroke="black" stroke-width="12" fill="none"/><rect x="16" y="64" width="48" height="176" rx="8" stroke="black" stroke-width="12" fill="none"/><rect x="192" y="64" width="48" height="176" rx="8" stroke="black" stroke-width="12" fill="none"/><rect x="64" y="64" width="128" height="176" rx="8" stroke="black" stroke-width="8" fill="none"/>` },
+  "bath": { viewBox: "0 0 600 300", content: `<rect x="50" y="50" width="500" height="200" rx="40" stroke="black" stroke-width="8" fill="none"/><path d="M 100 220 C 100 240, 500 240, 500 220" stroke="black" stroke-width="8" fill="none"/><rect x="70" y="70" width="30" height="20" stroke="black" stroke-width="8" fill="none"/><rect x="80" y="90" width="10" height="20" stroke="black" stroke-width="8" fill="none"/><circle cx="510" cy="150" r="10" stroke="black" stroke-width="8" fill="none"/>` },
+  "bed-double": { viewBox: "0 0 512 512", content: `<rect x="0" y="0" width="512" height="512" rx="16" stroke="black" stroke-width="16" fill="none"/><path d="M0 64C0 46.3269 16.3269 32 32 32H480C497.673 32 512 46.3269 512 64V128C512 145.673 497.673 160 480 160H32C16.3269 160 0 145.673 0 128V64Z" stroke="black" stroke-width="16" fill="none"/><rect x="32" y="32" width="208" height="96" rx="8" stroke="black" stroke-width="16" fill="none"/><rect x="272" y="32" width="208" height="96" rx="8" stroke="black" stroke-width="16" fill="none"/><rect x="16" y="144" width="480" height="336" rx="8" stroke="black" stroke-width="16" fill="none"/><line x1="16" y1="256" x2="496" y2="256" stroke="#D0D0D0" stroke-width="8"/><line x1="16" y1="368" x2="496" y2="368" stroke="#D0D0D0" stroke-width="8"/>` },
+  "bed-single": { viewBox: "0 0 256 512", content: `<rect x="0" y="0" width="256" height="512" rx="16" stroke="black" stroke-width="16" fill="none"/><path d="M0 64C0 46.3269 16.3269 32 32 32H224C241.673 32 256 46.3269 256 64V128C256 145.673 241.673 160 224 160H32C16.3269 160 0 145.673 0 128V64Z" stroke="black" stroke-width="16" fill="none"/><rect x="32" y="32" width="192" height="96" rx="8" stroke="black" stroke-width="16" fill="none"/><rect x="16" y="144" width="224" height="336" rx="8" stroke="black" stroke-width="16" fill="none"/><line x1="16" y1="256" x2="240" y2="256" stroke="#D0D0D0" stroke-width="8"/><line x1="16" y1="368" x2="240" y2="368" stroke="#D0D0D0" stroke-width="8"/>` },
+  "door-left": { viewBox: "0 0 256 256", content: `<rect x="0" y="210" width="80" height="20" fill="black"/><rect x="60" y="60" width="20" height="150" fill="black"/><rect x="200" y="210" width="56" height="20" fill="black"/><path d="M 80 60 A 150 150 0 0 1 200 210" stroke="black" stroke-width="3" fill="none"/>` },
+  "door-right": { viewBox: "0 0 256 256", content: `<rect x="176" y="210" width="80" height="20" fill="black"/><rect x="176" y="60" width="20" height="150" fill="black"/><rect x="0" y="210" width="56" height="20" fill="black"/><path d="M 176 60 A 150 150 0 0 0 56 210" stroke="black" stroke-width="3" fill="none"/>` },
+  "floor-lamp": { viewBox: "0 0 256 256", content: `<circle cx="128" cy="128" r="96" stroke="black" stroke-width="16" fill="none"/><circle cx="128" cy="128" r="80" stroke="black" stroke-width="8" fill="none"/><circle cx="128" cy="128" r="16" fill="black"/><line x1="128" y1="112" x2="128" y2="48" stroke="black" stroke-width="8"/><circle cx="128" cy="48" r="8" fill="black"/><path d="M 64 64 A 128 128 0 0 1 192 64" stroke="black" stroke-width="8" stroke-dasharray="8 8"/>` },
+  "oven": { viewBox: "0 0 256 256", content: `<rect x="0" y="0" width="256" height="256" rx="16" stroke="black" stroke-width="16" fill="none"/><line x1="0" y1="224" x2="256" y2="224" stroke="black" stroke-width="16"/><circle cx="64" cy="64" r="40" stroke="black" stroke-width="16" fill="none"/><circle cx="64" cy="64" r="16" fill="black"/><circle cx="192" cy="64" r="40" stroke="black" stroke-width="16" fill="none"/><circle cx="192" cy="64" r="16" fill="black"/><circle cx="64" cy="192" r="40" stroke="black" stroke-width="16" fill="none"/><circle cx="64" cy="192" r="16" fill="black"/><circle cx="192" cy="192" r="40" stroke="black" stroke-width="16" fill="none"/><circle cx="192" cy="192" r="16" fill="black"/><rect x="32" y="240" width="192" height="16" rx="4" stroke="black" stroke-width="8" fill="black"/>` },
+  "plant": { viewBox: "0 0 256 256", content: `<circle cx="128" cy="128" r="96" stroke="black" stroke-width="16" fill="none"/><circle cx="128" cy="128" r="80" fill="none"/><g transform="translate(128 128)"><path d="M 0 0 C 0 -64, 40 -80, 0 -96 C -40 -80, 0 -64, 0 0 Z" fill="none" stroke="black" stroke-width="12"/><path d="M 0 0 C 0 -64, 40 -80, 0 -96 C -40 -80, 0 -64, 0 0 Z" transform="rotate(72)" fill="none" stroke="black" stroke-width="12"/><path d="M 0 0 C 0 -64, 40 -80, 0 -96 C -40 -80, 0 -64, 0 0 Z" transform="rotate(144)" fill="none" stroke="black" stroke-width="12"/><path d="M 0 0 C 0 -64, 40 -80, 0 -96 C -40 -80, 0 -64, 0 0 Z" transform="rotate(216)" fill="none" stroke="black" stroke-width="12"/><path d="M 0 0 C 0 -64, 40 -80, 0 -96 C -40 -80, 0 -64, 0 0 Z" transform="rotate(288)" fill="none" stroke="black" stroke-width="12"/></g>` },
+  "shower": { viewBox: "0 0 256 256", content: `<path d="M 32 32 H 224 V 224 H 32 Z" stroke="black" stroke-width="16" fill="none"/><line x1="32" y1="32" x2="224" y2="224" stroke="black" stroke-width="8" stroke-dasharray="8 8"/><line x1="224" y1="32" x2="32" y2="224" stroke="black" stroke-width="8" stroke-dasharray="8 8"/><circle cx="128" cy="200" r="16" stroke="black" stroke-width="16" fill="none"/>` },
+  "sofa-two-seater": { viewBox: "0 0 400 200", content: `<rect x="8" y="8" width="384" height="184" rx="12" stroke="black" stroke-width="10" fill="none"/><rect x="8" y="8" width="384" height="48" rx="8" stroke="black" stroke-width="10" fill="none"/><rect x="24" y="56" width="172" height="128" rx="8" stroke="black" stroke-width="8" fill="none"/><rect x="204" y="56" width="172" height="128" rx="8" stroke="black" stroke-width="8" fill="none"/>` },
+  "sofa-three-seater": { viewBox: "0 0 560 200", content: `<rect x="8" y="8" width="544" height="184" rx="12" stroke="black" stroke-width="10" fill="none"/><rect x="8" y="8" width="544" height="48" rx="8" stroke="black" stroke-width="10" fill="none"/><rect x="24" y="56" width="160" height="128" rx="8" stroke="black" stroke-width="8" fill="none"/><rect x="200" y="56" width="160" height="128" rx="8" stroke="black" stroke-width="8" fill="none"/><rect x="376" y="56" width="160" height="128" rx="8" stroke="black" stroke-width="8" fill="none"/>` },
+  "table-dining-room": { viewBox: "0 0 600 400", content: `<rect x="150" y="100" width="300" height="200" stroke="black" stroke-width="8" fill="none" rx="10"/><rect x="80" y="150" width="60" height="100" stroke="black" stroke-width="8" fill="none" rx="5"/><rect x="460" y="150" width="60" height="100" stroke="black" stroke-width="8" fill="none" rx="5"/><rect x="175" y="30" width="100" height="60" stroke="black" stroke-width="8" fill="none" rx="5"/><rect x="325" y="30" width="100" height="60" stroke="black" stroke-width="8" fill="none" rx="5"/><rect x="175" y="310" width="100" height="60" stroke="black" stroke-width="8" fill="none" rx="5"/><rect x="325" y="310" width="100" height="60" stroke="black" stroke-width="8" fill="none" rx="5"/>` },
+  "table-dining-room-round": { viewBox: "0 0 400 400", content: `<circle cx="200" cy="200" r="100" stroke="black" stroke-width="8" fill="none"/><rect x="150" y="30" width="100" height="60" stroke="black" stroke-width="8" fill="none" rx="5"/><rect x="150" y="310" width="100" height="60" stroke="black" stroke-width="8" fill="none" rx="5"/><rect x="30" y="150" width="60" height="100" stroke="black" stroke-width="8" fill="none" rx="5"/><rect x="310" y="150" width="60" height="100" stroke="black" stroke-width="8" fill="none" rx="5"/>` },
+  "television": { viewBox: "0 0 256 64", content: `<line x1="0" y1="56" x2="256" y2="56" stroke="black" stroke-width="16"/><rect x="32" y="16" width="192" height="40" rx="4" stroke="black" stroke-width="16" fill="none"/><rect x="40" y="24" width="176" height="24" rx="2" stroke="black" stroke-width="8" fill="none"/>` },
+  "toilet": { viewBox: "0 0 300 400", content: `<rect x="75" y="30" width="150" height="80" rx="10" stroke="black" stroke-width="8" fill="none"/><path d="M 75 110 C 75 110, 50 160, 50 210 C 50 310, 125 360, 150 360 C 175 360, 250 310, 250 210 C 250 160, 225 110, 225 110 Z" stroke="black" stroke-width="8" fill="none"/><path d="M 100 150 C 100 150, 75 190, 75 220 C 75 300, 125 340, 150 340 C 175 340, 225 300, 225 220 C 225 190, 200 150, 200 150 Z" stroke="black" stroke-width="8" fill="none"/><circle cx="150" cy="70" r="15" stroke="black" stroke-width="8" fill="none"/>` },
+};
+
+type SetupStep = "corners" | "preview";
+
+const FURNITURE_CATALOG: FurnitureSticker[] = [
+  // Floor plan SVGs (top-down, independently scalable)
+  { type: "svg", icon: "armchair", label: "Armchair", defaultWidth: 800, defaultHeight: 800 },
+  { type: "svg", icon: "bath", label: "Bath", defaultWidth: 1700, defaultHeight: 700 },
+  { type: "svg", icon: "bed-double", label: "Double bed", defaultWidth: 1600, defaultHeight: 2000 },
+  { type: "svg", icon: "bed-single", label: "Single bed", defaultWidth: 900, defaultHeight: 2000 },
+  { type: "svg", icon: "door-left", label: "Door (left swing)", defaultWidth: 800, defaultHeight: 800 },
+  { type: "svg", icon: "door-right", label: "Door (right swing)", defaultWidth: 800, defaultHeight: 800 },
+  { type: "svg", icon: "table-dining-room", label: "Dining table", defaultWidth: 1600, defaultHeight: 900 },
+  { type: "svg", icon: "table-dining-room-round", label: "Round table", defaultWidth: 1000, defaultHeight: 1000 },
+  { type: "svg", icon: "floor-lamp", label: "Lamp", defaultWidth: 400, defaultHeight: 400 },
+  { type: "svg", icon: "oven", label: "Oven / stove", defaultWidth: 600, defaultHeight: 600 },
+  { type: "svg", icon: "plant", label: "Plant", defaultWidth: 400, defaultHeight: 400 },
+  { type: "svg", icon: "shower", label: "Shower", defaultWidth: 900, defaultHeight: 900 },
+  { type: "svg", icon: "sofa-two-seater", label: "Sofa (2 seat)", defaultWidth: 1600, defaultHeight: 800 },
+  { type: "svg", icon: "sofa-three-seater", label: "Sofa (3 seat)", defaultWidth: 2400, defaultHeight: 800 },
+  { type: "svg", icon: "television", label: "TV", defaultWidth: 1200, defaultHeight: 200 },
+  { type: "svg", icon: "toilet", label: "Toilet", defaultWidth: 400, defaultHeight: 700 },
+  // MDI icons (front-view, aspect-locked)
+  { type: "icon", icon: "mdi:countertop", label: "Counter", defaultWidth: 2000, defaultHeight: 600, lockAspect: false },
+  { type: "icon", icon: "mdi:cupboard", label: "Cupboard", defaultWidth: 1000, defaultHeight: 500, lockAspect: false },
+  { type: "icon", icon: "mdi:desk", label: "Desk", defaultWidth: 1400, defaultHeight: 700, lockAspect: false },
+  { type: "icon", icon: "mdi:fridge", label: "Fridge", defaultWidth: 700, defaultHeight: 700, lockAspect: true },
+  { type: "icon", icon: "mdi:speaker", label: "Speaker", defaultWidth: 300, defaultHeight: 300, lockAspect: true },
+  { type: "icon", icon: "mdi:window-open-variant", label: "Window", defaultWidth: 1000, defaultHeight: 150, lockAspect: false },
+];
+
+// Byte encoding per cell:
+// Bit 0:   inside room (0=outside, 1=inside)
+// Bit 1-2: overlay (00=none, 01=entrance, 10=interference)
+// Bit 3-6: zone number (0-15)
+// Bit 7:   reserved
+const CELL_INSIDE   = 0x01;
+const CELL_OVERLAY_MASK = 0x06; // bits 1-2
+const CELL_OVERLAY_SHIFT = 1;
+const CELL_OVERLAY_NONE = 0;
+const CELL_OVERLAY_ENTRANCE = 1;
+const CELL_OVERLAY_INTERFERENCE = 2;
+const CELL_ZONE_MASK = 0x78; // bits 3-6
+const CELL_ZONE_SHIFT = 3;
+
+const cellIsInside = (v: number): boolean => (v & CELL_INSIDE) !== 0;
+const cellOverlay = (v: number): number => (v >> CELL_OVERLAY_SHIFT) & 0x03;
+const cellZone = (v: number): number => (v >> CELL_ZONE_SHIFT) & 0x0F;
+
+const cellSetInside = (v: number, inside: boolean): number =>
+  inside ? (v | CELL_INSIDE) : (v & ~CELL_INSIDE);
+const cellSetOverlay = (v: number, overlay: number): number =>
+  (v & ~CELL_OVERLAY_MASK) | ((overlay & 0x03) << CELL_OVERLAY_SHIFT);
+const cellSetZone = (v: number, zone: number): number =>
+  (v & ~CELL_ZONE_MASK) | ((zone & 0x0F) << CELL_ZONE_SHIFT);
+
+const CORNER_LABELS = ["Front-left", "Front-right", "Back-right", "Back-left"];
+const CORNER_OFFSET_LABELS: [string, string][] = [
+  ["from left wall", "from front wall"],
+  ["from right wall", "from front wall"],
+  ["from right wall", "from back wall"],
+  ["from left wall", "from back wall"],
+];
 
 const GRID_COLS = 20;
 const GRID_ROWS = 16;
 const GRID_CELL_COUNT = GRID_COLS * GRID_ROWS;
-const CELL_SIZE = 28;
-const CELL_GAP = 1;
-const CELL_STEP = CELL_SIZE + CELL_GAP;
-const GRID_WIDTH = GRID_COLS * CELL_STEP - CELL_GAP;
-const GRID_HEIGHT = GRID_ROWS * CELL_STEP - CELL_GAP;
-// LD2450 angle correction scale factor (must match Python calibration.py)
-const LD2450_SCALE_FACTOR = 0.78;
+const GRID_CELL_MM = 300; // each cell represents 300mm x 300mm
+const MAX_RANGE = 6000;
 
-function ld2450Correct(x: number, y: number): { cx: number; cy: number } {
-  if (x === 0 && y === 0) return { cx: 0, cy: 0 };
-  const angle = Math.atan2(x, y);
-  const distance = Math.sqrt(x * x + y * y);
-  const correctedAngle = angle * LD2450_SCALE_FACTOR;
-  return {
-    cx: distance * Math.sin(correctedAngle),
-    cy: distance * Math.cos(correctedAngle),
-  };
-}
+// Corner capture duration (seconds)
+const CAPTURE_DURATION_S = 5;
 
+// Color-blind-friendly palette (distinguishable across protanopia, deuteranopia, tritanopia)
 const ZONE_COLORS = [
-  "#4CAF50",
-  "#2196F3",
-  "#FF9800",
-  "#9C27B0",
-  "#F44336",
-  "#00BCD4",
-  "#FFEB3B",
-  "#795548",
+  "#E69F00", // orange
+  "#56B4E9", // sky blue
+  "#009E73", // bluish green
+  "#F0E442", // yellow
+  "#0072B2", // blue
+  "#D55E00", // vermillion
+  "#CC79A7", // reddish purple
+  "#332288", // indigo
+  "#88CCEE", // cyan
+  "#44AA99", // teal
+  "#DDCC77", // sand
+  "#882255", // wine
+  "#117733", // forest
+  "#AA4499", // magenta
+  "#999933", // olive
 ];
 
 @customElement("everything-presence-pro-panel")
 export class EverythingPresenceProPanel extends LitElement {
   @property({ attribute: false }) hass: any;
 
-  @state() private _activeTool: Tool = "room";
-  @state() private _grid: string[] = new Array(GRID_CELL_COUNT).fill("room");
-  @state() private _zones: Zone[] = [];
-  @state() private _activeZoneId: string | null = null;
+  // Grid data: byte per cell using the encoding above
+  @state() private _grid: Uint8Array = new Uint8Array(GRID_CELL_COUNT);
+  @state() private _zoneConfigs: ZoneConfig[] = []; // up to 15 zones (zone 0 = default room)
+  @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-15 = named zones, -1/-2 = overlays
+  @state() private _sidebarTab: "zones" | "furniture" = "zones";
+  @state() private _showCustomIconPicker = false;
+  @state() private _customIconValue = "";
+  @state() private _furniture: FurnitureItem[] = [];
+  @state() private _selectedFurnitureId: string | null = null;
+  private _dragState: {
+    type: "move" | "resize" | "rotate";
+    id: string;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    origW: number;
+    origH: number;
+    origRot: number;
+    handle?: string;
+    centerX?: number; // screen coords of item center (for rotate)
+    centerY?: number;
+    startAngle?: number; // angle at drag start
+  } | null = null;
+  @state() private _roomSensitivity = 1; // zone 0 sensitivity (0=low, 1=medium, 2=high)
   @state() private _targets: Target[] = [];
   @state() private _isPainting = false;
-  @state() private _paintValue = "";
+  @state() private _paintAction: "set" | "clear" = "set";
+  private _frozenBounds: { minCol: number; maxCol: number; minRow: number; maxRow: number } | null = null;
+  @state() private _saving = false;
+  @state() private _dirty = false;
+  @state() private _showUnsavedDialog = false;
+  private _pendingNavigation: (() => void) | null = null;
+  @state() private _showTemplateSave = false;
+  @state() private _showTemplateLoad = false;
+  @state() private _templateName = "";
 
   // Multi-device support
   @state() private _entries: EntryInfo[] = [];
   @state() private _selectedEntryId = "";
   @state() private _loading = true;
 
-  // Setup wizard
+  // Setup wizard — perspective corner marking
   @state() private _setupStep: SetupStep | null = null;
-  @state() private _wizardRoomName = "";
-  @state() private _wizardPlacement: Placement | null = null;
   @state() private _wizardSaving = false;
-  @state() private _wizardMirrored = false;
-  @state() private _wizardBounds: RoomBounds = { far_y: 0, left_x: 0, right_x: 0 };
-  @state() private _wizardCapturedPoints: Array<{ x: number; y: number }> = [];
+  @state() private _wizardCornerIndex = 0;
+  @state() private _wizardCorners: (WizardCorner | null)[] = [null, null, null, null];
+  @state() private _wizardRoomWidth = 0; // mm
+  @state() private _wizardRoomDepth = 0; // mm
+  @state() private _wizardCapturing = false;
+  @state() private _wizardCaptureProgress = 0; // 0..1
 
-  // Sensor config (from saved config)
-  @state() private _placement: Placement | "" = "";
-  @state() private _roomName = "";
-  @state() private _mirrored = false;
-  @state() private _roomBounds: RoomBounds | null = null;
-
-  // Calibration state
-  @state() private _sensorAngle: number = 0;
-  @state() private _offsetX: number = 0;
-  @state() private _offsetY: number = 0;
-  @state() private _wizardRawPoints: Array<{x: number; y: number; label: string}> = [];
-
-  // Recalibration
-  @state() private _recalibrating: boolean = false;
+  // Perspective transform state (client-side, set after corner marking)
+  @state() private _perspective: number[] | null = null;
+  @state() private _roomWidth = 0; // mm
+  @state() private _roomDepth = 0; // mm
 
   // Target subscription
   private _unsubTargets?: () => void;
 
+  private _beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+    if (this._dirty) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  };
+
+  private _originalPushState: typeof history.pushState | null = null;
+  private _originalReplaceState: typeof history.replaceState | null = null;
+
+  private _interceptNavigation = (): boolean => {
+    if (!this._dirty) return false;
+    this._showUnsavedDialog = true;
+    this._pendingNavigation = null; // no specific action — just allow navigation on discard
+    return true;
+  };
+
   connectedCallback(): void {
     super.connectedCallback();
     this._initialize();
+    window.addEventListener("beforeunload", this._beforeUnloadHandler);
+
+    // Intercept HA's client-side routing (pushState/replaceState)
+    this._originalPushState = history.pushState.bind(history);
+    this._originalReplaceState = history.replaceState.bind(history);
+    const self = this;
+    history.pushState = function (...args) {
+      if (self._interceptNavigation()) {
+        self._pendingNavigation = () => {
+          self._originalPushState!(...args);
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        };
+        return;
+      }
+      self._originalPushState!(...args);
+    };
+    history.replaceState = function (...args) {
+      if (self._interceptNavigation()) {
+        self._pendingNavigation = () => {
+          self._originalReplaceState!(...args);
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        };
+        return;
+      }
+      self._originalReplaceState!(...args);
+    };
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
     this._unsubscribeTargets();
+    window.removeEventListener("beforeunload", this._beforeUnloadHandler);
+
+    // Restore original history methods
+    if (this._originalPushState) history.pushState = this._originalPushState;
+    if (this._originalReplaceState) history.replaceState = this._originalReplaceState;
   }
 
   updated(changedProps: PropertyValues): void {
@@ -157,7 +316,7 @@ export class EverythingPresenceProPanel extends LitElement {
     }
 
     const stored = localStorage.getItem("epp_selected_entry");
-    const match = stored && this._entries.find((e) => e.entry_id === stored);
+    const match = stored && this._entries.find((e: EntryInfo) => e.entry_id === stored);
     this._selectedEntryId = match
       ? stored!
       : this._entries[0]?.entry_id ?? "";
@@ -177,64 +336,52 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _applyConfig(config: any): void {
-    // Load room layout
-    const layout = config.room_layout || {};
-    const roomCells: number[] = layout.room_cells || [];
-    const furniture: any[] = layout.furniture || [];
-    const grid = new Array(GRID_CELL_COUNT).fill("outside");
-    for (const idx of roomCells) {
-      if (idx >= 0 && idx < GRID_CELL_COUNT) grid[idx] = "room";
-    }
-    for (const item of furniture) {
-      for (const idx of item.cells || []) {
-        if (idx >= 0 && idx < GRID_CELL_COUNT) grid[idx] = "furniture";
-      }
-    }
-    this._grid = grid;
-
-    // Load zones
-    const zones: Zone[] = (config.zones || []).map((z: any, i: number) => ({
-      id: z.id,
-      name: z.name,
-      color: ZONE_COLORS[i % ZONE_COLORS.length],
-      sensitivity: z.sensitivity || "normal",
-      cells: z.cells || [],
-    }));
-    this._zones = zones;
-
-    // Load setup config
-    const placement = config.placement || "";
-    const roomName = config.room_name || "";
-    const mirrored = config.mirrored || false;
-    const bounds = config.room_bounds;
-
-    if (config.calibration) {
-      this._sensorAngle = config.calibration.sensor_angle || 0;
-      this._offsetX = config.calibration.offset_x || 0;
-      this._offsetY = config.calibration.offset_y || 0;
-    }
-
-    if (!placement) {
-      this._setupStep = "placement";
-      this._wizardRoomName = roomName;
-      this._wizardPlacement = null;
-      this._wizardMirrored = false;
-      this._wizardBounds = { far_y: 0, left_x: 0, right_x: 0 };
-      this._wizardCapturedPoints = [];
-      this._placement = "";
-      this._roomName = "";
-      this._mirrored = false;
-      this._roomBounds = null;
-    } else {
+    // Load calibration / perspective first (needed for grid init)
+    const cal = config.calibration;
+    if (cal?.perspective) {
+      this._perspective = cal.perspective;
+      this._roomWidth = cal.room_width || 0;
+      this._roomDepth = cal.room_depth || 0;
       this._setupStep = null;
-      this._placement = placement as Placement;
-      this._roomName = roomName;
-      this._mirrored = mirrored;
-      this._roomBounds =
-        bounds && bounds.far_y
-          ? { far_y: bounds.far_y, left_x: bounds.left_x, right_x: bounds.right_x }
-          : null;
+    } else {
+      this._perspective = null;
+      this._roomWidth = 0;
+      this._roomDepth = 0;
+      this._setupStep = "corners";
+      this._wizardCornerIndex = 0;
+      this._wizardCorners = [null, null, null, null];
+      this._wizardRoomWidth = 0;
+      this._wizardRoomDepth = 0;
     }
+
+    // Load grid from saved layout bytes, or initialize from room dimensions
+    const layout = config.room_layout || {};
+    this._roomSensitivity = layout.room_sensitivity ?? 1;
+    this._furniture = (layout.furniture || []).map((f: any, i: number) => ({
+      id: f.id || `f_load_${i}`,
+      type: f.type || "icon",
+      icon: f.icon || "mdi:help",
+      label: f.label || "Item",
+      x: f.x ?? 0, y: f.y ?? 0,
+      width: f.width ?? 600, height: f.height ?? 600,
+      rotation: f.rotation ?? 0,
+      lockAspect: f.lockAspect ?? (f.type !== "svg"),
+    }));
+    if (layout.grid_bytes && Array.isArray(layout.grid_bytes)) {
+      this._grid = new Uint8Array(layout.grid_bytes);
+    } else if (this._roomWidth > 0 && this._roomDepth > 0) {
+      this._initGridFromRoom();
+    } else {
+      this._grid = new Uint8Array(GRID_CELL_COUNT);
+    }
+
+    // Load zone configs (stored inside room_layout)
+    const zones: ZoneConfig[] = (layout.zones || []).map((z: any, i: number) => ({
+      name: z.name || `Zone ${i + 1}`,
+      color: z.color || ZONE_COLORS[i % ZONE_COLORS.length],
+      sensitivity: z.sensitivity ?? 1,
+    }));
+    this._zoneConfigs = zones;
   }
 
   private _subscribeTargets(entryId: string): void {
@@ -249,6 +396,8 @@ export class EverythingPresenceProPanel extends LitElement {
           const targets: Target[] = (event.targets || []).map((t: any) => ({
             x: t.x,
             y: t.y,
+            raw_x: t.raw_x ?? t.x,
+            raw_y: t.raw_y ?? t.y,
             speed: 0,
             active: t.active,
           }));
@@ -260,7 +409,6 @@ export class EverythingPresenceProPanel extends LitElement {
         }
       )
       .then((unsub: () => void) => {
-        // Store unsubscribe if we haven't already been asked to unsub
         this._unsubTargets = unsub;
       });
   }
@@ -273,435 +421,735 @@ export class EverythingPresenceProPanel extends LitElement {
     this._targets = [];
   }
 
-  // -- Tool actions --
-
-  private _selectTool(tool: Tool): void {
-    this._activeTool = tool;
-    this._activeZoneId = null;
-  }
+  // -- Grid cell painting --
 
   private _onCellMouseDown(index: number): void {
+    // Furniture tab: deselect furniture on grid click, no painting
+    if (this._sidebarTab === "furniture") {
+      this._selectedFurnitureId = null;
+      return;
+    }
+    if (this._activeZone === null) return;
     this._isPainting = true;
-    this._applyToolToCell(index);
+    this._frozenBounds = this._getRoomBounds();
+
+    const cell = this._grid[index];
+    if (this._activeZone === 0) {
+      // Boundary: toggle inside/outside (only if already plain room)
+      const isPlainRoom = cellIsInside(cell) && cellZone(cell) === 0 && cellOverlay(cell) === 0;
+      this._paintAction = isPlainRoom ? "clear" : "set";
+    } else if (this._activeZone === -1 || this._activeZone === -2) {
+      // Overlay: -1 = entrance, -2 = interference
+      const overlayType = this._activeZone === -1 ? CELL_OVERLAY_ENTRANCE : CELL_OVERLAY_INTERFERENCE;
+      this._paintAction = cellOverlay(cell) === overlayType ? "clear" : "set";
+    } else {
+      // Named zone
+      this._paintAction = cellZone(cell) === this._activeZone ? "clear" : "set";
+    }
+
+    this._applyPaintToCell(index);
   }
 
   private _onCellMouseEnter(index: number): void {
     if (this._isPainting) {
-      this._applyToolToCell(index);
+      this._applyPaintToCell(index);
     }
   }
 
   private _onCellMouseUp(): void {
     this._isPainting = false;
+    this._frozenBounds = null;
   }
 
-  private _applyToolToCell(index: number): void {
-    switch (this._activeTool) {
-      case "room":
-        this._grid = [...this._grid];
-        this._grid[index] = "room";
-        break;
-      case "outside":
-        this._grid = [...this._grid];
-        this._grid[index] = "outside";
-        break;
-      case "furniture":
-        this._grid = [...this._grid];
-        this._grid[index] = "furniture";
-        break;
-      case "zone":
-        if (this._activeZoneId) {
-          this._zones = this._zones.map((z) => ({
-            ...z,
-            cells:
-              z.id === this._activeZoneId
-                ? z.cells.includes(index)
-                  ? z.cells.filter((c) => c !== index)
-                  : [...z.cells, index]
-                : z.cells.filter((c) => c !== index),
-          }));
-        }
-        break;
+  private _applyPaintToCell(index: number): void {
+    if (this._activeZone === null) return;
+    const cell = this._grid[index];
+    this._grid = new Uint8Array(this._grid);
+
+    if (this._activeZone === 0) {
+      // Boundary: set = plain inside room, clear = outside
+      if (this._paintAction === "set") {
+        this._grid[index] = CELL_INSIDE;
+      } else {
+        this._grid[index] = 0;
+      }
+    } else if (this._activeZone === -1 || this._activeZone === -2) {
+      // Overlay painting — only on inside-room cells
+      if (!cellIsInside(cell)) return;
+      const overlayType = this._activeZone === -1 ? CELL_OVERLAY_ENTRANCE : CELL_OVERLAY_INTERFERENCE;
+      if (this._paintAction === "set") {
+        this._grid[index] = cellSetOverlay(cell, overlayType);
+      } else {
+        this._grid[index] = cellSetOverlay(cell, CELL_OVERLAY_NONE);
+      }
+    } else {
+      // Named zone painting — only on inside-room cells
+      if (!cellIsInside(cell)) return;
+      if (this._paintAction === "set") {
+        this._grid[index] = cellSetZone(cell, this._activeZone);
+      } else {
+        this._grid[index] = cellSetZone(cell, 0);
+      }
     }
+    this._dirty = true;
     this.requestUpdate();
   }
 
   // -- Zone management --
 
   private _addZone(): void {
-    const id = `zone_${Date.now()}`;
-    const colorIndex = this._zones.length % ZONE_COLORS.length;
-    const newZone: Zone = {
-      id,
-      name: `Zone ${this._zones.length + 1}`,
-      color: ZONE_COLORS[colorIndex],
-      sensitivity: "normal",
-      cells: [],
+    if (this._zoneConfigs.length >= 15) return;
+
+    // Find highest "Zone N" number and add 1
+    let maxNum = 0;
+    for (const z of this._zoneConfigs) {
+      const match = z.name.match(/^Zone (\d+)$/);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+    }
+
+    // Pick first unused color
+    const usedColors = new Set(this._zoneConfigs.map((z) => z.color));
+    const color = ZONE_COLORS.find((c) => !usedColors.has(c)) ??
+      ZONE_COLORS[this._zoneConfigs.length % ZONE_COLORS.length];
+    this._zoneConfigs = [
+      ...this._zoneConfigs,
+      {
+        name: `Zone ${maxNum + 1}`,
+        color,
+        sensitivity: 1,
+      },
+    ];
+    this._activeZone = this._zoneConfigs.length; // 1-based zone number
+    this._dirty = true;
+  }
+
+  private _removeZone(zoneNum: number): void {
+    if (zoneNum < 1 || zoneNum > this._zoneConfigs.length) return;
+    // Clear all cells with this zone back to zone 0
+    this._grid = new Uint8Array(this._grid);
+    for (let i = 0; i < GRID_CELL_COUNT; i++) {
+      if (cellZone(this._grid[i]) === zoneNum) {
+        this._grid[i] = cellSetZone(this._grid[i], 0);
+      }
+      // Shift zones above this one down
+      const z = cellZone(this._grid[i]);
+      if (z > zoneNum) {
+        this._grid[i] = cellSetZone(this._grid[i], z - 1);
+      }
+    }
+    this._zoneConfigs = this._zoneConfigs.filter((_, i) => i !== zoneNum - 1);
+    if (this._activeZone !== null && this._activeZone >= zoneNum) {
+      this._activeZone = Math.max(0, this._activeZone - 1);
+    }
+    this._dirty = true;
+    this.requestUpdate();
+  }
+
+  /** Clear all cells with a specific overlay type */
+  private _clearOverlay(overlayType: number): void {
+    this._grid = new Uint8Array(this._grid);
+    for (let i = 0; i < GRID_CELL_COUNT; i++) {
+      if (cellOverlay(this._grid[i]) === overlayType) {
+        this._grid[i] = cellSetOverlay(this._grid[i], CELL_OVERLAY_NONE);
+      }
+    }
+    this._dirty = true;
+    this.requestUpdate();
+  }
+
+  // -- Furniture management --
+
+  private _addFurniture(sticker: FurnitureSticker): void {
+    const item: FurnitureItem = {
+      id: `f_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      type: sticker.type,
+      icon: sticker.icon,
+      label: sticker.label,
+      x: Math.max(0, (this._roomWidth - sticker.defaultWidth) / 2),
+      y: Math.max(0, (this._roomDepth - sticker.defaultHeight) / 2),
+      width: sticker.defaultWidth,
+      height: sticker.defaultHeight,
+      rotation: 0,
+      lockAspect: sticker.lockAspect ?? (sticker.type === "icon"),
     };
-    this._zones = [...this._zones, newZone];
-    this._activeZoneId = id;
+    this._furniture = [...this._furniture, item];
+    this._selectedFurnitureId = item.id;
+    this._dirty = true;
   }
 
-  private _selectZone(id: string): void {
-    this._activeZoneId = id;
+  private _addCustomFurniture(icon: string): void {
+    this._addFurniture({ type: "icon", icon, label: "Custom", defaultWidth: 600, defaultHeight: 600, lockAspect: false });
   }
 
-  private _removeZone(id: string): void {
-    this._zones = this._zones.filter((z) => z.id !== id);
-    if (this._activeZoneId === id) {
-      this._activeZoneId = null;
-    }
+  private _removeFurniture(id: string): void {
+    this._furniture = this._furniture.filter((f) => f.id !== id);
+    if (this._selectedFurnitureId === id) this._selectedFurnitureId = null;
+    this._dirty = true;
   }
 
-  // -- Grid helpers --
+  private _updateFurniture(id: string, updates: Partial<FurnitureItem>): void {
+    this._furniture = this._furniture.map((f) =>
+      f.id === id ? { ...f, ...updates } : f
+    );
+    this._dirty = true;
+  }
 
-  private _getCellClass(index: number): string {
-    const cellType = this._grid[index];
-    const classes = [cellType];
-    for (const zone of this._zones) {
-      if (zone.cells.includes(index)) {
-        classes.push("zone-cell");
-        break;
+  /** Convert mm in room-space to px in the visible grid */
+  private _mmToPx(mm: number, cellPx: number): number {
+    return (mm / GRID_CELL_MM) * (cellPx + 1); // +1 for gap
+  }
+
+  /** Convert px delta back to mm */
+  private _pxToMm(px: number, cellPx: number): number {
+    return (px / (cellPx + 1)) * GRID_CELL_MM;
+  }
+
+  private _onFurniturePointerDown(e: PointerEvent, id: string, type: "move" | "resize" | "rotate", handle?: string): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this._selectedFurnitureId = id;
+    const item = this._furniture.find((f) => f.id === id);
+    if (!item) return;
+
+    // For rotate, find the item's center on screen
+    let centerX = 0, centerY = 0, startAngle = 0;
+    if (type === "rotate") {
+      const el = this.shadowRoot?.querySelector(`.furniture-item[data-id="${id}"]`) as HTMLElement | null;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        centerX = rect.left + rect.width / 2;
+        centerY = rect.top + rect.height / 2;
+        startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
       }
     }
-    return classes.join(" ");
+
+    this._dragState = {
+      type,
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: item.x,
+      origY: item.y,
+      origW: item.width,
+      origH: item.height,
+      origRot: item.rotation,
+      handle,
+      centerX,
+      centerY,
+      startAngle,
+    };
+
+    const onMove = (ev: PointerEvent) => this._onFurnitureDrag(ev);
+    const onUp = () => {
+      this._dragState = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   }
 
-  private _getCellZoneColor(index: number): string {
-    for (const zone of this._zones) {
-      if (zone.cells.includes(index)) {
-        return zone.color;
+  private _onFurnitureDrag(e: PointerEvent): void {
+    if (!this._dragState) return;
+    const ds = this._dragState;
+
+    // Get cellPx from the grid container
+    const gridEl = this.shadowRoot?.querySelector(".grid") as HTMLElement | null;
+    if (!gridEl) return;
+    const cellPx = gridEl.firstElementChild
+      ? (gridEl.firstElementChild as HTMLElement).offsetWidth
+      : 28;
+
+    const dx = e.clientX - ds.startX;
+    const dy = e.clientY - ds.startY;
+
+    if (ds.type === "move") {
+      const item = this._furniture.find((f) => f.id === ds.id);
+      const w = item?.width ?? 0;
+      const h = item?.height ?? 0;
+      this._updateFurniture(ds.id, {
+        x: Math.max(-w / 2, Math.min(this._roomWidth - w / 2, ds.origX + this._pxToMm(dx, cellPx))),
+        y: Math.max(-h / 2, Math.min(this._roomDepth - h / 2, ds.origY + this._pxToMm(dy, cellPx))),
+      });
+    } else if (ds.type === "resize" && ds.handle) {
+      const dxMm = this._pxToMm(dx, cellPx);
+      const dyMm = this._pxToMm(dy, cellPx);
+      let { origX: x, origY: y, origW: w, origH: h } = ds;
+      const item = this._furniture.find((f) => f.id === ds.id);
+      const locked = item?.lockAspect ?? false;
+
+      if (locked) {
+        // Uniform scale from the dominant axis
+        const delta = Math.abs(dxMm) > Math.abs(dyMm) ? dxMm : dyMm;
+        const aspect = ds.origW / ds.origH;
+        const sign = ds.handle.includes("w") || ds.handle.includes("n") ? -1 : 1;
+        w = Math.max(100, ds.origW + sign * delta);
+        h = Math.max(100, w / aspect);
+        w = h * aspect;
+        if (ds.handle.includes("w")) x = ds.origX + (ds.origW - w);
+        if (ds.handle.includes("n")) y = ds.origY + (ds.origH - h);
+      } else {
+        if (ds.handle.includes("e")) w = Math.max(100, w + dxMm);
+        if (ds.handle.includes("w")) { w = Math.max(100, w - dxMm); x = x + dxMm; }
+        if (ds.handle.includes("s")) h = Math.max(100, h + dyMm);
+        if (ds.handle.includes("n")) { h = Math.max(100, h - dyMm); y = y + dyMm; }
       }
+
+      this._updateFurniture(ds.id, { x, y, width: w, height: h });
+    } else if (ds.type === "rotate") {
+      // Calculate angle from item center to current pointer
+      const currentAngle = Math.atan2(
+        e.clientY - (ds.centerY ?? 0),
+        e.clientX - (ds.centerX ?? 0),
+      ) * (180 / Math.PI);
+      const deltaAngle = currentAngle - (ds.startAngle ?? 0);
+      this._updateFurniture(ds.id, {
+        rotation: Math.round((ds.origRot + deltaAngle + 360) % 360),
+      });
     }
+  }
+
+  // -- Grid cell display helpers --
+
+  private _getCellColor(index: number): string {
+    const cell = this._grid[index];
+    if (!cellIsInside(cell)) return "var(--secondary-background-color, #e0e0e0)";
+
+    const zone = cellZone(cell);
+    if (zone > 0 && zone <= this._zoneConfigs.length) {
+      return this._zoneConfigs[zone - 1].color;
+    }
+    return "var(--card-background-color, #fff)"; // zone 0 = white
+  }
+
+  private _getCellOverlayColor(index: number): string {
+    const cell = this._grid[index];
+    const overlay = cellOverlay(cell);
+    if (overlay === CELL_OVERLAY_ENTRANCE) return "#00FFFF"; // bright cyan border
+    if (overlay === CELL_OVERLAY_INTERFERENCE) return "#FF0000"; // bright red border
     return "";
   }
 
-  private _autoFillGrid(): void {
-    this._grid = new Array(GRID_CELL_COUNT).fill("room");
-  }
-
-  // -- Coordinate mapping --
-
-  private _sensorToRoom(
-    tx: number,
-    ty: number,
-  ): { rx: number; ry: number } {
-    // Stage 1: distortion correction
-    const { cx, cy } = ld2450Correct(tx, ty);
-
-    // Stage 2: clockwise rotation by sensor_angle
-    const angle = this._sensorAngle;
-    const cosA = Math.cos(angle);
-    const sinA = Math.sin(angle);
-    const rx = cx * cosA + cy * sinA;
-    const ry = -cx * sinA + cy * cosA;
-
-    // Stage 3: translation
+  /** Compute the bounding box of inside-room cells (for zoom) */
+  private _getRoomBounds(): { minCol: number; maxCol: number; minRow: number; maxRow: number } {
+    let minCol = GRID_COLS, maxCol = 0, minRow = GRID_ROWS, maxRow = 0;
+    for (let i = 0; i < GRID_CELL_COUNT; i++) {
+      if (cellIsInside(this._grid[i])) {
+        const col = i % GRID_COLS;
+        const row = Math.floor(i / GRID_COLS);
+        if (col < minCol) minCol = col;
+        if (col > maxCol) maxCol = col;
+        if (row < minRow) minRow = row;
+        if (row > maxRow) maxRow = row;
+      }
+    }
+    // Add 1-cell padding
     return {
-      rx: rx + this._offsetX,
-      ry: ry + this._offsetY,
+      minCol: Math.max(0, minCol - 1),
+      maxCol: Math.min(GRID_COLS - 1, maxCol + 1),
+      minRow: Math.max(0, minRow - 1),
+      maxRow: Math.min(GRID_ROWS - 1, maxRow + 1),
     };
   }
 
-  private _mapTargetToPercent(
-    target: Target,
-    mirrored: boolean,
-    bounds: RoomBounds | null
-  ): { x: number; y: number } {
-    const tx = mirrored ? -target.x : target.x;
-    const { rx, ry } = this._sensorToRoom(tx, target.y);
-
-    if (bounds && bounds.far_y > 0 && bounds.right_x > bounds.left_x) {
-      const xPercent =
-        ((rx - bounds.left_x) / (bounds.right_x - bounds.left_x)) * 100;
-      const yPercent = (ry / bounds.far_y) * 100;
-      return { x: xPercent, y: yPercent };
+  /** Save the current grid and zone config to the backend */
+  private async _applyLayout(): Promise<void> {
+    this._saving = true;
+    try {
+      await this.hass.callWS({
+        type: "everything_presence_pro/set_room_layout",
+        entry_id: this._selectedEntryId,
+        grid_bytes: Array.from(this._grid),
+        zones: this._zoneConfigs.map((z) => ({
+          name: z.name,
+          color: z.color,
+          sensitivity: z.sensitivity,
+        })),
+        room_sensitivity: this._roomSensitivity,
+        furniture: this._furniture.map((f) => ({
+          type: f.type, icon: f.icon, label: f.label,
+          x: f.x, y: f.y, width: f.width, height: f.height,
+          rotation: f.rotation, lockAspect: f.lockAspect,
+        })),
+      });
+      this._dirty = false;
+    } finally {
+      this._saving = false;
     }
-
-    const xPercent = (rx / 6000) * 100;
-    const yPercent = (ry / 6000) * 100;
-    return { x: xPercent, y: yPercent };
   }
 
-  private _getTargetStyle(target: Target): string {
-    const { x, y } = this._mapTargetToPercent(
-      target,
-      this._mirrored,
-      this._roomBounds
-    );
-    return `left: ${x}%; top: ${y}%;`;
+  // -- Template management (localStorage) --
+
+  private _getTemplates(): { name: string; grid: number[]; zones: ZoneConfig[]; roomWidth: number; roomDepth: number; roomSensitivity?: number; furniture?: FurnitureItem[] }[] {
+    try {
+      return JSON.parse(localStorage.getItem("epp_layout_templates") || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  private _saveTemplate(): void {
+    const name = this._templateName.trim();
+    if (!name) return;
+    const templates = this._getTemplates();
+    // Overwrite if same name exists
+    const existing = templates.findIndex((t) => t.name === name);
+    const entry = {
+      name,
+      grid: Array.from(this._grid),
+      zones: this._zoneConfigs.map((z) => ({ ...z })),
+      roomWidth: this._roomWidth,
+      roomDepth: this._roomDepth,
+      roomSensitivity: this._roomSensitivity,
+      furniture: this._furniture.map((f) => ({ ...f })),
+    };
+    if (existing >= 0) {
+      templates[existing] = entry;
+    } else {
+      templates.push(entry);
+    }
+    localStorage.setItem("epp_layout_templates", JSON.stringify(templates));
+    this._showTemplateSave = false;
+    this._templateName = "";
+  }
+
+  private _loadTemplate(name: string): void {
+    const templates = this._getTemplates();
+    const tmpl = templates.find((t) => t.name === name);
+    if (!tmpl) return;
+    this._grid = new Uint8Array(tmpl.grid);
+    this._zoneConfigs = tmpl.zones;
+    this._roomWidth = tmpl.roomWidth;
+    this._roomDepth = tmpl.roomDepth;
+    this._roomSensitivity = tmpl.roomSensitivity ?? 1;
+    this._furniture = (tmpl.furniture || []).map((f: any) => ({ ...f }));
+    this._showTemplateLoad = false;
+  }
+
+  private _deleteTemplate(name: string): void {
+    const templates = this._getTemplates().filter((t) => t.name !== name);
+    localStorage.setItem("epp_layout_templates", JSON.stringify(templates));
+    this.requestUpdate();
+  }
+
+  /** Initialize grid from room dimensions after wizard finishes */
+  private _initGridFromRoom(): void {
+    const grid = new Uint8Array(GRID_CELL_COUNT);
+
+    // Sensor is centered at top of the grid
+    // Grid origin (0,0) is top-left, room origin (0,0) is also top-left (sensor side)
+    // Room width centered horizontally in 20-col grid
+    const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
+    const roomRows = Math.ceil(this._roomDepth / GRID_CELL_MM);
+    const startCol = Math.floor((GRID_COLS - roomCols) / 2);
+    const startRow = 0; // sensor is at front wall
+
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        const idx = r * GRID_COLS + c;
+        // Is this cell within the room rectangle?
+        const inRoom =
+          c >= startCol && c < startCol + roomCols &&
+          r >= startRow && r < startRow + roomRows;
+
+        if (inRoom) {
+          grid[idx] = CELL_INSIDE; // inside room, zone 0, no overlay
+        }
+        // Otherwise stays 0 (outside room)
+      }
+    }
+
+    this._grid = grid;
+  }
+
+  // -- Coordinate mapping (perspective transform) --
+
+  private _applyPerspective(
+    sx: number,
+    sy: number,
+    perspective: number[],
+  ): { rx: number; ry: number } {
+    const [a, b, c, d, e, f, g, h] = perspective;
+    const denom = g * sx + h * sy + 1;
+    if (Math.abs(denom) < 1e-10) return { rx: sx, ry: sy };
+    return {
+      rx: (a * sx + b * sy + c) / denom,
+      ry: (d * sx + e * sy + f) / denom,
+    };
+  }
+
+  private _sensorToRoom(
+    sx: number,
+    sy: number,
+  ): { rx: number; ry: number } {
+    if (!this._perspective) return { rx: sx, ry: sy };
+    const { rx, ry } = this._applyPerspective(sx, sy, this._perspective);
+    return {
+      rx: Math.max(0, Math.min(rx, this._roomWidth)),
+      ry: Math.max(0, Math.min(ry, this._roomDepth)),
+    };
+  }
+
+  /**
+   * Map a target to percentage coordinates for the wizard preview.
+   * Applies the client-side perspective to raw sensor coords.
+   */
+  private _mapTargetToPreviewPercent(
+    target: Target,
+  ): { x: number; y: number } {
+    if (this._perspective && this._roomWidth > 0 && this._roomDepth > 0) {
+      const { rx, ry } = this._sensorToRoom(target.raw_x, target.raw_y);
+      return {
+        x: (rx / this._roomWidth) * 100,
+        y: (ry / this._roomDepth) * 100,
+      };
+    }
+    return { x: 50, y: 50 };
+  }
+
+  /**
+   * Map a target to percentage coordinates for the editor grid.
+   * Uses the backend's already-transformed x/y (perspective applied server-side).
+   */
+  private _mapTargetToPercent(
+    target: Target,
+  ): { x: number; y: number } {
+    if (this._roomWidth > 0 && this._roomDepth > 0) {
+      const rx = Math.max(0, Math.min(target.x, this._roomWidth));
+      const ry = Math.max(0, Math.min(target.y, this._roomDepth));
+      return {
+        x: (rx / this._roomWidth) * 100,
+        y: (ry / this._roomDepth) * 100,
+      };
+    }
+    return {
+      x: (target.x / MAX_RANGE) * 100,
+      y: (target.y / MAX_RANGE) * 100,
+    };
+  }
+
+  /** Map a target to a fractional grid cell position (col, row) */
+  private _mapTargetToGridCell(
+    target: Target,
+  ): { col: number; row: number } | null {
+    if (this._roomWidth <= 0 || this._roomDepth <= 0) return null;
+
+    // target.x/y are room-space mm (perspective applied server-side)
+    const rx = Math.max(0, Math.min(target.x, this._roomWidth));
+    const ry = Math.max(0, Math.min(target.y, this._roomDepth));
+
+    // Room is centered horizontally in the grid
+    const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
+    const startCol = Math.floor((GRID_COLS - roomCols) / 2);
+
+    const col = startCol + (rx / GRID_CELL_MM);
+    const row = ry / GRID_CELL_MM;
+
+    return { col, row };
   }
 
   // -- Device selector --
 
+  /** Guard navigation when dirty — shows dialog and queues the action */
+  private _guardNavigation(action: () => void): void {
+    if (this._dirty) {
+      this._pendingNavigation = action;
+      this._showUnsavedDialog = true;
+    } else {
+      action();
+    }
+  }
+
+  private _discardAndNavigate(): void {
+    this._dirty = false;
+    this._showUnsavedDialog = false;
+    if (this._pendingNavigation) {
+      this._pendingNavigation();
+      this._pendingNavigation = null;
+    }
+  }
+
   private async _onDeviceChange(e: Event): Promise<void> {
     const select = e.target as HTMLSelectElement;
     const entryId = select.value;
-    this._unsubscribeTargets();
-    this._selectedEntryId = entryId;
-    localStorage.setItem("epp_selected_entry", entryId);
-    await this._loadEntryConfig(entryId);
+    this._guardNavigation(async () => {
+      this._unsubscribeTargets();
+      this._selectedEntryId = entryId;
+      localStorage.setItem("epp_selected_entry", entryId);
+      await this._loadEntryConfig(entryId);
+    });
   }
 
-  // -- Setup wizard --
+  // -- Setup wizard: perspective corner marking --
 
-  private _wizardGoToOrientation(): void {
-    if (!this._wizardPlacement || !this._wizardRoomName.trim()) return;
-    this._placement = this._wizardPlacement;
-    this._mirrored = false;
-    this._wizardMirrored = false;
-    this._setupStep = "orientation";
+  // Local 1s rolling median smoother for raw readings during marking
+  private _smoothBuffer: { x: number; y: number; t: number }[] = [];
+
+  private _getSmoothedRaw(): { x: number; y: number } | null {
+    const active = this._targets.find((t) => t.active);
+    if (!active) return null;
+
+    const now = Date.now();
+    this._smoothBuffer.push({ x: active.raw_x, y: active.raw_y, t: now });
+
+    // Prune readings older than 1 second
+    while (this._smoothBuffer.length > 0 && now - this._smoothBuffer[0].t > 1000) {
+      this._smoothBuffer.shift();
+    }
+
+    if (this._smoothBuffer.length === 0) return { x: active.raw_x, y: active.raw_y };
+
+    const medianOf = (arr: number[]): number => {
+      const sorted = arr.slice().sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    };
+
+    return {
+      x: medianOf(this._smoothBuffer.map((s) => s.x)),
+      y: medianOf(this._smoothBuffer.map((s) => s.y)),
+    };
   }
 
-  private _wizardGoToBounds(): void {
-    this._mirrored = this._wizardMirrored;
-    this._wizardBounds = { far_y: 0, left_x: 0, right_x: 0 };
-    this._wizardCapturedPoints = [];
-    this._wizardRawPoints = [];
-    this._setupStep = "bounds_far";
-  }
-
-  private _markBoundsPoint(): void {
+  private _wizardStartCapture(): void {
     const active = this._targets.find((t) => t.active);
     if (!active) return;
 
-    const tx = this._wizardMirrored ? -active.x : active.x;
+    // TODO: restore 5-second capture with median
+    const idx = this._wizardCornerIndex;
+    this._wizardCorners = [...this._wizardCorners];
+    this._wizardCorners[idx] = {
+      raw_x: active.raw_x,
+      raw_y: active.raw_y,
+      offset_side: 0,
+      offset_fb: 0,
+    };
 
-    switch (this._setupStep) {
-      case "bounds_far":
-        this._wizardRawPoints = [
-          ...this._wizardRawPoints,
-          { x: tx, y: active.y, label: "far" },
-        ];
-        this._setupStep = "bounds_left";
-        break;
-      case "bounds_left":
-        this._wizardRawPoints = [
-          ...this._wizardRawPoints,
-          { x: tx, y: active.y, label: "left" },
-        ];
-        this._setupStep = "bounds_right";
-        break;
-      case "bounds_right": {
-        this._wizardRawPoints = [
-          ...this._wizardRawPoints,
-          { x: tx, y: active.y, label: "right" },
-        ];
-        this._computeCalibrationFromBounds();
-        this._setupStep = "preview";
-        break;
-      }
+    // Advance to next unmarked corner
+    if (idx < 3) {
+      this._wizardCornerIndex = idx + 1;
+    }
+
+    // If all 4 corners marked, compute dimensions and go to preview
+    if (this._wizardCorners.every((c) => c !== null)) {
+      this._autoComputeRoomDimensions();
+      this._computeWizardPerspective();
+      this._setupStep = "preview";
     }
   }
 
-  private _computeCalibrationFromBounds(): void {
-    const farPt = this._wizardRawPoints.find((p) => p.label === "far");
-    const leftPt = this._wizardRawPoints.find((p) => p.label === "left");
-    const rightPt = this._wizardRawPoints.find((p) => p.label === "right");
-    if (!farPt || !leftPt || !rightPt) return;
+  private _autoComputeRoomDimensions(): void {
+    const corners = this._wizardCorners as WizardCorner[];
+    const dist = (a: WizardCorner, b: WizardCorner): number =>
+      Math.sqrt((a.raw_x - b.raw_x) ** 2 + (a.raw_y - b.raw_y) ** 2);
+    this._wizardRoomWidth = Math.round(dist(corners[0], corners[1]));
+    const depthLeft = dist(corners[0], corners[3]);
+    const depthRight = dist(corners[1], corners[2]);
+    this._wizardRoomDepth = Math.round((depthLeft + depthRight) / 2);
+  }
 
-    const far = ld2450Correct(farPt.x, farPt.y);
-    const left = ld2450Correct(leftPt.x, leftPt.y);
-    const right = ld2450Correct(rightPt.x, rightPt.y);
-
-    const placement = this._wizardPlacement || "wall";
-    let sensorAngle: number;
-    if (placement === "left_corner" || placement === "right_corner") {
-      sensorAngle = Math.atan2(
-        right.cy - left.cy,
-        right.cx - left.cx
-      );
-    } else {
-      sensorAngle = Math.atan2(far.cx, far.cy);
+  private _solvePerspective(
+    src: { x: number; y: number }[],
+    dst: { x: number; y: number }[],
+  ): number[] | null {
+    // Build 8x8 system from 4 point pairs
+    const A: number[][] = [];
+    const b: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const sx = src[i].x, sy = src[i].y;
+      const rx = dst[i].x, ry = dst[i].y;
+      A.push([sx, sy, 1, 0, 0, 0, -sx * rx, -sy * rx]);
+      b.push(rx);
+      A.push([0, 0, 0, sx, sy, 1, -sx * ry, -sy * ry]);
+      b.push(ry);
     }
-
-    const cosA = Math.cos(sensorAngle);
-    const sinA = Math.sin(sensorAngle);
-    const rotate = (cx: number, cy: number) => ({
-      rx: cx * cosA + cy * sinA,
-      ry: -cx * sinA + cy * cosA,
-    });
-
-    const farR = rotate(far.cx, far.cy);
-    const leftR = rotate(left.cx, left.cy);
-    const rightR = rotate(right.cx, right.cy);
-
-    const allX = [farR.rx, leftR.rx, rightR.rx];
-    let minX = Math.min(...allX);
-    let maxX = Math.max(...allX);
-    const roomWidth = maxX - minX;
-    const roomDepth = Math.max(farR.ry, leftR.ry, rightR.ry);
-
-    let leftX = leftR.rx;
-    let rightX = rightR.rx;
-    if (leftX > rightX) {
-      [leftX, rightX] = [rightX, leftX];
+    // Gaussian elimination with partial pivoting
+    const n = 8;
+    const M = A.map((row, i) => [...row, b[i]]);
+    for (let col = 0; col < n; col++) {
+      let maxVal = Math.abs(M[col][col]), maxRow = col;
+      for (let row = col + 1; row < n; row++) {
+        if (Math.abs(M[row][col]) > maxVal) {
+          maxVal = Math.abs(M[row][col]);
+          maxRow = row;
+        }
+      }
+      if (maxVal < 1e-12) return null; // singular
+      [M[col], M[maxRow]] = [M[maxRow], M[col]];
+      for (let row = col + 1; row < n; row++) {
+        const factor = M[row][col] / M[col][col];
+        for (let j = col; j <= n; j++) M[row][j] -= factor * M[col][j];
+      }
     }
-
-    let offsetX = 0;
-    let offsetY = 0;
-    if (placement === "right_corner") {
-      offsetX = roomWidth;
-    } else if (placement === "wall") {
-      offsetX = roomWidth / 2;
+    // Back-substitution
+    const x = new Array(n);
+    for (let i = n - 1; i >= 0; i--) {
+      x[i] = M[i][n];
+      for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j];
+      x[i] /= M[i][i];
     }
+    return x;
+  }
 
-    this._sensorAngle = sensorAngle;
-    this._offsetX = offsetX;
-    this._offsetY = offsetY;
+  private _computeWizardPerspective(): void {
+    const corners = this._wizardCorners as WizardCorner[];
+    if (!corners.every((c) => c !== null)) return;
 
-    this._wizardBounds = {
-      far_y: roomDepth,
-      left_x: 0,
-      right_x: roomWidth,
-    };
-    this._roomBounds = { ...this._wizardBounds };
+    const w = this._wizardRoomWidth;
+    const d = this._wizardRoomDepth;
 
-    this._wizardCapturedPoints = [
-      { x: farR.rx + offsetX, y: farR.ry + offsetY },
-      { x: leftR.rx + offsetX, y: leftR.ry + offsetY },
-      { x: rightR.rx + offsetX, y: rightR.ry + offsetY },
+    const sensorPts = corners.map((c) => ({ x: c.raw_x, y: c.raw_y }));
+    const roomPts = [
+      { x: corners[0].offset_side, y: corners[0].offset_fb },
+      { x: w - corners[1].offset_side, y: corners[1].offset_fb },
+      { x: w - corners[2].offset_side, y: d - corners[2].offset_fb },
+      { x: corners[3].offset_side, y: d - corners[3].offset_fb },
     ];
 
-    this._autoFillGrid();
+    this._perspective = this._solvePerspective(sensorPts, roomPts);
+    this._roomWidth = w;
+    this._roomDepth = d;
   }
 
   private async _wizardFinish(): Promise<void> {
-    if (!this._wizardPlacement || !this._wizardRoomName.trim()) return;
+    if (!this._perspective) return;
 
     this._wizardSaving = true;
     try {
       await this.hass.callWS({
         type: "everything_presence_pro/set_setup",
         entry_id: this._selectedEntryId,
-        room_name: this._wizardRoomName.trim(),
-        placement: this._wizardPlacement,
-        mirrored: this._wizardMirrored,
-        room_bounds: this._wizardBounds,
-        calibration: { sensor_angle: this._sensorAngle },
+        perspective: this._perspective,
+        room_width: this._wizardRoomWidth,
+        room_depth: this._wizardRoomDepth,
       });
-      this._placement = this._wizardPlacement;
-      this._roomName = this._wizardRoomName.trim();
-      this._mirrored = this._wizardMirrored;
-      this._roomBounds = { ...this._wizardBounds };
+      this._roomWidth = this._wizardRoomWidth;
+      this._roomDepth = this._wizardRoomDepth;
+      this._initGridFromRoom();
       this._setupStep = null;
-
-      await this._loadEntryConfig(this._selectedEntryId);
-      await this._loadEntries();
     } finally {
       this._wizardSaving = false;
     }
   }
 
-  // -- Recalibration --
+  // -- Wizard mini-grid helpers --
 
-  private _startRecalibration(): void {
-    this._recalibrating = true;
-  }
+  // FOV geometry constants (120° wedge)
+  private static readonly FOV_HALF_ANGLE = Math.PI / 3; // 60°
+  private static readonly FOV_X_EXTENT = MAX_RANGE * Math.sin(Math.PI / 3); // ~5196
 
-  private async _markRecalibration(): Promise<void> {
-    const active = this._targets.find((t) => t.active);
-    if (!active) return;
-
-    const tx = this._mirrored ? -active.x : active.x;
-    const bounds = this._roomBounds;
-    if (!bounds || !bounds.far_y || !bounds.right_x) return;
-
-    const roomWidth = bounds.right_x - bounds.left_x;
-    const roomDepth = bounds.far_y;
-    const placement = this._placement;
-
-    let expectedX: number;
-    let expectedY: number;
-    if (placement === "left_corner") {
-      expectedX = roomWidth;
-      expectedY = roomDepth;
-    } else if (placement === "right_corner") {
-      expectedX = 0;
-      expectedY = roomDepth;
-    } else {
-      expectedX = roomWidth / 2;
-      expectedY = roomDepth;
-    }
-
-    try {
-      await this.hass.callWS({
-        type: "everything_presence_pro/recalibrate",
-        entry_id: this._selectedEntryId,
-        sensor_x: tx,
-        sensor_y: active.y,
-        expected_room_x: expectedX,
-        expected_room_y: expectedY,
-      });
-      const { cx, cy } = ld2450Correct(tx, active.y);
-      const sensorFrameAngle = Math.atan2(cx, cy);
-      const roomFrameAngle = Math.atan2(
-        expectedX - this._offsetX,
-        expectedY - this._offsetY,
-      );
-      this._sensorAngle = sensorFrameAngle - roomFrameAngle;
-    } catch (e) {
-      console.error("Recalibration failed:", e);
-    }
-
-    this._recalibrating = false;
-  }
-
-  // -- Sensor overlay geometry --
-
-  private _getSensorPosition(): { x: number; y: number } {
-    switch (this._placement) {
-      case "wall":
-        return { x: GRID_WIDTH / 2, y: 0 };
-      case "left_corner":
-        return { x: 0, y: 0 };
-      case "right_corner":
-        return { x: GRID_WIDTH, y: 0 };
-      default:
-        return { x: GRID_WIDTH / 2, y: 0 };
-    }
-  }
-
-  private _getFovAngles(): { start: number; end: number } {
-    switch (this._placement) {
-      case "wall":
-        return { start: -60, end: 60 };
-      case "left_corner":
-        return { start: -15, end: 105 };
-      case "right_corner":
-        return { start: -105, end: 15 };
-      default:
-        return { start: -60, end: 60 };
-    }
-  }
-
-  // -- Mini-grid helpers for wizard steps --
-
-  private _getOrientationSensorStyle(): string {
-    switch (this._wizardPlacement) {
-      case "left_corner":
-        return "left: 0; top: 0; transform: translate(-50%, -50%);";
-      case "right_corner":
-        return "right: 0; top: 0; transform: translate(50%, -50%); left: auto;";
-      case "wall":
-      default:
-        return "left: 50%; top: 0; transform: translate(-50%, -50%);";
-    }
+  /** Map raw sensor coords to percentage in the FOV view (marking step) */
+  private _rawToFovPct(rawX: number, rawY: number): { xPct: number; yPct: number } {
+    const halfW = EverythingPresenceProPanel.FOV_X_EXTENT;
+    return {
+      xPct: ((rawX + halfW) / (halfW * 2)) * 100,
+      yPct: (rawY / MAX_RANGE) * 100,
+    };
   }
 
   private _getWizardTargetStyle(target: Target): string {
-    const { x, y } = this._mapTargetToPercent(
-      target,
-      this._wizardMirrored,
-      null // no bounds during orientation/bounds steps
-    );
-    return `left: ${x}%; top: ${y}%;`;
-  }
-
-  private _getWizardCapturedStyle(point: { x: number; y: number }): string {
-    const xPercent = (point.x / 6000) * 100;
-    const yPercent = (point.y / 6000) * 100;
-    return `left: ${xPercent}%; top: ${yPercent}%;`;
+    const { xPct, yPct } = this._rawToFovPct(target.raw_x, target.raw_y);
+    return `left: ${xPct}%; top: ${yPct}%;`;
   }
 
   // -- Styles --
@@ -715,55 +1163,58 @@ export class EverythingPresenceProPanel extends LitElement {
       font-family: var(--paper-font-body1_-_font-family, "Roboto", sans-serif);
     }
 
-    .tools-sidebar {
-      width: 64px;
-      background: var(--card-background-color, #fff);
-      border-right: 1px solid var(--divider-color, #e0e0e0);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 12px 0;
-      gap: 8px;
-    }
-
-    .tool-btn {
-      width: 48px;
-      height: 48px;
-      border: none;
-      border-radius: 12px;
-      background: transparent;
-      color: var(--primary-text-color, #212121);
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      gap: 2px;
-      transition: background 0.2s;
-    }
-
-    .tool-btn:hover {
-      background: var(--secondary-background-color, #e0e0e0);
-    }
-
-    .tool-btn.active {
-      background: var(--primary-color, #03a9f4);
-      color: #fff;
-    }
-
-    .tool-btn ha-icon {
-      --mdc-icon-size: 22px;
-    }
-
     .main-area {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       padding: 24px;
       overflow: auto;
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+
+    .mode-tab {
+      padding: 8px 18px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 8px;
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .mode-tab:hover {
+      background: var(--secondary-background-color, #f5f5f5);
+    }
+
+    .mode-tab.active {
+      background: var(--primary-color, #03a9f4);
+      color: #fff;
+      border-color: var(--primary-color, #03a9f4);
+    }
+
+    .mode-tab.apply-btn {
+      background: var(--primary-color, #03a9f4);
+      color: #fff;
+      border-color: var(--primary-color, #03a9f4);
+    }
+
+    .mode-tab.apply-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .editor-layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
     }
 
     .grid-container {
@@ -773,8 +1224,6 @@ export class EverythingPresenceProPanel extends LitElement {
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(20, 28px);
-      grid-template-rows: repeat(16, 28px);
       gap: 1px;
       background: var(--divider-color, #e0e0e0);
       border: 2px solid var(--divider-color, #e0e0e0);
@@ -784,32 +1233,342 @@ export class EverythingPresenceProPanel extends LitElement {
     }
 
     .cell {
-      width: 28px;
-      height: 28px;
-      background: var(--card-background-color, #fff);
       cursor: pointer;
-      transition: background 0.1s;
-      position: relative;
+      transition: opacity 0.1s;
     }
 
     .cell:hover {
-      opacity: 0.8;
+      opacity: 0.75;
     }
 
-    .cell.room {
+    .overlay-help {
+      font-size: 13px;
+      color: var(--secondary-text-color, #757575);
+      margin: 0;
+    }
+
+    .zone-name-input {
+      flex: 1;
+      border: none;
+      border-bottom: 1px solid var(--divider-color, #e0e0e0);
+      background: transparent;
+      font-size: 14px;
+      color: var(--primary-text-color, #212121);
+      padding: 2px 4px;
+      min-width: 0;
+    }
+
+    .zone-name-input:focus {
+      outline: none;
+      border-bottom: 1px solid var(--primary-color, #03a9f4);
+    }
+
+    .template-dialog {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .template-dialog-card {
       background: var(--card-background-color, #fff);
+      border-radius: 16px;
+      padding: 24px;
+      min-width: 320px;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     }
 
-    .cell.outside {
-      background: var(--secondary-background-color, #e0e0e0);
+    .template-dialog-card h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
     }
 
-    .cell.furniture {
-      background: #bcaaa4;
+    .template-name-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 8px;
+      font-size: 15px;
+      box-sizing: border-box;
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
     }
 
-    .cell.zone-cell {
-      opacity: 0.85;
+    .template-dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .template-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+    }
+
+    .template-item-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .template-item-size {
+      font-size: 12px;
+      color: var(--secondary-text-color, #757575);
+    }
+
+    .template-item-btn {
+      padding: 4px 12px;
+      font-size: 13px;
+    }
+
+    .sensitivity-select {
+      padding: 2px 4px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 4px;
+      font-size: 12px;
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Furniture overlay */
+    .furniture-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    .furniture-overlay.non-interactive {
+      pointer-events: none !important;
+    }
+
+    .furniture-overlay.non-interactive .furniture-item {
+      pointer-events: none !important;
+      opacity: 0.6;
+    }
+
+    .furniture-item {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      background: transparent;
+      pointer-events: auto;
+      cursor: grab;
+      transform-origin: center center;
+      user-select: none;
+    }
+
+    .furniture-item:hover {
+      border-color: var(--primary-color, #03a9f4);
+    }
+
+    .furniture-item.selected {
+      border: 2px solid var(--primary-color, #03a9f4);
+      box-shadow: 0 0 8px rgba(3, 169, 244, 0.4);
+      z-index: 10;
+    }
+
+    .furniture-item ha-icon {
+      color: rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+    }
+
+    .furn-svg {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .furn-sticker-svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .furn-handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: var(--primary-color, #03a9f4);
+      border: 1px solid #fff;
+      border-radius: 2px;
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .furn-handle-n { top: -4px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+    .furn-handle-s { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+    .furn-handle-e { right: -4px; top: 50%; transform: translateY(-50%); cursor: e-resize; }
+    .furn-handle-w { left: -4px; top: 50%; transform: translateY(-50%); cursor: w-resize; }
+    .furn-handle-ne { top: -4px; right: -4px; cursor: ne-resize; }
+    .furn-handle-nw { top: -4px; left: -4px; cursor: nw-resize; }
+    .furn-handle-se { bottom: -4px; right: -4px; cursor: se-resize; }
+    .furn-handle-sw { bottom: -4px; left: -4px; cursor: sw-resize; }
+
+    .furn-rotate-stem {
+      position: absolute;
+      top: -32px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 32px;
+      background: var(--primary-color, #03a9f4);
+      pointer-events: none;
+    }
+
+    .furn-rotate-handle {
+      position: absolute;
+      top: -48px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 20px;
+      background: var(--primary-color, #03a9f4);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      pointer-events: auto;
+      color: #fff;
+    }
+
+    .furn-delete-btn {
+      position: absolute;
+      top: -24px;
+      right: -4px;
+      width: 20px;
+      height: 20px;
+      background: var(--error-color, #f44336);
+      border: 1px solid #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      pointer-events: auto;
+      color: #fff;
+    }
+
+    /* Furniture sidebar */
+    .furn-selected-info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 8px;
+      border: 2px solid var(--primary-color, #03a9f4);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .furn-dims {
+      display: flex;
+      gap: 6px;
+    }
+
+    .furn-dims label {
+      flex: 1;
+      font-size: 11px;
+      color: var(--secondary-text-color, #757575);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .furn-dims input {
+      width: 100%;
+      padding: 4px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 4px;
+      font-size: 12px;
+      box-sizing: border-box;
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
+    }
+
+    .furn-catalog {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .furn-sticker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 4px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 8px;
+      background: var(--card-background-color, #fff);
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--primary-text-color, #212121);
+      text-align: center;
+      transition: background 0.15s;
+    }
+
+    .furn-sticker:hover {
+      background: var(--secondary-background-color, #f5f5f5);
+    }
+
+    .furn-sticker span {
+      line-height: 1.2;
+    }
+
+    .furn-icon-picker {
+      margin-top: 8px;
+    }
+
+    .furn-icon-input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .furn-icon-input {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
+    }
+
+    .zone-color-picker {
+      width: 24px;
+      height: 24px;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      border-radius: 4px;
+      flex-shrink: 0;
     }
 
     .targets-overlay {
@@ -851,13 +1610,39 @@ export class EverythingPresenceProPanel extends LitElement {
 
     .zone-sidebar {
       width: 240px;
+      max-height: 70vh;
       background: var(--card-background-color, #fff);
       border-left: 1px solid var(--divider-color, #e0e0e0);
-      padding: 16px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 6px;
       overflow-y: auto;
+    }
+
+    .sidebar-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .sidebar-tab {
+      flex: 1;
+      padding: 6px 12px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 8px;
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .sidebar-tab.active {
+      background: var(--primary-color, #03a9f4);
+      color: #fff;
+      border-color: var(--primary-color, #03a9f4);
     }
 
     .zone-sidebar h3 {
@@ -868,12 +1653,12 @@ export class EverythingPresenceProPanel extends LitElement {
 
     .zone-item {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px 8px;
       border-radius: 8px;
       cursor: pointer;
-      border: 2px solid transparent;
+      border: 2px solid var(--divider-color, #e0e0e0);
       transition: border-color 0.2s;
     }
 
@@ -883,6 +1668,38 @@ export class EverythingPresenceProPanel extends LitElement {
 
     .zone-item.active {
       border-color: var(--primary-color, #03a9f4);
+    }
+
+    .zone-item-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zone-settings-row {
+      padding-left: 24px;
+      gap: 6px;
+    }
+
+    .zone-separator {
+      border: none;
+      border-top: 1px solid var(--divider-color, #e0e0e0);
+      margin: 4px 0;
+      flex-shrink: 0;
+    }
+
+    .zone-scroll-area {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .zone-setting-label {
+      font-size: 11px;
+      color: var(--secondary-text-color, #757575);
     }
 
     .zone-color-dot {
@@ -1039,36 +1856,6 @@ export class EverythingPresenceProPanel extends LitElement {
       color: var(--primary-text-color, #212121);
     }
 
-    .placement-options {
-      display: flex;
-      gap: 12px;
-    }
-
-    .placement-btn {
-      flex: 1;
-      padding: 16px 12px;
-      border: 2px solid var(--divider-color, #e0e0e0);
-      border-radius: 12px;
-      background: var(--card-background-color, #fff);
-      color: var(--primary-text-color, #212121);
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      font-weight: 500;
-      transition: border-color 0.2s, background 0.2s;
-    }
-
-    .placement-btn:hover {
-      background: var(--secondary-background-color, #f5f5f5);
-    }
-
-    .placement-btn.selected {
-      border-color: var(--primary-color, #03a9f4);
-      background: rgba(3, 169, 244, 0.06);
-    }
 
     .wizard-actions {
       display: flex;
@@ -1180,24 +1967,17 @@ export class EverythingPresenceProPanel extends LitElement {
       z-index: 8;
     }
 
-    .placement-diagram {
-      width: 80px;
-      height: 56px;
+    .sensor-fov-view {
+      width: 480px;
+      aspect-ratio: 1.732 / 1;
+      background: #1a1a2e;
       border: 2px solid var(--divider-color, #e0e0e0);
-      border-radius: 6px;
+      border-radius: 8px;
       position: relative;
-      background: var(--secondary-background-color, #f5f5f5);
+      overflow: hidden;
     }
 
-    .placement-diagram .sensor-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--primary-color, #03a9f4);
-      position: absolute;
-    }
-
-    .placement-diagram .fov-cone {
+    .sensor-fov-svg {
       position: absolute;
       top: 0;
       left: 0;
@@ -1206,43 +1986,29 @@ export class EverythingPresenceProPanel extends LitElement {
       pointer-events: none;
     }
 
-    .placement-diagram.wall .sensor-dot {
-      top: -5px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-
-    .placement-diagram.left-corner .sensor-dot {
-      top: -5px;
-      left: -5px;
-    }
-
-    .placement-diagram.right-corner .sensor-dot {
-      top: -5px;
-      right: -5px;
-      left: auto;
-    }
-
-    .step-indicator {
+    .preview-grid-container {
       display: flex;
       justify-content: center;
-      gap: 8px;
-      margin-bottom: 8px;
+      position: relative;
     }
 
-    .step-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
+    .preview-grid-wrapper {
+      position: relative;
+    }
+
+    .preview-grid {
+      display: grid;
+      gap: 1px;
+      width: 100%;
+      height: 100%;
       background: var(--divider-color, #e0e0e0);
+      border: 2px solid var(--divider-color, #e0e0e0);
+      border-radius: 8px;
+      overflow: hidden;
     }
 
-    .step-dot.active {
-      background: var(--primary-color, #03a9f4);
-    }
-
-    .step-dot.done {
-      background: #4caf50;
+    .preview-cell {
+      background: var(--card-background-color, #fff);
     }
 
     .no-target-warning {
@@ -1251,41 +2017,103 @@ export class EverythingPresenceProPanel extends LitElement {
       text-align: center;
     }
 
-    .recalibrate-overlay {
-      margin-top: 16px;
-      padding: 16px 24px;
-      background: var(--card-background-color, #fff);
-      border: 2px solid var(--primary-color, #03a9f4);
-      border-radius: 12px;
+    .corner-progress {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
-    .recalibrate-overlay p {
-      margin: 0;
-      font-size: 14px;
-      flex: 1;
-    }
-
-    .recalibrate-overlay button {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
+    .corner-chip {
+      padding: 6px 12px;
+      border-radius: 16px;
       font-size: 13px;
-      font-weight: 500;
+      background: var(--secondary-background-color, #e0e0e0);
+      color: var(--secondary-text-color, #757575);
+      cursor: pointer;
+      transition: background 0.2s;
     }
 
-    .recalibrate-overlay button:first-of-type {
+    .corner-chip.active {
       background: var(--primary-color, #03a9f4);
       color: #fff;
     }
 
-    .recalibrate-overlay button:last-of-type {
-      background: var(--secondary-background-color, #e0e0e0);
+    .corner-chip.done {
+      background: #4caf50;
+      color: #fff;
+    }
+
+    .corner-instruction {
+      font-size: 15px;
       color: var(--primary-text-color, #212121);
+    }
+
+    .corner-offsets {
+      display: flex;
+      gap: 16px;
+    }
+
+    .corner-offsets label {
+      flex: 1;
+    }
+
+    .corner-offsets input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
+    }
+
+    .dimension-inputs {
+      display: flex;
+      gap: 16px;
+    }
+
+    .dimension-inputs label {
+      flex: 1;
+    }
+
+    .dimension-inputs input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
+    }
+
+    .capture-progress {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .capture-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--secondary-background-color, #e0e0e0);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .capture-fill {
+      height: 100%;
+      background: var(--primary-color, #03a9f4);
+      border-radius: 4px;
+      transition: width 0.1s linear;
+    }
+
+    .capture-progress span {
+      font-size: 13px;
+      color: var(--secondary-text-color, #757575);
+      white-space: nowrap;
     }
   `;
 
@@ -1310,15 +2138,14 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _changePlacement(): void {
-    this._setupStep = "placement";
-    this._wizardRoomName = this._roomName;
-    this._wizardPlacement = (this._placement as Placement) || null;
-    this._wizardMirrored = this._mirrored;
-    this._wizardBounds = this._roomBounds
-      ? { ...this._roomBounds }
-      : { far_y: 0, left_x: 0, right_x: 0 };
-    this._wizardCapturedPoints = [];
-    this._wizardRawPoints = [];
+    this._guardNavigation(() => {
+      this._setupStep = "corners";
+      this._wizardCornerIndex = 0;
+      this._wizardCorners = [null, null, null, null];
+      this._wizardRoomWidth = this._roomWidth;
+      this._wizardRoomDepth = this._roomDepth;
+      this._perspective = null;
+    });
   }
 
   private _renderHeader() {
@@ -1327,7 +2154,7 @@ export class EverythingPresenceProPanel extends LitElement {
         ? html`<button
             class="header-settings-btn"
             @click=${this._changePlacement}
-            title="Change sensor placement"
+            title="Re-run setup"
           >
             <ha-icon icon="mdi:cog"></ha-icon>
           </button>`
@@ -1354,52 +2181,15 @@ export class EverythingPresenceProPanel extends LitElement {
       `;
     }
     const entry = this._entries[0];
-    const title = this._roomName
-      ? `${entry?.title ?? "EP Pro"} \u2014 ${this._roomName}`
-      : entry?.title ?? "Everything Presence Pro";
+    const title = entry?.title ?? "Everything Presence Pro";
     return html`<div class="panel-header">${title} ${setupBtn}</div>`;
-  }
-
-  private _renderStepIndicator() {
-    const steps: SetupStep[] = [
-      "placement",
-      "orientation",
-      "bounds_far",
-      "preview",
-    ];
-    const currentIdx = steps.indexOf(this._setupStep!);
-    // bounds_left and bounds_right share the same dot as bounds_far
-    const effectiveIdx =
-      this._setupStep === "bounds_left" || this._setupStep === "bounds_right"
-        ? 2
-        : currentIdx;
-
-    return html`
-      <div class="step-indicator">
-        ${steps.map(
-          (_, i) => html`
-            <div
-              class="step-dot ${i === effectiveIdx ? "active" : i < effectiveIdx ? "done" : ""}"
-            ></div>
-          `
-        )}
-      </div>
-    `;
   }
 
   private _renderWizard() {
     let stepContent;
     switch (this._setupStep) {
-      case "placement":
-        stepContent = this._renderWizardPlacement();
-        break;
-      case "orientation":
-        stepContent = this._renderWizardOrientation();
-        break;
-      case "bounds_far":
-      case "bounds_left":
-      case "bounds_right":
-        stepContent = this._renderWizardBounds();
+      case "corners":
+        stepContent = this._renderWizardCorners();
         break;
       case "preview":
         stepContent = this._renderWizardPreview();
@@ -1407,247 +2197,194 @@ export class EverythingPresenceProPanel extends LitElement {
     }
     return html`
       <div class="wizard-container">
-        ${this._renderHeader()} ${this._renderStepIndicator()} ${stepContent}
+        ${this._renderHeader()} ${stepContent}
       </div>
     `;
   }
 
-  private _renderWizardPlacement() {
-    const canNext = !!this._wizardPlacement && !!this._wizardRoomName.trim();
+  private _renderWizardCorners() {
+    const idx = this._wizardCornerIndex;
+    const hasTarget = this._targets.some((t) => t.active);
+    const allMarked = this._wizardCorners.every((c) => c !== null);
+    const label = CORNER_LABELS[idx] || "";
+    const [sideLabel, fbLabel] = CORNER_OFFSET_LABELS[idx] || ["", ""];
 
     return html`
       <div class="wizard-card">
-        <h2>Sensor placement</h2>
-        <p>Where is the sensor mounted? Choose the position and name the room.</p>
-
-        <label>
-          Room name
-          <input
-            type="text"
-            .value=${this._wizardRoomName}
-            @input=${(e: InputEvent) => {
-              this._wizardRoomName = (e.target as HTMLInputElement).value;
-            }}
-            placeholder="e.g. Living Room"
-          />
-        </label>
-
-        <div class="placement-options">
-          <button
-            class="placement-btn ${this._wizardPlacement === "left_corner" ? "selected" : ""}"
-            @click=${() => {
-              this._wizardPlacement = "left_corner";
-            }}
-          >
-            <div class="placement-diagram left-corner">
-              <div class="sensor-dot"></div>
-              <svg class="fov-cone" viewBox="0 0 80 56">
-                <path d="M 0 0 L 56 0 L 0 56 Z" fill="rgba(3,169,244,0.15)" stroke="rgba(3,169,244,0.4)" stroke-width="1"/>
-              </svg>
-            </div>
-            Left corner
-          </button>
-          <button
-            class="placement-btn ${this._wizardPlacement === "wall" ? "selected" : ""}"
-            @click=${() => {
-              this._wizardPlacement = "wall";
-            }}
-          >
-            <div class="placement-diagram wall">
-              <div class="sensor-dot"></div>
-              <svg class="fov-cone" viewBox="0 0 80 56">
-                <path d="M 40 0 L 72 56 L 8 56 Z" fill="rgba(3,169,244,0.15)" stroke="rgba(3,169,244,0.4)" stroke-width="1"/>
-              </svg>
-            </div>
-            Wall (center)
-          </button>
-          <button
-            class="placement-btn ${this._wizardPlacement === "right_corner" ? "selected" : ""}"
-            @click=${() => {
-              this._wizardPlacement = "right_corner";
-            }}
-          >
-            <div class="placement-diagram right-corner">
-              <div class="sensor-dot"></div>
-              <svg class="fov-cone" viewBox="0 0 80 56">
-                <path d="M 80 0 L 80 56 L 24 0 Z" fill="rgba(3,169,244,0.15)" stroke="rgba(3,169,244,0.4)" stroke-width="1"/>
-              </svg>
-            </div>
-            Right corner
-          </button>
-        </div>
-
-        <div class="wizard-actions">
-          <button
-            class="wizard-btn wizard-btn-primary"
-            ?disabled=${!canNext}
-            @click=${this._wizardGoToOrientation}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    `;
-  }
-
-  private _renderWizardOrientation() {
-    return html`
-      <div class="wizard-card">
-        <h2>Verify orientation</h2>
+        <h2>Mark room corners</h2>
         <p>
-          Move to the <strong>left side</strong> of the room. The dot should
-          appear on the <strong>left</strong> of the grid below. If it appears on
-          the wrong side, click "Flip left/right".
+          Walk to each corner of the room and click Mark. The sensor will
+          record your position over ${CAPTURE_DURATION_S} seconds.
         </p>
 
-        ${this._renderMiniGrid()}
-
-        <div class="wizard-actions">
-          <button
-            class="wizard-btn wizard-btn-back"
-            @click=${() => {
-              this._setupStep = "placement";
-            }}
-          >
-            Back
-          </button>
-          <button
-            class="wizard-btn wizard-btn-secondary"
-            @click=${() => {
-              this._wizardMirrored = !this._wizardMirrored;
-              this._mirrored = this._wizardMirrored;
-            }}
-          >
-            Flip left/right
-          </button>
-          <button
-            class="wizard-btn wizard-btn-primary"
-            @click=${this._wizardGoToBounds}
-          >
-            Looks correct
-          </button>
+        <div class="corner-progress">
+          ${CORNER_LABELS.map(
+            (name, i) => html`
+              <span
+                class="corner-chip ${this._wizardCorners[i] ? "done" : ""} ${i === idx ? "active" : ""}"
+                @click=${() => { this._wizardCornerIndex = i; }}
+              >
+                ${name} ${this._wizardCorners[i] ? "\u2713" : ""}
+              </span>
+            `
+          )}
         </div>
+
+        ${allMarked
+          ? nothing
+          : html`
+            <p class="corner-instruction">
+              <strong>Corner ${idx + 1}/4:</strong> Walk to the
+              <strong>${label.toLowerCase()}</strong> corner.
+            </p>
+
+            <div class="corner-offsets">
+              <label>
+                ${sideLabel} (m)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  .value=${"0"}
+                  @change=${(e: Event) => {
+                    const val = 1000 * parseFloat((e.target as HTMLInputElement).value);
+                    const corner = this._wizardCorners[idx];
+                    if (corner) corner.offset_side = val;
+                  }}
+                />
+              </label>
+              <label>
+                ${fbLabel} (m)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  .value=${"0"}
+                  @change=${(e: Event) => {
+                    const val = 1000 * parseFloat((e.target as HTMLInputElement).value);
+                    const corner = this._wizardCorners[idx];
+                    if (corner) corner.offset_fb = val;
+                  }}
+                />
+              </label>
+            </div>
+
+            ${this._renderMiniSensorView()}
+
+            ${!hasTarget
+              ? html`<p class="no-target-warning">
+                  No target detected. Make sure you are visible to the sensor.
+                </p>`
+              : nothing}
+
+            <div class="wizard-actions">
+              ${this._wizardCapturing
+                ? html`
+                  <div class="capture-progress">
+                    <div class="capture-bar">
+                      <div
+                        class="capture-fill"
+                        style="width: ${this._wizardCaptureProgress * 100}%"
+                      ></div>
+                    </div>
+                    <span>Recording... ${Math.round(this._wizardCaptureProgress * CAPTURE_DURATION_S)}s / ${CAPTURE_DURATION_S}s</span>
+                  </div>
+                `
+                : html`
+                  <button
+                    class="wizard-btn wizard-btn-primary"
+                    ?disabled=${!hasTarget}
+                    @click=${() => this._wizardStartCapture()}
+                  >
+                    Mark ${label}
+                  </button>
+                `}
+            </div>
+          `}
       </div>
     `;
-  }
-
-  private _renderWizardBounds() {
-    const hasTarget = this._targets.some((t) => t.active);
-
-    let instruction: string;
-    let stepLabel: string;
-    switch (this._setupStep) {
-      case "bounds_far":
-        instruction =
-          "Walk to the <strong>wall furthest</strong> from the sensor and click Mark.";
-        stepLabel = "Far wall (1/3)";
-        break;
-      case "bounds_left":
-        instruction =
-          "Walk to the <strong>left-most point</strong> of the room and click Mark.";
-        stepLabel = "Left extent (2/3)";
-        break;
-      case "bounds_right":
-        instruction =
-          "Walk to the <strong>right-most point</strong> of the room and click Mark.";
-        stepLabel = "Right extent (3/3)";
-        break;
-      default:
-        instruction = "";
-        stepLabel = "";
-    }
-
-    return html`
-      <div class="wizard-card">
-        <h2>Define room bounds</h2>
-        <p><strong>${stepLabel}</strong></p>
-        <p>${this._unsafeHTML(instruction)}</p>
-
-        ${this._renderMiniGrid(true)}
-
-        ${!hasTarget
-          ? html`<p class="no-target-warning">
-              No target detected. Make sure you are visible to the sensor.
-            </p>`
-          : nothing}
-
-        <div class="wizard-actions">
-          <button
-            class="wizard-btn wizard-btn-back"
-            @click=${() => {
-              if (this._setupStep === "bounds_far") {
-                this._setupStep = "orientation";
-              } else if (this._setupStep === "bounds_left") {
-                this._wizardCapturedPoints = this._wizardCapturedPoints.slice(
-                  0,
-                  -1
-                );
-                this._wizardRawPoints = this._wizardRawPoints.slice(0, -1);
-                this._setupStep = "bounds_far";
-              } else {
-                this._wizardCapturedPoints = this._wizardCapturedPoints.slice(
-                  0,
-                  -1
-                );
-                this._wizardRawPoints = this._wizardRawPoints.slice(0, -1);
-                this._setupStep = "bounds_left";
-              }
-            }}
-          >
-            Back
-          </button>
-          <button
-            class="wizard-btn wizard-btn-primary"
-            ?disabled=${!hasTarget}
-            @click=${this._markBoundsPoint}
-          >
-            Mark position
-          </button>
-        </div>
-      </div>
-    `;
-  }
-
-  private _unsafeHTML(str: string) {
-    const el = document.createElement("span");
-    el.innerHTML = str;
-    return html`${el}`;
   }
 
   private _renderWizardPreview() {
-    const b = this._wizardBounds;
-    const widthM = ((b.right_x - b.left_x) / 1000).toFixed(1);
-    const depthM = (b.far_y / 1000).toFixed(1);
+    const widthM = (this._wizardRoomWidth / 1000).toFixed(1);
+    const depthM = (this._wizardRoomDepth / 1000).toFixed(1);
+
+    // 300mm grid cells
+    const cellMm = 300;
+    const cols = Math.ceil(this._wizardRoomWidth / cellMm);
+    const rows = Math.ceil(this._wizardRoomDepth / cellMm);
+    const cellCount = cols * rows;
+
+    // Size each cell so the grid fits nicely — max 480px wide
+    const maxPx = 480;
+    const cellPx = Math.min(Math.floor(maxPx / cols), Math.floor(maxPx / rows), 32);
+    const gridWidthPx = cols * (cellPx + 1) - 1;
+    const gridHeightPx = rows * (cellPx + 1) - 1;
 
     return html`
       <div class="wizard-card">
         <h2>Room preview</h2>
         <p>
-          Room size: approximately ${widthM}m wide x ${depthM}m deep. The grid
-          below is now scaled to your room. Verify that targets appear in the
-          correct positions.
+          Room size: approximately ${widthM}m wide x ${depthM}m deep. Walk
+          around the room to verify the target dot tracks your position correctly.
         </p>
 
-        <div class="mini-grid-container">
-          <div class="mini-grid">
-            <div class="mini-grid-sensor" style=${this._getOrientationSensorStyle()}></div>
+        <div class="dimension-inputs">
+          <label>
+            Width (m)
+            <input
+              type="number"
+              step="0.1"
+              min="0.5"
+              .value=${widthM}
+              @change=${(e: Event) => {
+                this._wizardRoomWidth = 1000 * parseFloat((e.target as HTMLInputElement).value);
+                this._computeWizardPerspective();
+              }}
+            />
+          </label>
+          <label>
+            Depth (m)
+            <input
+              type="number"
+              step="0.1"
+              min="0.5"
+              .value=${depthM}
+              @change=${(e: Event) => {
+                this._wizardRoomDepth = 1000 * parseFloat((e.target as HTMLInputElement).value);
+                this._computeWizardPerspective();
+              }}
+            />
+          </label>
+        </div>
+
+        <div class="preview-grid-container">
+          <div
+            class="preview-grid-wrapper"
+            style="width: ${gridWidthPx}px; height: ${gridHeightPx}px;"
+          >
+            <div
+              class="preview-grid"
+              style="
+                grid-template-columns: repeat(${cols}, ${cellPx}px);
+                grid-template-rows: repeat(${rows}, ${cellPx}px);
+              "
+            >
+              ${Array.from({ length: cellCount }, () => html`
+                <div class="preview-cell"></div>
+              `)}
+            </div>
             ${this._targets
               .filter((t) => t.active)
-              .map(
-                (t) => {
-                  const { x, y } = this._mapTargetToPercent(
-                    t,
-                    this._wizardMirrored,
-                    this._wizardBounds
-                  );
-                  return html`
-                    <div
-                      class="mini-grid-target"
-                      style="left: ${x}%; top: ${y}%;"
-                    ></div>
-                  `;
-                }
-              )}
+              .map((t) => {
+                const { x, y } = this._mapTargetToPreviewPercent(t);
+                return html`
+                  <div
+                    class="target-dot"
+                    style="left: ${x}%; top: ${y}%;"
+                  ></div>
+                `;
+              })}
           </div>
         </div>
 
@@ -1655,17 +2392,15 @@ export class EverythingPresenceProPanel extends LitElement {
           <button
             class="wizard-btn wizard-btn-back"
             @click=${() => {
-              this._wizardCapturedPoints = this._wizardCapturedPoints.slice(0, -1);
-              this._wizardRawPoints = this._wizardRawPoints.slice(0, -1);
-              this._roomBounds = null;
-              this._setupStep = "bounds_right";
+              this._setupStep = "corners";
+              this._perspective = null;
             }}
           >
             Back
           </button>
           <button
             class="wizard-btn wizard-btn-primary"
-            ?disabled=${this._wizardSaving}
+            ?disabled=${this._wizardSaving || !this._perspective}
             @click=${this._wizardFinish}
           >
             ${this._wizardSaving ? "Saving..." : "Finish"}
@@ -1675,26 +2410,69 @@ export class EverythingPresenceProPanel extends LitElement {
     `;
   }
 
-  private _renderMiniGrid(showCaptured = false) {
+  /** Sensor FOV view showing raw target positions during corner marking */
+  private _renderMiniSensorView() {
+    // SVG uses real mm coordinates: sensor at (0,0), FOV opens downward
+    const halfX = EverythingPresenceProPanel.FOV_X_EXTENT; // ~5196
+    const R = MAX_RANGE; // 6000
+    const pad = 200; // small padding
+
+    // FOV edge points at max range
+    const lx = -halfX, ly = R * Math.cos(EverythingPresenceProPanel.FOV_HALF_ANGLE); // (-5196, 3000)
+    const rx = halfX, ry = ly; // (5196, 3000)
+
+    // FOV wedge with arc: sensor → left edge → arc to right edge → close
+    const fovPath = `M 0 0 L ${lx} ${ly} A ${R} ${R} 0 0 0 ${rx} ${ry} Z`;
+
+    // Range ring arcs (2m and 4m)
+    const ringPaths = [2000, 4000].map((r) => {
+      const ex = r * Math.sin(EverythingPresenceProPanel.FOV_HALF_ANGLE);
+      const ey = r * Math.cos(EverythingPresenceProPanel.FOV_HALF_ANGLE);
+      return `M ${-ex} ${ey} A ${r} ${r} 0 0 0 ${ex} ${ey}`;
+    });
+
     return html`
       <div class="mini-grid-container">
-        <div class="mini-grid">
-          <div class="mini-grid-label left-label">Left</div>
-          <div class="mini-grid-label right-label">Right</div>
-          <div
-            class="mini-grid-sensor"
-            style=${this._getOrientationSensorStyle()}
-          ></div>
-          ${showCaptured
-            ? this._wizardCapturedPoints.map(
-                (pt) => html`
-                  <div
-                    class="mini-grid-captured"
-                    style=${this._getWizardCapturedStyle(pt)}
-                  ></div>
-                `
-              )
-            : nothing}
+        <div class="sensor-fov-view">
+          <svg
+            class="sensor-fov-svg"
+            viewBox="${-halfX - pad} ${-pad} ${halfX * 2 + pad * 2} ${R + pad * 2}"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <path
+              d="${fovPath}"
+              fill="rgba(3, 169, 244, 0.10)"
+              stroke="rgba(3, 169, 244, 0.3)"
+              stroke-width="30"
+            />
+            ${ringPaths.map(
+              (d) => svg`
+                <path
+                  d="${d}"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.15)"
+                  stroke-width="40"
+                  stroke-dasharray="80 80"
+                />
+              `
+            )}
+            <!-- Sensor dot -->
+            <circle cx="0" cy="0" r="100" fill="var(--primary-color, #03a9f4)" stroke="#fff" stroke-width="40" />
+          </svg>
+          <!-- Marked corners (positioned via CSS %) -->
+          ${this._wizardCorners
+            .filter((c): c is WizardCorner => c !== null)
+            .map((c, i) => {
+              const { xPct, yPct } = this._rawToFovPct(c.raw_x, c.raw_y);
+              return html`
+                <div
+                  class="mini-grid-captured"
+                  style="left: ${xPct}%; top: ${yPct}%;"
+                  title="${CORNER_LABELS[i]}"
+                ></div>
+              `;
+            })}
+          <!-- Live targets -->
           ${this._targets
             .filter((t) => t.active)
             .map(
@@ -1711,176 +2489,503 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderEditor() {
-    return html`
-      <div class="tools-sidebar">
-        <button
-          class="tool-btn ${this._activeTool === "room" ? "active" : ""}"
-          @click=${() => this._selectTool("room")}
-        >
-          <ha-icon icon="mdi:floor-plan"></ha-icon>
-          Room
-        </button>
-        <button
-          class="tool-btn ${this._activeTool === "outside" ? "active" : ""}"
-          @click=${() => this._selectTool("outside")}
-        >
-          <ha-icon icon="mdi:tree"></ha-icon>
-          Outside
-        </button>
-        <button
-          class="tool-btn ${this._activeTool === "furniture" ? "active" : ""}"
-          @click=${() => this._selectTool("furniture")}
-        >
-          <ha-icon icon="mdi:sofa"></ha-icon>
-          Furniture
-        </button>
-        <button
-          class="tool-btn ${this._activeTool === "zone" ? "active" : ""}"
-          @click=${() => this._selectTool("zone")}
-        >
-          <ha-icon icon="mdi:select-group"></ha-icon>
-          Zone
-        </button>
-        <button
-          class="tool-btn"
-          @click=${() => this._startRecalibration()}
-        >
-          <ha-icon icon="mdi:compass-outline"></ha-icon>
-          Recalibrate
-        </button>
-      </div>
+    // Determine visible range: zoom to room cells (freeze during painting)
+    const bounds = this._frozenBounds ?? this._getRoomBounds();
+    const noRoom = bounds.minCol > bounds.maxCol;
+    const minCol = noRoom ? 0 : bounds.minCol;
+    const maxCol = noRoom ? GRID_COLS - 1 : bounds.maxCol;
+    const minRow = noRoom ? 0 : bounds.minRow;
+    const maxRow = noRoom ? GRID_ROWS - 1 : bounds.maxRow;
 
+    const visCols = maxCol - minCol + 1;
+    const visRows = maxRow - minRow + 1;
+    const cellPx = Math.min(32, Math.floor(520 / Math.max(visCols, visRows)));
+
+    return html`
       <div class="main-area">
         ${this._renderHeader()}
-        <div class="grid-container">
-          <div
-            class="grid"
-            @mouseup=${this._onCellMouseUp}
-            @mouseleave=${this._onCellMouseUp}
-          >
-            ${Array.from({ length: GRID_CELL_COUNT }, (_, i) => {
-              const zoneColor = this._getCellZoneColor(i);
-              const style = zoneColor ? `background-color: ${zoneColor}` : "";
-              return html`
-                <div
-                  class="cell ${this._getCellClass(i)}"
-                  style=${style}
-                  @mousedown=${() => this._onCellMouseDown(i)}
-                  @mouseenter=${() => this._onCellMouseEnter(i)}
-                ></div>
-              `;
-            })}
+
+        <!-- Mode tabs -->
+        <div class="mode-tabs">
+          <button
+            class="mode-tab"
+            @click=${() => { this._showTemplateLoad = true; this._showTemplateSave = false; }}
+          >Load</button>
+          <button
+            class="mode-tab"
+            @click=${() => { this._showTemplateSave = true; this._showTemplateLoad = false; }}
+          >Save</button>
+          <button
+            class="mode-tab apply-btn"
+            ?disabled=${this._saving}
+            @click=${this._applyLayout}
+          >${this._saving ? "Applying..." : "Apply"}</button>
+        </div>
+
+        <div class="editor-layout">
+          <!-- Grid -->
+          <div class="grid-container">
+            <div
+              class="grid"
+              style="grid-template-columns: repeat(${visCols}, ${cellPx}px); grid-template-rows: repeat(${visRows}, ${cellPx}px);"
+              @mouseup=${this._onCellMouseUp}
+              @mouseleave=${this._onCellMouseUp}
+            >
+              ${this._renderVisibleCells(minCol, maxCol, minRow, maxRow, cellPx)}
+            </div>
+            <div class="targets-overlay">
+              ${this._targets
+                .filter((t) => t.active)
+                .map((t) => {
+                  const pos = this._mapTargetToGridCell(t);
+                  if (!pos) return nothing;
+                  const xPct = ((pos.col - minCol) / visCols) * 100;
+                  const yPct = ((pos.row - minRow) / visRows) * 100;
+                  return html`
+                    <div
+                      class="target-dot"
+                      style="left: ${xPct}%; top: ${yPct}%;"
+                    ></div>
+                  `;
+                })}
+            </div>
+            ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
           </div>
-          ${this._renderSensorOverlay()}
-          <div class="targets-overlay">
-            ${this._targets
-              .filter((t) => t.active)
-              .map(
-                (t) => html`
-                  <div
-                    class="target-dot ${t.speed !== 0 ? "moving" : "stationary"}"
-                    style=${this._getTargetStyle(t)}
-                  ></div>
-                `
-              )}
+
+          <!-- Sidebar -->
+          <div class="zone-sidebar">
+            <div class="sidebar-tabs">
+              <button
+                class="sidebar-tab ${this._sidebarTab === "zones" ? "active" : ""}"
+                @click=${() => { this._sidebarTab = "zones"; }}
+              >Zones</button>
+              <button
+                class="sidebar-tab ${this._sidebarTab === "furniture" ? "active" : ""}"
+                @click=${() => { this._sidebarTab = "furniture"; }}
+              >Furniture</button>
+            </div>
+            ${this._sidebarTab === "zones"
+              ? this._renderZoneSidebar()
+              : this._renderFurnitureSidebar()}
           </div>
         </div>
-        ${this._recalibrating
-          ? html`
-            <div class="recalibrate-overlay">
-              <p>Stand in the far corner and tap Mark</p>
-              <button @click=${() => this._markRecalibration()}>Mark</button>
-              <button @click=${() => { this._recalibrating = false; }}>Cancel</button>
-            </div>
-          `
-          : nothing}
-      </div>
 
-      ${this._activeTool === "zone"
-        ? html`
-            <div class="zone-sidebar">
-              <h3>Zones</h3>
-              ${this._zones.map(
-                (zone) => html`
-                  <div
-                    class="zone-item ${this._activeZoneId === zone.id ? "active" : ""}"
-                    @click=${() => this._selectZone(zone.id)}
-                  >
-                    <div
-                      class="zone-color-dot"
-                      style="background: ${zone.color}"
-                    ></div>
-                    <span class="zone-name">${zone.name}</span>
-                    <button
-                      class="zone-remove-btn"
-                      @click=${(e: Event) => {
-                        e.stopPropagation();
-                        this._removeZone(zone.id);
-                      }}
-                    >
-                      <ha-icon icon="mdi:close"></ha-icon>
-                    </button>
-                  </div>
-                `
-              )}
-              <button class="add-zone-btn" @click=${this._addZone}>
-                <ha-icon icon="mdi:plus"></ha-icon>
-                Add zone
-              </button>
+        ${this._showTemplateSave ? this._renderTemplateSaveDialog() : nothing}
+        ${this._showTemplateLoad ? this._renderTemplateLoadDialog() : nothing}
+        ${this._showUnsavedDialog ? html`
+          <div class="template-dialog">
+            <div class="template-dialog-card">
+              <h3>You have unsaved changes</h3>
+              <p class="overlay-help">Your changes will be lost if you navigate away without applying.</p>
+              <div class="template-dialog-actions">
+                <button class="wizard-btn wizard-btn-back"
+                  @click=${() => { this._showUnsavedDialog = false; this._pendingNavigation = null; }}
+                >Cancel</button>
+                <button class="wizard-btn wizard-btn-primary" style="background: var(--error-color, #f44336);"
+                  @click=${this._discardAndNavigate}
+                >Discard</button>
+              </div>
             </div>
-          `
-        : nothing}
+          </div>
+        ` : nothing}
+      </div>
     `;
   }
 
-  private _renderSensorOverlay() {
-    if (!this._placement) return nothing;
+  private _renderTemplateSaveDialog() {
+    return html`
+      <div class="template-dialog">
+        <div class="template-dialog-card">
+          <h3>Save template</h3>
+          <input
+            type="text"
+            class="template-name-input"
+            placeholder="Template name"
+            .value=${this._templateName}
+            @input=${(e: Event) => { this._templateName = (e.target as HTMLInputElement).value; }}
+          />
+          <div class="template-dialog-actions">
+            <button
+              class="wizard-btn wizard-btn-back"
+              @click=${() => { this._showTemplateSave = false; }}
+            >Cancel</button>
+            <button
+              class="wizard-btn wizard-btn-primary"
+              ?disabled=${!this._templateName.trim()}
+              @click=${() => this._saveTemplate()}
+            >Save</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
-    const { x: sx, y: sy } = this._getSensorPosition();
-    const { start, end } = this._getFovAngles();
+  private _renderTemplateLoadDialog() {
+    const templates = this._getTemplates();
+    return html`
+      <div class="template-dialog">
+        <div class="template-dialog-card">
+          <h3>Load template</h3>
+          ${templates.length === 0
+            ? html`<p class="overlay-help">No saved templates.</p>`
+            : templates.map((t) => html`
+              <div class="template-item">
+                <span class="template-item-name">${t.name}</span>
+                <span class="template-item-size">${(t.roomWidth / 1000).toFixed(1)}m x ${(t.roomDepth / 1000).toFixed(1)}m</span>
+                <button
+                  class="wizard-btn wizard-btn-primary template-item-btn"
+                  @click=${() => this._loadTemplate(t.name)}
+                >Load</button>
+                <button
+                  class="zone-remove-btn"
+                  @click=${() => this._deleteTemplate(t.name)}
+                >
+                  <ha-icon icon="mdi:close"></ha-icon>
+                </button>
+              </div>
+            `)}
+          <div class="template-dialog-actions">
+            <button
+              class="wizard-btn wizard-btn-back"
+              @click=${() => { this._showTemplateLoad = false; }}
+            >Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
-    const radius = Math.max(GRID_WIDTH, GRID_HEIGHT);
-    const toRad = (deg: number) => (deg * Math.PI) / 180;
+  private _renderVisibleCells(
+    minCol: number, maxCol: number,
+    minRow: number, maxRow: number,
+    cellPx: number,
+  ) {
+    const cells = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const idx = r * GRID_COLS + c;
+        const bg = this._getCellColor(idx);
+        const overlay = this._getCellOverlayColor(idx);
+        const borderStyle = overlay
+          ? `background: ${bg}; width: ${cellPx}px; height: ${cellPx}px; outline: 2px solid ${overlay}; z-index: 1;`
+          : `background: ${bg}; width: ${cellPx}px; height: ${cellPx}px;`;
+        cells.push(html`
+          <div
+            class="cell"
+            style=${borderStyle}
+            @mousedown=${() => this._onCellMouseDown(idx)}
+            @mouseenter=${() => this._onCellMouseEnter(idx)}
+          ></div>
+        `);
+      }
+    }
+    return cells;
+  }
 
-    const x1 = sx + radius * Math.sin(toRad(start));
-    const y1 = sy + radius * Math.cos(toRad(start));
-    const x2 = sx + radius * Math.sin(toRad(end));
-    const y2 = sy + radius * Math.cos(toRad(end));
-    const largeArc = end - start > 180 ? 1 : 0;
+  private _renderZoneSidebar() {
+    return html`
+      <!-- Boundary -->
+      <div
+        class="zone-item ${this._activeZone === 0 ? "active" : ""}"
+        @click=${() => { this._activeZone = 0; }}
+      >
+        <div class="zone-item-row">
+          <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;"></div>
+          <span class="zone-name">Boundary</span>
+        </div>
+        ${this._activeZone === 0 ? html`
+          <div class="zone-item-row zone-settings-row">
+            <label class="zone-setting-label">Sensitivity</label>
+            <select
+              class="sensitivity-select"
+              .value=${String(this._roomSensitivity)}
+              @change=${(e: Event) => {
+                this._roomSensitivity = parseInt((e.target as HTMLSelectElement).value);
+              }}
+              @click=${(e: Event) => e.stopPropagation()}
+            >
+              <option value="0">Low</option>
+              <option value="1">Medium</option>
+              <option value="2">High</option>
+            </select>
+          </div>
+        ` : nothing}
+      </div>
 
-    const fovPath = `M ${sx} ${sy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+      <!-- Entrance / exit overlay -->
+      <div
+        class="zone-item ${this._activeZone === -1 ? "active" : ""}"
+        @click=${() => { this._activeZone = -1; }}
+      >
+        <div class="zone-item-row">
+          <div class="zone-color-dot" style="background: #0FF;"></div>
+          <span class="zone-name">Entrance / exit</span>
+          <button
+            class="zone-remove-btn"
+            @click=${(e: Event) => {
+              e.stopPropagation();
+              this._clearOverlay(CELL_OVERLAY_ENTRANCE);
+            }}
+          >
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interference source overlay -->
+      <div
+        class="zone-item ${this._activeZone === -2 ? "active" : ""}"
+        @click=${() => { this._activeZone = -2; }}
+      >
+        <div class="zone-item-row">
+          <div class="zone-color-dot" style="background: #F00;"></div>
+          <span class="zone-name">Interference source</span>
+          <button
+            class="zone-remove-btn"
+            @click=${(e: Event) => {
+              e.stopPropagation();
+              this._clearOverlay(CELL_OVERLAY_INTERFERENCE);
+            }}
+          >
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>
+        </div>
+      </div>
+
+      <hr class="zone-separator"/>
+      <div class="zone-scroll-area">
+      <!-- Named zones 1..N -->
+      ${this._zoneConfigs.map((zone, i) => {
+        const zoneNum = i + 1;
+        return html`
+          <div
+            class="zone-item ${this._activeZone === zoneNum ? "active" : ""}"
+            @click=${() => { this._activeZone = zoneNum; }}
+          >
+            <div class="zone-item-row">
+              <div class="zone-color-dot" style="background: ${zone.color};"></div>
+              <input
+                class="zone-name-input"
+                type="text"
+                .value=${zone.name}
+                @input=${(e: Event) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  this._zoneConfigs = this._zoneConfigs.map((z, j) =>
+                    j === i ? { ...z, name: val } : z
+                  );
+                }}
+                @click=${(e: Event) => { e.stopPropagation(); this._activeZone = zoneNum; }}
+                @focus=${() => { this._activeZone = zoneNum; }}
+              />
+              <button
+                class="zone-remove-btn"
+                @click=${(e: Event) => {
+                  e.stopPropagation();
+                  this._removeZone(zoneNum);
+                }}
+              >
+                <ha-icon icon="mdi:close"></ha-icon>
+              </button>
+            </div>
+            ${this._activeZone === zoneNum ? html`
+              <div class="zone-item-row zone-settings-row">
+                <label class="zone-setting-label">Sensitivity</label>
+                <select
+                  class="sensitivity-select"
+                  .value=${String(zone.sensitivity)}
+                  @change=${(e: Event) => {
+                    const val = parseInt((e.target as HTMLSelectElement).value);
+                    this._zoneConfigs = this._zoneConfigs.map((z, j) =>
+                      j === i ? { ...z, sensitivity: val } : z
+                    );
+                  }}
+                  @click=${(e: Event) => e.stopPropagation()}
+                >
+                  <option value="0">Low</option>
+                  <option value="1">Medium</option>
+                  <option value="2">High</option>
+                </select>
+                <input
+                  type="color"
+                  class="zone-color-picker"
+                  .value=${zone.color}
+                  @input=${(e: Event) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    this._zoneConfigs = this._zoneConfigs.map((z, j) =>
+                      j === i ? { ...z, color: val } : z
+                    );
+                  }}
+                  @click=${(e: Event) => e.stopPropagation()}
+                />
+              </div>
+            ` : nothing}
+          </div>
+        `;
+      })}
+
+      ${this._zoneConfigs.length < 15
+        ? html`
+          <button class="add-zone-btn" @click=${this._addZone}>
+            <ha-icon icon="mdi:plus"></ha-icon>
+            Add zone
+          </button>
+        `
+        : nothing}
+      </div>
+    `;
+  }
+
+  private _renderFurnitureOverlay(
+    cellPx: number, minCol: number, minRow: number,
+    visCols: number, visRows: number,
+  ) {
+    if (!this._furniture.length) return nothing;
+
+    // Room starts at startCol in the grid
+    const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
+    const startCol = Math.floor((GRID_COLS - roomCols) / 2);
+    const step = cellPx + 1; // px per cell including gap
+
+    const interactive = this._sidebarTab === "furniture";
+    return html`
+      <div class="furniture-overlay ${interactive ? "" : "non-interactive"}">
+        ${this._furniture.map((item) => {
+          // Convert mm to grid-relative px, then adjust for visible bounds
+          const leftPx = (startCol - minCol) * step + this._mmToPx(item.x, cellPx);
+          const topPx = (0 - minRow) * step + this._mmToPx(item.y, cellPx);
+          const wPx = this._mmToPx(item.width, cellPx);
+          const hPx = this._mmToPx(item.height, cellPx);
+          const selected = this._selectedFurnitureId === item.id;
+
+          return html`
+            <div
+              class="furniture-item ${selected ? "selected" : ""}"
+              data-id="${item.id}"
+              style="
+                left: ${leftPx}px; top: ${topPx}px;
+                width: ${wPx}px; height: ${hPx}px;
+                transform: rotate(${item.rotation}deg);
+              "
+              @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "move")}
+            >
+              ${item.type === "svg" && FLOOR_PLAN_SVGS[item.icon]
+                ? svg`<svg viewBox="${FLOOR_PLAN_SVGS[item.icon].viewBox}" preserveAspectRatio="none" class="furn-svg">
+                    ${unsafeSVG(FLOOR_PLAN_SVGS[item.icon].content)}
+                  </svg>`
+                : html`<ha-icon icon="${item.icon}" style="--mdc-icon-size: ${Math.min(wPx, hPx) * 0.6}px;"></ha-icon>`
+              }
+              ${selected ? html`
+                <!-- Resize handles -->
+                <div class="furn-handle furn-handle-n" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "resize", "n")}></div>
+                <div class="furn-handle furn-handle-s" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "resize", "s")}></div>
+                <div class="furn-handle furn-handle-e" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "resize", "e")}></div>
+                <div class="furn-handle furn-handle-w" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "resize", "w")}></div>
+                <div class="furn-handle furn-handle-ne" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "resize", "ne")}></div>
+                <div class="furn-handle furn-handle-nw" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "resize", "nw")}></div>
+                <div class="furn-handle furn-handle-se" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "resize", "se")}></div>
+                <div class="furn-handle furn-handle-sw" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "resize", "sw")}></div>
+                <!-- Rotate handle with stem -->
+                <div class="furn-rotate-stem"></div>
+                <div class="furn-rotate-handle" @pointerdown=${(e: PointerEvent) => this._onFurniturePointerDown(e, item.id, "rotate")}>
+                  <ha-icon icon="mdi:rotate-right" style="--mdc-icon-size: 14px;"></ha-icon>
+                </div>
+                <!-- Delete button -->
+                <div class="furn-delete-btn" @pointerdown=${(e: PointerEvent) => { e.stopPropagation(); this._removeFurniture(item.id); }}>
+                  <ha-icon icon="mdi:close" style="--mdc-icon-size: 14px;"></ha-icon>
+                </div>
+              ` : nothing}
+            </div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
+  private _renderFurnitureSidebar() {
+    const selected = this._furniture.find((f) => f.id === this._selectedFurnitureId);
 
     return html`
-      <svg
-        class="sensor-overlay"
-        width="${GRID_WIDTH + 4}"
-        height="${GRID_HEIGHT + 4}"
-        viewBox="-2 -2 ${GRID_WIDTH + 4} ${GRID_HEIGHT + 4}"
-      >
-        <defs>
-          <clipPath id="grid-clip">
-            <rect x="0" y="0" width="${GRID_WIDTH}" height="${GRID_HEIGHT}" />
-          </clipPath>
-        </defs>
+      ${selected ? html`
+        <div class="furn-selected-info">
+          <div class="zone-item-row">
+            <ha-icon icon="${selected.icon}" style="--mdc-icon-size: 20px;"></ha-icon>
+            <strong>${selected.label}</strong>
+            <button class="zone-remove-btn" @click=${() => this._removeFurniture(selected.id)}>
+              <ha-icon icon="mdi:close"></ha-icon>
+            </button>
+          </div>
+          <div class="furn-dims">
+            <label>
+              W (mm)
+              <input type="number" min="100" step="50" .value=${String(Math.round(selected.width))}
+                @change=${(e: Event) => this._updateFurniture(selected.id, { width: parseInt((e.target as HTMLInputElement).value) })}
+              />
+            </label>
+            <label>
+              H (mm)
+              <input type="number" min="100" step="50" .value=${String(Math.round(selected.height))}
+                @change=${(e: Event) => this._updateFurniture(selected.id, { height: parseInt((e.target as HTMLInputElement).value) })}
+              />
+            </label>
+            <label>
+              Rot
+              <input type="number" step="5" .value=${String(Math.round(selected.rotation))}
+                @change=${(e: Event) => this._updateFurniture(selected.id, { rotation: parseInt((e.target as HTMLInputElement).value) % 360 })}
+              />
+            </label>
+          </div>
+        </div>
+      ` : nothing}
 
-        <path
-          d="${fovPath}"
-          fill="rgba(3, 169, 244, 0.08)"
-          stroke="rgba(3, 169, 244, 0.3)"
-          stroke-width="1.5"
-          clip-path="url(#grid-clip)"
-        />
-
-        <circle
-          cx="${sx}"
-          cy="${sy + 2}"
-          r="9"
-          fill="var(--primary-color, #03a9f4)"
-          stroke="#fff"
-          stroke-width="2"
-        />
-        <circle cx="${sx}" cy="${sy + 2}" r="3" fill="#fff" />
-      </svg>
+      <div class="furn-catalog">
+        ${FURNITURE_CATALOG.map((s) => html`
+          <button class="furn-sticker" @click=${() => this._addFurniture(s)}>
+            ${s.type === "svg" && FLOOR_PLAN_SVGS[s.icon]
+              ? svg`<svg viewBox="${FLOOR_PLAN_SVGS[s.icon].viewBox}" class="furn-sticker-svg">
+                  ${unsafeSVG(FLOOR_PLAN_SVGS[s.icon].content)}
+                </svg>`
+              : html`<ha-icon icon="${s.icon}" style="--mdc-icon-size: 24px;"></ha-icon>`
+            }
+            <span>${s.label}</span>
+          </button>
+        `)}
+        <button class="furn-sticker furn-custom" @click=${() => { this._showCustomIconPicker = !this._showCustomIconPicker; }}>
+          <ha-icon icon="mdi:plus" style="--mdc-icon-size: 24px;"></ha-icon>
+          <span>Custom icon</span>
+        </button>
+      </div>
+      ${this._showCustomIconPicker ? html`
+        <div class="template-dialog">
+          <div class="template-dialog-card">
+            <h3>Custom icon</h3>
+            <ha-icon-picker
+              .hass=${this.hass}
+              .value=${this._customIconValue}
+              @value-changed=${(e: CustomEvent) => {
+                this._customIconValue = e.detail.value || "";
+              }}
+            ></ha-icon-picker>
+            ${this._customIconValue.trim() ? html`
+              <div style="text-align: center;">
+                <ha-icon icon="${this._customIconValue.trim()}" style="--mdc-icon-size: 48px;"></ha-icon>
+              </div>
+            ` : nothing}
+            <div class="template-dialog-actions">
+              <button class="wizard-btn wizard-btn-back"
+                @click=${() => { this._showCustomIconPicker = false; this._customIconValue = ""; }}
+              >Cancel</button>
+              <button class="wizard-btn wizard-btn-primary"
+                ?disabled=${!this._customIconValue.trim()}
+                @click=${() => {
+                  this._addCustomFurniture(this._customIconValue.trim());
+                  this._customIconValue = "";
+                  this._showCustomIconPicker = false;
+                }}
+              >Add</button>
+            </div>
+          </div>
+        </div>
+      ` : nothing}
     `;
   }
 }

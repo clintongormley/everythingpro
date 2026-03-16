@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import time
+from statistics import median
 from typing import Any
 
 from aioesphomeapi import (
@@ -18,14 +20,52 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .calibration import SensorTransform
-from .const import DEFAULT_PORT, DOMAIN, MAX_TARGETS
-from .zone_engine import ProcessingResult, Zone, ZoneEngine
+from .const import CELL_FLAG_ROOM, DEFAULT_PORT, DOMAIN, MAX_TARGETS, SMOOTH_WINDOW_S
+from .zone_engine import Grid, ProcessingResult, Zone, ZoneEngine
 
 _LOGGER = logging.getLogger(__name__)
 
 SIGNAL_ZONES_UPDATED = f"{DOMAIN}_zones_updated"
 SIGNAL_TARGETS_UPDATED = f"{DOMAIN}_targets_updated"
 SIGNAL_SENSORS_UPDATED = f"{DOMAIN}_sensors_updated"
+
+
+class TargetSmoother:
+    """Rolling median filter on raw sensor coordinates.
+
+    Maintains a time-windowed buffer per target and returns the
+    median x and y over the window.
+    """
+
+    def __init__(self, window_s: float = SMOOTH_WINDOW_S) -> None:
+        """Initialize the smoother."""
+        self._window_s = window_s
+        self._buffers: list[list[tuple[float, float, float]]] = [
+            [] for _ in range(MAX_TARGETS)
+        ]
+
+    def update(self, idx: int, x: float, y: float) -> tuple[float, float]:
+        """Add a reading and return the smoothed (median) position."""
+        now = time.monotonic()
+        buf = self._buffers[idx]
+        buf.append((x, y, now))
+        # Prune old entries
+        cutoff = now - self._window_s
+        while buf and buf[0][2] < cutoff:
+            buf.pop(0)
+        # Compute median
+        xs = sorted(s[0] for s in buf)
+        ys = sorted(s[1] for s in buf)
+        return median(xs), median(ys)
+
+    def clear(self, idx: int) -> None:
+        """Clear the buffer for a target."""
+        self._buffers[idx].clear()
+
+    def clear_all(self) -> None:
+        """Clear all buffers."""
+        for buf in self._buffers:
+            buf.clear()
 
 
 class EverythingPresenceProCoordinator:
@@ -54,15 +94,10 @@ class EverythingPresenceProCoordinator:
 
         # Calibration
         self._sensor_transform = SensorTransform()
+        self._smoother = TargetSmoother()
 
         # Room layout
         self._room_layout: dict[str, Any] = {}
-
-        # Setup config
-        self._room_name: str = ""
-        self._placement: str = ""  # "wall" | "left_corner" | "right_corner"
-        self._mirrored: bool = False  # X axis flipped (sensor upside down)
-        self._room_bounds: dict[str, float] = {}  # far_y, left_x, right_x
 
         # Target state: list of (x, y, active) tuples
         self._targets: list[tuple[float, float, bool]] = [
@@ -136,26 +171,6 @@ class EverythingPresenceProCoordinator:
         return self._last_result.device_tracking_present
 
     @property
-    def room_name(self) -> str:
-        """Return the room name."""
-        return self._room_name
-
-    @property
-    def placement(self) -> str:
-        """Return the sensor placement."""
-        return self._placement
-
-    @property
-    def mirrored(self) -> bool:
-        """Return whether the X axis is mirrored."""
-        return self._mirrored
-
-    @property
-    def room_bounds(self) -> dict[str, float]:
-        """Return the room bounds in sensor mm coordinates."""
-        return self._room_bounds
-
-    @property
     def connected(self) -> bool:
         """Return whether the device is connected."""
         return self._connected
@@ -166,9 +181,22 @@ class EverythingPresenceProCoordinator:
         return list(self._targets)
 
     @property
+    def raw_targets(self) -> list[tuple[float, float, bool]]:
+        """Return the raw (untransformed) target positions."""
+        return [
+            (self._target_x[i], self._target_y[i], self._target_active[i])
+            for i in range(MAX_TARGETS)
+        ]
+
+    @property
     def sensor_transform(self) -> SensorTransform:
         """Return the sensor transform."""
         return self._sensor_transform
+
+    @property
+    def zone_engine(self) -> ZoneEngine:
+        """Return the zone engine."""
+        return self._zone_engine
 
     # -- Configuration methods --
 
@@ -178,12 +206,32 @@ class EverythingPresenceProCoordinator:
         self._zone_engine.set_zones(zones)
 
     def set_sensor_transform(self, transform: SensorTransform) -> None:
-        """Set the sensor transform."""
+        """Set the sensor transform, rebuild grid, and reset smoothing."""
         self._sensor_transform = transform
+        self._smoother.clear_all()
+        self._rebuild_grid()
 
     def set_room_layout(self, layout: dict[str, Any]) -> None:
         """Set the room layout configuration."""
         self._room_layout = layout
+
+    def _rebuild_grid(self) -> None:
+        """Compute grid dimensions from perspective + room size and set on zone engine."""
+        t = self._sensor_transform
+        if t.perspective is None:
+            return
+        origin_x, origin_y, cols, rows = Grid.compute_extent(
+            t.perspective, t.room_width, t.room_depth
+        )
+        grid = Grid(origin_x=origin_x, origin_y=origin_y, cols=cols, rows=rows)
+        # Mark cells inside the room rectangle as room
+        for r in range(rows):
+            for c in range(cols):
+                cx = origin_x + (c + 0.5) * grid.cell_size
+                cy = origin_y + (r + 0.5) * grid.cell_size
+                if 0 <= cx < t.room_width and 0 <= cy < t.room_depth:
+                    grid.cells[r * cols + c] = CELL_FLAG_ROOM
+        self._zone_engine.set_grid(grid)
 
     # -- Connection management --
 
@@ -393,16 +441,20 @@ class EverythingPresenceProCoordinator:
         return None
 
     def _do_rebuild(self) -> None:
-        """Rebuild target list, apply calibration, run zone engine, dispatch."""
+        """Rebuild target list, apply smoothing + calibration, run zone engine, dispatch."""
         self._rebuild_scheduled = False
         calibrated: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
             if self._target_active[i]:
-                cx, cy = self._sensor_transform.apply(
-                    self._target_x[i], self._target_y[i]
+                # Smooth raw coordinates
+                sx, sy = self._smoother.update(
+                    i, self._target_x[i], self._target_y[i]
                 )
+                # Apply perspective transform + clamp
+                cx, cy = self._sensor_transform.apply(sx, sy)
                 calibrated.append((cx, cy, True))
             else:
+                self._smoother.clear(i)
                 calibrated.append((self._target_x[i], self._target_y[i], False))
 
         self._targets = calibrated
@@ -419,22 +471,24 @@ class EverythingPresenceProCoordinator:
 
     def get_config_data(self) -> dict[str, Any]:
         """Serialize the current configuration to a dictionary."""
+        grid = self._zone_engine.grid
         return {
             "zones": [
                 {
                     "id": z.id,
                     "name": z.name,
                     "sensitivity": z.sensitivity,
-                    "cells": z.cells,
+                    "color": z.color,
                 }
                 for z in self._zones
             ],
             "calibration": self._sensor_transform.to_dict(),
+            "grid": grid.to_base64(),
+            "grid_origin_x": grid.origin_x,
+            "grid_origin_y": grid.origin_y,
+            "grid_cols": grid.cols,
+            "grid_rows": grid.rows,
             "room_layout": self._room_layout,
-            "room_name": self._room_name,
-            "placement": self._placement,
-            "mirrored": self._mirrored,
-            "room_bounds": self._room_bounds,
         }
 
     def load_config_data(self, data: dict[str, Any]) -> None:
@@ -442,29 +496,38 @@ class EverythingPresenceProCoordinator:
         if not data:
             return
 
+        # Load calibration
+        cal_data = data.get("calibration")
+        if cal_data:
+            self._sensor_transform = SensorTransform.from_dict(cal_data)
+
+        # Load grid
+        grid_data = data.get("grid")
+        if grid_data and data.get("grid_cols"):
+            grid = Grid.from_base64(
+                grid_data,
+                cols=data["grid_cols"],
+                rows=data["grid_rows"],
+                origin_x=data.get("grid_origin_x", 0.0),
+                origin_y=data.get("grid_origin_y", 0.0),
+            )
+            self._zone_engine.set_grid(grid)
+        elif cal_data and cal_data.get("perspective"):
+            # No saved grid — compute from perspective
+            self._rebuild_grid()
+
         # Load zones
         zone_list = data.get("zones", [])
         zones = [
             Zone(
                 id=z["id"],
                 name=z["name"],
-                sensitivity=z["sensitivity"],
-                cells=z["cells"],
+                sensitivity=z.get("sensitivity", "normal"),
+                color=z.get("color", ""),
             )
             for z in zone_list
         ]
         self.set_zones(zones)
 
-        # Load calibration
-        cal_data = data.get("calibration")
-        if cal_data:
-            self._sensor_transform = SensorTransform.from_dict(cal_data)
-
         # Load room layout
         self._room_layout = data.get("room_layout", {})
-
-        # Load setup config
-        self._room_name = data.get("room_name", "")
-        self._placement = data.get("placement", "")
-        self._mirrored = data.get("mirrored", False)
-        self._room_bounds = data.get("room_bounds", {})

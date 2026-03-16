@@ -50,7 +50,7 @@ async def async_setup_entry(
         entities.append(EverythingPresenceProCO2Sensor(coordinator))
 
     # Zone target count sensors
-    tracked_zone_ids: set[str] = set()
+    tracked_zone_ids: set[int] = set()
     for zone in coordinator.zones:
         entities.append(
             EverythingPresenceProZoneTargetCountSensor(coordinator, zone)

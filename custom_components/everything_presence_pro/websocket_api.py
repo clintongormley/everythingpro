@@ -37,7 +37,6 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_list_entries)
     websocket_api.async_register_command(hass, websocket_get_config)
     websocket_api.async_register_command(hass, websocket_set_zones)
-    websocket_api.async_register_command(hass, websocket_recalibrate)
     websocket_api.async_register_command(hass, websocket_set_room_layout)
     websocket_api.async_register_command(hass, websocket_set_setup)
     websocket_api.async_register_command(hass, websocket_subscribe_targets)
@@ -62,8 +61,11 @@ def websocket_list_entries(
             {
                 "entry_id": e.entry_id,
                 "title": e.title,
-                "room_name": e.options.get("config", {}).get("room_name", ""),
-                "placement": e.options.get("config", {}).get("placement", ""),
+                "has_perspective": bool(
+                    e.options.get("config", {})
+                    .get("calibration", {})
+                    .get("perspective")
+                ),
                 "has_layout": bool(
                     e.options.get("config", {}).get("room_layout")
                 ),
@@ -77,17 +79,11 @@ def websocket_list_entries(
     {
         vol.Required("type"): "everything_presence_pro/set_setup",
         vol.Required("entry_id"): str,
-        vol.Required("room_name"): str,
-        vol.Required("placement"): vol.In(["wall", "left_corner", "right_corner"]),
-        vol.Optional("mirrored", default=False): bool,
-        vol.Optional("room_bounds", default={}): {
-            vol.Optional("far_y"): vol.Coerce(float),
-            vol.Optional("left_x"): vol.Coerce(float),
-            vol.Optional("right_x"): vol.Coerce(float),
-        },
-        vol.Optional("calibration", default={}): {
-            vol.Optional("sensor_angle"): vol.Coerce(float),
-        },
+        vol.Required("perspective"): vol.All(
+            [vol.Coerce(float)], vol.Length(min=8, max=8)
+        ),
+        vol.Required("room_width"): vol.Coerce(float),
+        vol.Required("room_depth"): vol.Coerce(float),
     }
 )
 @websocket_api.async_response
@@ -96,7 +92,7 @@ async def websocket_set_setup(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Persist room name, sensor placement, and room bounds for an entry."""
+    """Persist perspective transform and room dimensions for an entry."""
     coordinator = _get_coordinator(hass, msg["entry_id"])
     if coordinator is None:
         connection.send_error(msg["id"], "not_found", "Config entry not found")
@@ -107,40 +103,29 @@ async def websocket_set_setup(
         connection.send_error(msg["id"], "not_found", "Config entry not found")
         return
 
+    transform = SensorTransform(
+        perspective=msg["perspective"],
+        room_width=msg["room_width"],
+        room_depth=msg["room_depth"],
+    )
+    coordinator.set_sensor_transform(transform)
+
+    # Clear existing room layout and zones since grid dimensions may change
+    coordinator.set_room_layout({})
+    coordinator.set_zones([])
+
     config = dict(entry.options.get("config", {}))
-    config["room_name"] = msg["room_name"]
-    config["placement"] = msg["placement"]
-    config["mirrored"] = msg["mirrored"]
-    config["room_bounds"] = msg["room_bounds"]
-
-    # Compute and persist sensor transform from placement + bounds
-    bounds = msg.get("room_bounds", {})
-    placement = msg["placement"]
-    if (
-        bounds.get("far_y")
-        and bounds.get("left_x") is not None
-        and bounds.get("right_x") is not None
-    ):
-        room_width = bounds["right_x"] - bounds["left_x"]
-        if placement == "left_corner":
-            offset_x = 0.0
-            offset_y = 0.0
-        elif placement == "right_corner":
-            offset_x = room_width
-            offset_y = 0.0
-        else:  # wall
-            offset_x = room_width / 2
-            offset_y = 0.0
-
-        cal_msg = msg.get("calibration", {})
-        sensor_angle = cal_msg.get("sensor_angle", 0.0)
-        transform = SensorTransform(
-            sensor_angle=sensor_angle,
-            offset_x=offset_x,
-            offset_y=offset_y,
-        )
-        coordinator.set_sensor_transform(transform)
-        config["calibration"] = transform.to_dict()
+    config["calibration"] = transform.to_dict()
+    # Clear layout data
+    config.pop("room_layout", None)
+    config.pop("zones", None)
+    # Save grid dimensions
+    grid = coordinator.zone_engine.grid
+    config["grid"] = grid.to_base64()
+    config["grid_origin_x"] = grid.origin_x
+    config["grid_origin_y"] = grid.origin_y
+    config["grid_cols"] = grid.cols
+    config["grid_rows"] = grid.rows
 
     hass.config_entries.async_update_entry(
         entry, options={**entry.options, "config": config}
@@ -176,10 +161,10 @@ def websocket_get_config(
         vol.Required("entry_id"): str,
         vol.Required("zones"): [
             {
-                vol.Required("id"): str,
+                vol.Required("id"): vol.Coerce(int),
                 vol.Required("name"): str,
                 vol.Required("sensitivity"): str,
-                vol.Required("cells"): [int],
+                vol.Optional("color", default=""): str,
             }
         ],
     }
@@ -201,7 +186,7 @@ async def websocket_set_zones(
             id=z["id"],
             name=z["name"],
             sensitivity=z["sensitivity"],
-            cells=z["cells"],
+            color=z.get("color", ""),
         )
         for z in msg["zones"]
     ]
@@ -217,49 +202,10 @@ async def websocket_set_zones(
                 "id": z.id,
                 "name": z.name,
                 "sensitivity": z.sensitivity,
-                "cells": z.cells,
+                "color": z.color,
             }
             for z in zones
         ]
-        hass.config_entries.async_update_entry(entry, options={**entry.options, "config": config})
-
-    connection.send_result(msg["id"])
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): "everything_presence_pro/recalibrate",
-        vol.Required("entry_id"): str,
-        vol.Required("sensor_x"): vol.Coerce(float),
-        vol.Required("sensor_y"): vol.Coerce(float),
-        vol.Required("expected_room_x"): vol.Coerce(float),
-        vol.Required("expected_room_y"): vol.Coerce(float),
-    }
-)
-@websocket_api.async_response
-async def websocket_recalibrate(
-    hass: HomeAssistant,
-    connection: websocket_api.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    """Handle recalibrate command — recompute sensor angle from a reference point."""
-    coordinator = _get_coordinator(hass, msg["entry_id"])
-    if coordinator is None:
-        connection.send_error(msg["id"], "not_found", "Config entry not found")
-        return
-
-    coordinator.sensor_transform.recalibrate(
-        raw_sensor_x=msg["sensor_x"],
-        raw_sensor_y=msg["sensor_y"],
-        expected_room_x=msg["expected_room_x"],
-        expected_room_y=msg["expected_room_y"],
-    )
-
-    # Persist to config entry options
-    entry = hass.config_entries.async_get_entry(msg["entry_id"])
-    if entry is not None:
-        config = dict(entry.options.get("config", {}))
-        config["calibration"] = coordinator.sensor_transform.to_dict()
         hass.config_entries.async_update_entry(
             entry, options={**entry.options, "config": config}
         )
@@ -271,11 +217,26 @@ async def websocket_recalibrate(
     {
         vol.Required("type"): "everything_presence_pro/set_room_layout",
         vol.Required("entry_id"): str,
-        vol.Required("room_cells"): [int],
+        vol.Required("grid_bytes"): [int],
+        vol.Optional("zones", default=[]): [
+            {
+                vol.Required("name"): str,
+                vol.Required("color"): str,
+                vol.Required("sensitivity"): int,
+            }
+        ],
+        vol.Optional("room_sensitivity", default=1): int,
         vol.Optional("furniture", default=[]): [
             {
-                vol.Required("type"): str,
-                vol.Required("cells"): [int],
+                vol.Optional("type", default="icon"): str,
+                vol.Required("icon"): str,
+                vol.Required("label"): str,
+                vol.Required("x"): vol.Coerce(float),
+                vol.Required("y"): vol.Coerce(float),
+                vol.Required("width"): vol.Coerce(float),
+                vol.Required("height"): vol.Coerce(float),
+                vol.Required("rotation"): vol.Coerce(float),
+                vol.Optional("lockAspect", default=False): bool,
             }
         ],
     }
@@ -293,7 +254,9 @@ async def websocket_set_room_layout(
         return
 
     layout = {
-        "room_cells": msg["room_cells"],
+        "grid_bytes": msg["grid_bytes"],
+        "zones": msg["zones"],
+        "room_sensitivity": msg["room_sensitivity"],
         "furniture": msg["furniture"],
     }
 
@@ -304,7 +267,9 @@ async def websocket_set_room_layout(
     if entry is not None:
         config = dict(entry.options.get("config", {}))
         config["room_layout"] = layout
-        hass.config_entries.async_update_entry(entry, options={**entry.options, "config": config})
+        hass.config_entries.async_update_entry(
+            entry, options={**entry.options, "config": config}
+        )
 
     connection.send_result(msg["id"])
 
@@ -331,12 +296,20 @@ async def websocket_subscribe_targets(
     def _forward_targets() -> None:
         """Forward target positions to the WebSocket subscriber."""
         targets = coordinator.targets
+        raw_targets = coordinator.raw_targets
         connection.send_message(
             websocket_api.event_message(
                 msg["id"],
                 {
                     "targets": [
-                        {"x": t[0], "y": t[1], "active": t[2]} for t in targets
+                        {
+                            "x": t[0],
+                            "y": t[1],
+                            "active": t[2],
+                            "raw_x": r[0],
+                            "raw_y": r[1],
+                        }
+                        for t, r in zip(targets, raw_targets)
                     ],
                 },
             )

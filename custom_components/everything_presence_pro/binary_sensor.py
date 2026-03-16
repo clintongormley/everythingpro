@@ -38,7 +38,7 @@ async def async_setup_entry(
     ]
 
     # Zone entities for existing zones
-    tracked_zone_ids: set[str] = set()
+    tracked_zone_ids: set[int] = set()
     for zone in coordinator.zones:
         entities.append(
             EverythingPresenceProZoneOccupancySensor(coordinator, zone)

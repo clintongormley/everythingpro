@@ -89,6 +89,94 @@
       margin-top: 8px; padding: 6px 14px; background: #0f3460; border: 1px solid #333;
       border-radius: 3px; color: #eee; cursor: pointer; font-size: 12px;
     }
+
+    /* Arc calibration */
+    #arc-ui { display: none; }
+    #arc-panels { display: flex; gap: 16px; padding: 16px; justify-content: center; align-items: flex-start; }
+    #arc-controls { width: 360px; }
+    #arc-radius-selector { margin-bottom: 12px; }
+    #arc-radius-selector span { font-size: 13px; color: #aaa; margin-right: 8px; }
+    .radius-btn {
+      padding: 4px 10px; background: #0f3460; border: 1px solid #333; border-radius: 3px;
+      color: #aaa; cursor: pointer; font-size: 13px; margin-right: 2px;
+    }
+    .radius-btn.active { background: #e94560; color: #fff; border-color: #e94560; }
+    .radius-btn.recorded { border-color: #4caf50; color: #4caf50; }
+    .radius-btn.active.recorded { background: #e94560; color: #fff; }
+    #arc-status { font-size: 13px; margin: 8px 0; min-height: 20px; }
+    #btn-arc-record {
+      padding: 8px 24px; border: none; border-radius: 4px;
+      color: #fff; font-size: 14px; cursor: pointer;
+    }
+    #btn-arc-record.ready { background: #4caf50; }
+    #btn-arc-record.recording { background: #e94560; }
+    #btn-arc-record:hover { opacity: 0.9; }
+    #arc-recorded-list { margin-top: 12px; font-size: 12px; color: #aaa; }
+    #arc-recorded-list .arc-entry { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-bottom: 1px solid #222; }
+    #arc-recorded-list .arc-delete { background: none; border: none; color: #e94560; cursor: pointer; font-size: 11px; }
+    #btn-arc-compute {
+      margin-top: 12px; padding: 8px 18px; background: #4caf50; border: none; border-radius: 4px;
+      color: #fff; font-size: 13px; cursor: pointer;
+    }
+    #btn-arc-compute:hover { background: #43a047; }
+    #arc-results { margin-top: 16px; }
+    #arc-results h3 { font-size: 14px; margin-bottom: 8px; }
+    #arc-distortion-table { width: 100%; font-size: 11px; border-collapse: collapse; font-family: monospace; }
+    #arc-distortion-table th, #arc-distortion-table td { padding: 3px 5px; border: 1px solid #333; text-align: right; }
+    #arc-distortion-table th { background: #16213e; color: #aaa; }
+    #arc-fit-params { font-family: monospace; font-size: 12px; color: #4fc3f7; margin: 8px 0; }
+
+    /* Grid calibration */
+    #grid-ui { display: none; }
+    #grid-panels { display: flex; gap: 16px; padding: 16px; justify-content: center; align-items: flex-start; }
+    #grid-controls { width: 360px; }
+    #grid-setup { margin-bottom: 12px; }
+    #grid-setup label { display: block; margin-bottom: 6px; font-size: 12px; color: #aaa; }
+    #grid-setup input[type="number"] {
+      background: #0f3460; border: 1px solid #333; border-radius: 3px; color: #eee; padding: 3px 6px; width: 60px;
+    }
+    #btn-grid-generate {
+      padding: 6px 14px; background: #4caf50; border: none; border-radius: 4px;
+      color: #fff; font-size: 13px; cursor: pointer; margin-top: 4px;
+    }
+    #btn-grid-generate:hover { background: #43a047; }
+    #grid-status { font-size: 13px; margin: 8px 0; min-height: 20px; }
+    #btn-grid-record {
+      padding: 8px 24px; border: none; border-radius: 4px;
+      color: #fff; font-size: 14px; cursor: pointer;
+    }
+    #btn-grid-record.ready { background: #4caf50; }
+    #btn-grid-record.recording { background: #e94560; }
+    #btn-grid-record:hover { opacity: 0.9; }
+    #btn-grid-skip {
+      padding: 8px 16px; background: #0f3460; border: 1px solid #333; border-radius: 4px;
+      color: #eee; font-size: 13px; cursor: pointer; margin-left: 8px;
+    }
+    #grid-progress { margin-top: 8px; }
+    #grid-progress-bar {
+      width: 100%; height: 6px; background: #0f3460; border-radius: 3px; overflow: hidden;
+    }
+    #grid-progress-fill {
+      height: 100%; width: 0%; background: #4caf50; transition: width 0.1s;
+    }
+    #grid-progress-text { font-size: 11px; color: #aaa; margin-top: 2px; }
+    #grid-point-info { font-size: 13px; color: #4fc3f7; margin: 8px 0; font-family: monospace; min-height: 20px; }
+    #btn-grid-compute {
+      margin-top: 12px; padding: 8px 18px; background: #4caf50; border: none; border-radius: 4px;
+      color: #fff; font-size: 13px; cursor: pointer; display: none;
+    }
+    #btn-grid-compute:hover { background: #43a047; }
+    #grid-results { margin-top: 16px; display: none; }
+    #grid-results h3 { font-size: 14px; margin-bottom: 8px; }
+    #grid-error-table, #grid-corrected-table {
+      width: 100%; font-size: 11px; border-collapse: collapse; font-family: monospace; margin-bottom: 12px;
+    }
+    #grid-error-table th, #grid-error-table td,
+    #grid-corrected-table th, #grid-corrected-table td {
+      padding: 3px 5px; border: 1px solid #333; text-align: right;
+    }
+    #grid-error-table th, #grid-corrected-table th { background: #16213e; color: #aaa; }
+    #grid-fit-params { font-family: monospace; font-size: 12px; color: #4fc3f7; margin: 8px 0; }
   </style>
 </head>
 <body>
@@ -117,6 +205,8 @@
     <div id="mode-tabs">
       <button class="tab active" data-mode="explore">Explore</button>
       <button class="tab" data-mode="mark">Mark corners</button>
+      <button class="tab" data-mode="arc">Arc calibration</button>
+      <button class="tab" data-mode="grid">Grid calibration</button>
     </div>
     <div id="controls">
       <label>Placement
@@ -128,7 +218,9 @@
       </label>
       <label><input type="checkbox" id="ctl-mirror" /> Mirrored</label>
       <label><input type="checkbox" id="ctl-corrected" checked /> Show corrected</label>
-      <label>Scale <input type="range" id="ctl-scale" min="0.5" max="1.5" step="0.01" value="0.78" style="width:80px" /><span id="ctl-scale-val">0.78</span></label>
+      <label><input type="checkbox" id="ctl-use-fit" /> Use fitted curve</label>
+      <label>Angle scale <input type="range" id="ctl-scale" min="0.5" max="1.5" step="0.01" value="1.00" style="width:80px" /><span id="ctl-scale-val">1.00</span></label>
+      <label>Range scale <input type="range" id="ctl-range" min="0.8" max="1.4" step="0.01" value="1.17" style="width:80px" /><span id="ctl-range-val">1.17</span></label>
       <label>Angle (°) <input type="range" id="ctl-angle" min="-90" max="90" value="45" style="width:100px" /><span id="ctl-angle-val">45</span></label>
       <label>Width (m) <input type="number" id="ctl-width" step="0.1" value="6" style="width:60px" /></label>
       <label>Depth (m) <input type="number" id="ctl-depth" step="0.1" value="6" style="width:60px" /></label>
@@ -169,8 +261,9 @@
           <div id="mark-progress"></div>
         </div>
         <div id="mark-dimensions">
-          <label>Room width (m) <input type="number" id="mark-width" step="0.1" value="4" style="width:60px" /></label>
-          <label>Room depth (m) <input type="number" id="mark-depth" step="0.1" value="5" style="width:60px" /></label>
+          <label>Room width (m) <input type="number" id="mark-width" step="0.1" value="4.15" style="width:60px" /></label>
+          <label>Room depth (m) <input type="number" id="mark-depth" step="0.1" value="3.5" style="width:60px" /></label>
+          <button id="btn-recalc" style="margin-top:4px;padding:4px 10px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;cursor:pointer;font-size:12px">Recalculate</button>
         </div>
         <div id="mark-redo" style="display:none">
           <span style="font-size:12px;color:#aaa">Redo:</span>
@@ -179,14 +272,161 @@
           <button class="redo-btn" data-corner="2">Far-right</button>
           <button class="redo-btn" data-corner="3">Far-left</button>
         </div>
+        <div id="mark-offsets" style="display:none;margin-top:8px">
+          <div style="font-size:12px;color:#aaa;margin-bottom:4px">Wall offsets (m) — how far from each wall you stood:</div>
+          <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:2px 6px;font-size:11px;color:#aaa;align-items:center">
+            <span>Near-left:</span>
+            <label>from left <input type="number" class="corner-offset" data-corner="0" data-axis="x" value="0" step="0.1" min="0" style="width:50px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:2px 4px;font-size:11px" /></label>
+            <label>from front <input type="number" class="corner-offset" data-corner="0" data-axis="y" value="0" step="0.1" min="0" style="width:50px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:2px 4px;font-size:11px" /></label>
+            <span>Near-right:</span>
+            <label>from right <input type="number" class="corner-offset" data-corner="1" data-axis="x" value="0" step="0.1" min="0" style="width:50px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:2px 4px;font-size:11px" /></label>
+            <label>from front <input type="number" class="corner-offset" data-corner="1" data-axis="y" value="0" step="0.1" min="0" style="width:50px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:2px 4px;font-size:11px" /></label>
+            <span>Far-right:</span>
+            <label>from right <input type="number" class="corner-offset" data-corner="2" data-axis="x" value="0" step="0.1" min="0" style="width:50px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:2px 4px;font-size:11px" /></label>
+            <label>from back <input type="number" class="corner-offset" data-corner="2" data-axis="y" value="0" step="0.1" min="0" style="width:50px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:2px 4px;font-size:11px" /></label>
+            <span>Far-left:</span>
+            <label>from left <input type="number" class="corner-offset" data-corner="3" data-axis="x" value="0" step="0.1" min="0" style="width:50px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:2px 4px;font-size:11px" /></label>
+            <label>from back <input type="number" class="corner-offset" data-corner="3" data-axis="y" value="0" step="0.1" min="0" style="width:50px;background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:2px 4px;font-size:11px" /></label>
+          </div>
+        </div>
         <div id="mark-results" style="display:none">
-          <h3>Distortion summary</h3>
+          <h3>Distortion summary (raw)</h3>
           <table id="mark-table">
             <thead><tr><th>Corner</th><th>Sensor X</th><th>Sensor Y</th><th>Ideal X</th><th>Ideal Y</th><th>Error</th></tr></thead>
             <tbody></tbody>
           </table>
-          <button id="btn-mark-reset">Reset all</button>
+          <div id="fit-results" style="margin-top:16px">
+            <h3>Perspective transform</h3>
+            <div id="fit-params" style="font-family:monospace;font-size:12px;color:#4fc3f7;margin:8px 0"></div>
+            <h3>Residual error (room space)</h3>
+            <table id="fit-table">
+              <thead><tr><th>Corner</th><th>Known X</th><th>Known Y</th><th>Predicted X</th><th>Predicted Y</th><th>Error</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <button id="btn-apply-fit" style="margin-top:8px;padding:6px 14px;background:#4caf50;border:none;border-radius:4px;color:#fff;cursor:pointer;font-size:12px">Apply affine to Explore</button>
+            <button id="btn-clear-affine" style="margin-left:8px;padding:6px 14px;background:#0f3460;border:1px solid #333;border-radius:4px;color:#eee;cursor:pointer;font-size:12px;display:none">Clear affine</button>
+          </div>
+          <button id="btn-mark-reset" style="margin-top:8px">Reset all</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="arc-ui" style="display:none">
+    <div id="arc-panels">
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div class="panel">
+          <h2>Arc view (raw sensor)</h2>
+          <canvas id="arc-canvas" width="500" height="500"></canvas>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <h2>Range correction vs angle</h2>
+          <canvas id="arc-chart" width="500" height="300"></canvas>
+        </div>
+      </div>
+      <div id="arc-controls">
+        <div id="arc-radius-selector">
+          <span>Arc radius:</span>
+          <button class="radius-btn" data-radius="1">1m</button>
+          <button class="radius-btn active" data-radius="2">2m</button>
+          <button class="radius-btn" data-radius="3">3m</button>
+          <button class="radius-btn" data-radius="4">4m</button>
+          <button class="radius-btn" data-radius="5">5m</button>
+          <button class="radius-btn" data-radius="6">6m</button>
+        </div>
+        <div id="arc-target-selector" style="margin-bottom:8px">
+          <span style="font-size:12px;color:#aaa">Track target:</span>
+          <select id="arc-target" style="background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:3px 6px;font-size:12px">
+            <option value="0">T1</option>
+            <option value="1">T2</option>
+            <option value="2">T3</option>
+          </select>
+        </div>
+        <div id="arc-status">Select a radius, then click Start to begin recording.</div>
+        <button id="btn-arc-record" class="ready">Start recording</button>
+        <div id="arc-recorded-list">
+          <div style="font-size:13px;color:#aaa;margin-bottom:4px">Recorded arcs:</div>
+          <div id="arc-entries">None yet</div>
+        </div>
+        <button id="btn-arc-compute" style="display:none">Compute distortion map</button>
+        <div id="arc-results" style="display:none">
+          <h3>Distortion map</h3>
+          <div id="arc-fit-params"></div>
+          <table id="arc-distortion-table">
+            <thead><tr><th>|θ|°</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <button id="btn-arc-export" style="margin-top:8px;padding:6px 14px;background:#0f3460;border:1px solid #333;border-radius:4px;color:#eee;cursor:pointer;font-size:12px">Copy JSON to clipboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="grid-ui" style="display:none">
+  <div id="grid-panels">
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div class="panel">
+        <h2>Grid view (raw sensor)</h2>
+        <canvas id="grid-canvas" width="500" height="500"></canvas>
+      </div>
+    </div>
+    <div id="grid-controls">
+      <div id="grid-setup">
+        <label>X range (m)
+          <input type="number" id="grid-x-min" value="-3" step="1" /> to
+          <input type="number" id="grid-x-max" value="3" step="1" />
+        </label>
+        <label>Y range (m)
+          <input type="number" id="grid-y-min" value="1" step="1" /> to
+          <input type="number" id="grid-y-max" value="5" step="1" />
+        </label>
+        <label>Spacing (m)
+          <input type="number" id="grid-spacing" value="1" step="0.5" min="0.5" />
+        </label>
+        <div style="margin-top:4px;margin-bottom:8px">
+          <span style="font-size:12px;color:#aaa">Track target:</span>
+          <select id="grid-target" style="background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:3px 6px;font-size:12px">
+            <option value="0">T1</option>
+            <option value="1">T2</option>
+            <option value="2">T3</option>
+          </select>
+        </div>
+        <button id="btn-grid-generate">Generate grid</button>
+        <button id="btn-grid-import" style="margin-left:8px;padding:6px 14px;background:#0f3460;border:1px solid #333;border-radius:4px;color:#eee;font-size:13px;cursor:pointer">Import JSON</button>
+      </div>
+      <div id="grid-point-info"></div>
+      <div id="grid-status">Configure grid and click Generate.</div>
+      <div>
+        <select id="grid-duration" style="background:#0f3460;border:1px solid #333;border-radius:3px;color:#eee;padding:3px 6px;font-size:12px;margin-right:4px">
+          <option value="5">5s</option>
+          <option value="10" selected>10s</option>
+          <option value="15">15s</option>
+          <option value="30">30s</option>
+        </select>
+        <button id="btn-grid-record" class="ready" style="display:none">Record</button>
+        <button id="btn-grid-skip" style="display:none">Skip</button>
+      </div>
+      <div id="grid-progress" style="display:none">
+        <div id="grid-progress-bar"><div id="grid-progress-fill"></div></div>
+        <div id="grid-progress-text"></div>
+      </div>
+      <button id="btn-grid-compute">Compute corrections</button>
+      <div id="grid-results">
+        <h3>Error table (raw)</h3>
+        <table id="grid-error-table">
+          <thead><tr><th>Known X</th><th>Known Y</th><th>Meas X</th><th>Meas Y</th><th>Range err</th><th>Angle err</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <h3>Fitted correction</h3>
+        <div id="grid-fit-params"></div>
+        <h3>Corrected error</h3>
+        <table id="grid-corrected-table">
+          <thead><tr><th>Known X</th><th>Known Y</th><th>Corr X</th><th>Corr Y</th><th>Range err</th><th>Angle err</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <button id="btn-grid-apply" style="margin-top:8px;padding:6px 14px;background:#4caf50;border:none;border-radius:4px;color:#fff;cursor:pointer;font-size:12px">Apply fitted correction to Explore</button>
+        <button id="btn-grid-export" style="margin-left:8px;padding:6px 14px;background:#0f3460;border:1px solid #333;border-radius:4px;color:#eee;cursor:pointer;font-size:12px">Copy JSON to clipboard</button>
       </div>
     </div>
   </div>
@@ -199,10 +439,34 @@
 let ws = null;
 let msgId = 0;
 let targets = [
-  { x: 0, y: 0, active: false },
-  { x: 0, y: 0, active: false },
-  { x: 0, y: 0, active: false },
+  { x: 0, y: 0, raw_x: 0, raw_y: 0, smooth_x: 0, smooth_y: 0, active: false },
+  { x: 0, y: 0, raw_x: 0, raw_y: 0, smooth_x: 0, smooth_y: 0, active: false },
+  { x: 0, y: 0, raw_x: 0, raw_y: 0, smooth_x: 0, smooth_y: 0, active: false },
 ];
+
+// Rolling median buffers — timestamped readings per target
+const SMOOTH_WINDOW_MS = 1000;
+const smoothBuffers = [[], [], []]; // [{x, y, t}, ...]
+
+function medianOf(arr) {
+  const sorted = arr.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function updateSmoothed(idx) {
+  const buf = smoothBuffers[idx];
+  const now = Date.now();
+  // Discard old readings
+  while (buf.length > 0 && now - buf[0].t > SMOOTH_WINDOW_MS) buf.shift();
+  if (buf.length === 0) {
+    targets[idx].smooth_x = targets[idx].raw_x;
+    targets[idx].smooth_y = targets[idx].raw_y;
+    return;
+  }
+  targets[idx].smooth_x = medianOf(buf.map(s => s.x));
+  targets[idx].smooth_y = medianOf(buf.map(s => s.y));
+}
 let config = { placement: '', mirrored: false, room_bounds: {}, room_name: '', calibration: {} };
 
 // ============================================================
@@ -214,11 +478,29 @@ function getScaleFactor() {
   return parseFloat(document.getElementById('ctl-scale').value);
 }
 
+function getRangeScale() {
+  return parseFloat(document.getElementById('ctl-range').value);
+}
+
 function ld2450Correct(x, y) {
   if (x === 0 && y === 0) return { cx: 0, cy: 0 };
   const angle = Math.atan2(x, y);
-  const distance = Math.sqrt(x * x + y * y);
-  const correctedAngle = angle * getScaleFactor();
+  const rawDist = Math.sqrt(x * x + y * y);
+  const absTheta = Math.abs(angle);
+
+  const useFit = document.getElementById('ctl-use-fit').checked;
+  let aScale, rScale;
+  if (useFit && fittedAngleCoeffs && fittedRangeCoeffs) {
+    const aThresh = fittedAngleCoeffs.threshold || 0;
+    aScale = absTheta < aThresh ? 1.0 : fittedAngleCoeffs.a0 + fittedAngleCoeffs.a1 * absTheta;
+    rScale = fittedRangeCoeffs.r0 + fittedRangeCoeffs.r1 * absTheta;
+  } else {
+    aScale = getScaleFactor();
+    rScale = getRangeScale();
+  }
+
+  const correctedAngle = angle * aScale;
+  const distance = rawDist * rScale;
   return {
     cx: distance * Math.sin(correctedAngle),
     cy: distance * Math.cos(correctedAngle),
@@ -360,7 +642,20 @@ function connect() {
     } else if (phase === 'running' && msg.type === 'event' && msg.event && msg.event.targets) {
       msg.event.targets.forEach((t, i) => {
         if (i < 3) {
-          targets[i] = { x: t.x, y: t.y, active: !!t.active };
+          const rx = t.raw_x ?? t.x, ry = t.raw_y ?? t.y;
+          targets[i].x = t.x;
+          targets[i].y = t.y;
+          targets[i].raw_x = rx;
+          targets[i].raw_y = ry;
+          targets[i].active = !!t.active;
+          if (t.active) {
+            smoothBuffers[i].push({ x: rx, y: ry, t: Date.now() });
+            updateSmoothed(i);
+          } else {
+            smoothBuffers[i].length = 0;
+            targets[i].smooth_x = 0;
+            targets[i].smooth_y = 0;
+          }
         }
       });
     }
@@ -399,15 +694,24 @@ document.getElementById('connect-btn').addEventListener('click', connect);
 // ============================================================
 // Sensor-to-room transform
 // ============================================================
-function sensorToRoom(tx, ty, placement, bounds) {
+function sensorToRoom(sx, sy, placement, bounds) {
+  // Perspective transform takes priority — maps raw sensor coords directly to room coords
+  if (affineTransform) {
+    const H = affineTransform;
+    const denom = H.g * sx + H.h * sy + 1;
+    const rx = (H.a * sx + H.b * sy + H.c) / denom;
+    const ry = (H.d * sx + H.e * sy + H.f) / denom;
+    return { rx, ry };
+  }
+
   const useCorrected = document.getElementById('ctl-corrected').checked;
   const angleDeg = parseFloat(document.getElementById('ctl-angle').value);
   const angle = angleDeg * Math.PI / 180;
 
   // Stage 1: distortion correction
-  let cx = tx, cy = ty;
+  let cx = sx, cy = sy;
   if (useCorrected) {
-    const c = ld2450Correct(tx, ty);
+    const c = ld2450Correct(sx, sy);
     cx = c.cx;
     cy = c.cy;
   }
@@ -452,10 +756,7 @@ function drawFovAndRings(ctx, w, h) {
   ctx.beginPath();
   ctx.moveTo(ox, oy);
   const halfFov = FOV_RAD / 2;
-  const farLeft = toCanvas(-MAX_RANGE * Math.sin(halfFov), MAX_RANGE * Math.cos(halfFov));
-  const farRight = toCanvas(MAX_RANGE * Math.sin(halfFov), MAX_RANGE * Math.cos(halfFov));
-  ctx.lineTo(farLeft.cx, farLeft.cy);
-  ctx.lineTo(farRight.cx, farRight.cy);
+  ctx.arc(ox, oy, MAX_RANGE * scale, Math.PI / 2 - halfFov, Math.PI / 2 + halfFov);
   ctx.closePath();
   ctx.fillStyle = 'rgba(255,255,255,0.03)';
   ctx.fill();
@@ -501,9 +802,9 @@ function drawRawCanvas() {
     const t = targets[i];
     if (!t.active) continue;
 
-    // Always draw raw dot
-    const pRaw = toCanvas(t.x, t.y);
-    pushTrail(i, t.x, t.y);
+    // Always draw raw dot (use raw sensor coords)
+    const pRaw = toCanvas(t.raw_x, t.raw_y);
+    pushTrail(i, t.raw_x, t.raw_y);
 
     if (showCorrected) {
       // Dim raw dot
@@ -513,7 +814,7 @@ function drawRawCanvas() {
       ctx.fill();
 
       // Bright corrected dot
-      const c = ld2450Correct(t.x, t.y);
+      const c = ld2450Correct(t.raw_x, t.raw_y);
       const pCorr = toCanvas(c.cx, c.cy);
       ctx.beginPath();
       ctx.arc(pCorr.cx, pCorr.cy, 6, 0, Math.PI * 2);
@@ -534,7 +835,7 @@ function drawRawCanvas() {
       ctx.fillStyle = '#fff';
       ctx.font = '11px sans-serif';
       ctx.fillText(`T${i + 1}`, pCorr.cx + 9, pCorr.cy + 4);
-      readout += `T${i + 1}: raw(${t.x.toFixed(0)},${t.y.toFixed(0)}) corr(${c.cx.toFixed(0)},${c.cy.toFixed(0)})  `;
+      readout += `T${i + 1}: raw(${t.raw_x.toFixed(0)},${t.raw_y.toFixed(0)}) corr(${c.cx.toFixed(0)},${c.cy.toFixed(0)})  `;
     } else {
       ctx.beginPath();
       ctx.arc(pRaw.cx, pRaw.cy, 6, 0, Math.PI * 2);
@@ -546,7 +847,7 @@ function drawRawCanvas() {
       ctx.fillStyle = '#fff';
       ctx.font = '11px sans-serif';
       ctx.fillText(`T${i + 1}`, pRaw.cx + 9, pRaw.cy + 4);
-      readout += `T${i + 1}: x=${t.x.toFixed(0)}mm  y=${t.y.toFixed(0)}mm    `;
+      readout += `T${i + 1}: x=${t.raw_x.toFixed(0)}mm  y=${t.raw_y.toFixed(0)}mm    `;
     }
   }
   document.getElementById('raw-readout').textContent = readout || 'No active targets';
@@ -624,9 +925,14 @@ function drawRoomCanvas() {
   for (let i = 0; i < 3; i++) {
     const t = targets[i];
     if (!t.active) continue;
-    let tx = mirrored ? -t.x : t.x;
-    let ty = t.y;
-    const { rx, ry } = sensorToRoom(tx, ty, placement, bounds);
+    const sx = mirrored ? -t.smooth_x : t.smooth_x;
+    const sy = t.smooth_y;
+    let { rx, ry } = sensorToRoom(sx, sy, placement, bounds);
+    // Clamp to room bounds
+    const maxX = bounds.right_x || roomW;
+    const maxY = bounds.far_y || roomD;
+    rx = Math.max(0, Math.min(rx, maxX));
+    ry = Math.max(0, Math.min(ry, maxY));
     pushRoomTrail(i, rx, ry);
     const p = toCanvas(rx, ry);
     ctx.beginPath();
@@ -715,11 +1021,11 @@ function drawMarkCanvas() {
     }
   }
 
-  // Live targets (faded)
+  // Live targets (faded, raw coords)
   for (let i = 0; i < 3; i++) {
     const t = targets[i];
     if (!t.active) continue;
-    const p = toCanvas(t.x, t.y);
+    const p = toCanvas(t.raw_x, t.raw_y);
     ctx.beginPath();
     ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2);
     ctx.fillStyle = colorWithAlpha(i, 0.5);
@@ -740,8 +1046,14 @@ function renderLoop() {
   if (currentMode === 'explore') {
     drawRawCanvas();
     drawRoomCanvas();
-  } else {
+  } else if (currentMode === 'mark') {
     drawMarkCanvas();
+  } else if (currentMode === 'arc') {
+    arcRecordFrame();
+    drawArcCanvas();
+  } else if (currentMode === 'grid') {
+    gridRecordFrame();
+    drawGridCanvas();
   }
   animFrame = requestAnimationFrame(renderLoop);
 }
@@ -780,6 +1092,11 @@ document.getElementById('ctl-scale').addEventListener('input', (e) => {
   document.getElementById('ctl-scale-val').textContent = parseFloat(e.target.value).toFixed(2);
   clearAllTrails();
 });
+document.getElementById('ctl-range').addEventListener('input', (e) => {
+  document.getElementById('ctl-range-val').textContent = parseFloat(e.target.value).toFixed(2);
+  clearAllTrails();
+});
+document.getElementById('ctl-use-fit').addEventListener('change', () => clearAllTrails());
 
 // Mode tabs
 document.querySelectorAll('.tab').forEach(tab => {
@@ -788,10 +1105,31 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     currentMode = tab.dataset.mode;
     document.getElementById('panels').style.display = currentMode === 'explore' ? 'flex' : 'none';
-    document.getElementById('mark-ui').style.display = currentMode === 'mark' ? '' : 'none';
+    document.getElementById('mark-ui').style.display = currentMode === 'mark' ? 'block' : 'none';
+    document.getElementById('arc-ui').style.display = currentMode === 'arc' ? 'block' : 'none';
+    document.getElementById('grid-ui').style.display = currentMode === 'grid' ? 'block' : 'none';
     if (currentMode === 'mark') updateMarkInstruction();
   });
 });
+
+// ============================================================
+// Shared utilities
+// ============================================================
+function linearFit(points, getX, getY) {
+  const n = points.length;
+  if (n === 0) return { c0: 1.0, c1: 0.0 };
+  if (n === 1) return { c0: getY(points[0]), c1: 0.0 };
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const p of points) {
+    const x = getX(p), y = getY(p);
+    sx += x; sy += y; sxx += x * x; sxy += x * y;
+  }
+  const det = n * sxx - sx * sx;
+  if (Math.abs(det) < 1e-10) return { c0: sy / n, c1: 0.0 };
+  const c0 = (sxx * sy - sx * sxy) / det;
+  const c1 = (n * sxy - sx * sy) / det;
+  return { c0, c1 };
+}
 
 // ============================================================
 // Mark corners logic
@@ -801,6 +1139,7 @@ function updateMarkInstruction() {
   if (currentCorner >= 4) {
     el.textContent = 'All corners marked! See results below.';
     document.getElementById('btn-mark').style.display = 'none';
+    autoFillRoomDimensions();
     showMarkResults();
   } else {
     el.textContent = `Stand in corner ${currentCorner + 1} (${CORNER_LABELS[currentCorner].toLowerCase()}). Click Mark when steady.`;
@@ -819,7 +1158,7 @@ document.getElementById('btn-mark').addEventListener('click', () => {
       `Target ${selectedTarget + 1} is not active! Make sure you're detected, then try again.`;
     return;
   }
-  markedCorners[currentCorner] = { x: t.x, y: t.y };
+  markedCorners[currentCorner] = { x: t.raw_x, y: t.raw_y };
   let next = currentCorner + 1;
   while (next < 4 && markedCorners[next] !== null) next++;
   currentCorner = next;
@@ -861,37 +1200,1147 @@ document.getElementById('btn-mark-reset').addEventListener('click', () => {
 // ============================================================
 // Mark results
 // ============================================================
+// Fitted correction coefficients (set after fitting)
+let fittedAngleCoeffs = null; // { a0, a1 } → angle_scale(|θ|) = a0 + a1 * |θ|
+let fittedRangeCoeffs = null; // { r0, r1 } → range_scale(|θ|) = r0 + r1 * |θ|
+let affineTransform = null; // { a, b, c, d, ex, ey } — takes priority over polar corrections
+
+function autoFillRoomDimensions() {
+  if (!markedCorners.every(c => c !== null)) return;
+  const [nl, nr, fr, fl] = markedCorners; // near-left, near-right, far-right, far-left
+  const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+  const width = dist(nl, nr);
+  const depthLeft = dist(nl, fl);
+  const depthRight = dist(nr, fr);
+  const depth = (depthLeft + depthRight) / 2;
+  document.getElementById('mark-width').value = (width / 1000).toFixed(1);
+  document.getElementById('mark-depth').value = (depth / 1000).toFixed(1);
+}
+
 function showMarkResults() {
   const widthMm = parseFloat(document.getElementById('mark-width').value) * 1000;
   const depthMm = parseFloat(document.getElementById('mark-depth').value) * 1000;
 
-  // Anchor ideal rectangle to corner 1 (near-left)
-  const anchor = markedCorners[0];
-  const ideal = [
-    { x: anchor.x,            y: anchor.y },
-    { x: anchor.x + widthMm,  y: anchor.y },
-    { x: anchor.x + widthMm,  y: anchor.y + depthMm },
-    { x: anchor.x,            y: anchor.y + depthMm },
+  // Read per-corner wall offsets (in meters, convert to mm)
+  function getOffset(corner, axis) {
+    const el = document.querySelector(`.corner-offset[data-corner="${corner}"][data-axis="${axis}"]`);
+    return el ? parseFloat(el.value || 0) * 1000 : 0;
+  }
+
+  // Room corners with offsets applied (always inward from walls)
+  // Near-left (0,0): offset pushes +x (from left wall) and +y (from front wall)
+  // Near-right (w,0): offset pushes -x (from right wall) and +y (from front wall)
+  // Far-right (w,d): offset pushes -x (from right wall) and -y (from back wall)
+  // Far-left (0,d): offset pushes +x (from left wall) and -y (from back wall)
+  const roomCorners = [
+    { x: getOffset(0, 'x'),             y: getOffset(0, 'y') },
+    { x: widthMm - getOffset(1, 'x'),   y: getOffset(1, 'y') },
+    { x: widthMm - getOffset(2, 'x'),   y: depthMm - getOffset(2, 'y') },
+    { x: getOffset(3, 'x'),             y: depthMm - getOffset(3, 'y') },
   ];
 
+  // Sensor readings for each corner
+  const sensorPts = markedCorners; // [{x, y}, ...] in raw sensor mm
+
+  // Solve perspective (projective) transform — 8 params, exact fit for 4 points
+  // rx = (a*sx + b*sy + c) / (g*sx + h*sy + 1)
+  // ry = (d*sx + e*sy + f) / (g*sx + h*sy + 1)
+  //
+  // Rearranged to linear form:
+  // a*sx + b*sy + c - g*sx*rx - h*sy*rx = rx
+  // d*sx + e*sy + f - g*sx*ry - h*sy*ry = ry
+  //
+  // 8 unknowns [a,b,c,d,e,f,g,h], 8 equations from 4 point pairs
+  function solvePerspective(src, dst) {
+    // Build 8x8 system Ax = b
+    const A = [];
+    const b = [];
+    for (let i = 0; i < 4; i++) {
+      const sx = src[i].x, sy = src[i].y;
+      const rx = dst[i].x, ry = dst[i].y;
+      A.push([sx, sy, 1, 0, 0, 0, -sx * rx, -sy * rx]);
+      b.push(rx);
+      A.push([0, 0, 0, sx, sy, 1, -sx * ry, -sy * ry]);
+      b.push(ry);
+    }
+    // Gaussian elimination with partial pivoting
+    const n = 8;
+    const M = A.map((row, i) => [...row, b[i]]); // augmented matrix
+    for (let col = 0; col < n; col++) {
+      // Find pivot
+      let maxVal = Math.abs(M[col][col]), maxRow = col;
+      for (let row = col + 1; row < n; row++) {
+        if (Math.abs(M[row][col]) > maxVal) {
+          maxVal = Math.abs(M[row][col]);
+          maxRow = row;
+        }
+      }
+      if (maxVal < 1e-12) return null; // singular
+      [M[col], M[maxRow]] = [M[maxRow], M[col]];
+      // Eliminate below
+      for (let row = col + 1; row < n; row++) {
+        const factor = M[row][col] / M[col][col];
+        for (let j = col; j <= n; j++) M[row][j] -= factor * M[col][j];
+      }
+    }
+    // Back-substitution
+    const x = new Array(n);
+    for (let i = n - 1; i >= 0; i--) {
+      x[i] = M[i][n];
+      for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j];
+      x[i] /= M[i][i];
+    }
+    return { a: x[0], b: x[1], c: x[2], d: x[3], e: x[4], f: x[5], g: x[6], h: x[7] };
+  }
+
+  const computed = solvePerspective(sensorPts, roomCorners);
+
+  if (!computed) {
+    document.getElementById('fit-params').textContent =
+      'Cannot compute perspective transform — corners may be collinear.';
+    document.getElementById('mark-results').style.display = '';
+    document.getElementById('mark-redo').style.display = '';
+    return;
+  }
+
+  // Helper to apply perspective transform
+  function applyPerspective(H, sx, sy) {
+    const denom = H.g * sx + H.h * sy + 1;
+    return {
+      x: (H.a * sx + H.b * sy + H.c) / denom,
+      y: (H.d * sx + H.e * sy + H.f) / denom,
+    };
+  }
+
+  // Raw sensor vs room error table
   const tbody = document.querySelector('#mark-table tbody');
   tbody.innerHTML = '';
   for (let i = 0; i < 4; i++) {
-    const c = markedCorners[i];
-    const id = ideal[i];
-    const err = Math.sqrt((c.x - id.x) ** 2 + (c.y - id.y) ** 2);
+    const s = sensorPts[i];
+    const r = roomCorners[i];
+    const p = applyPerspective(computed, s.x, s.y);
+    const err = Math.sqrt((p.x - r.x) ** 2 + (p.y - r.y) ** 2);
     const row = document.createElement('tr');
     row.innerHTML = `<td style="text-align:left">${CORNER_LABELS[i]}</td>
-      <td>${c.x.toFixed(0)}</td><td>${c.y.toFixed(0)}</td>
-      <td>${id.x.toFixed(0)}</td><td>${id.y.toFixed(0)}</td>
+      <td>${s.x.toFixed(0)}</td><td>${s.y.toFixed(0)}</td>
+      <td>${r.x.toFixed(0)}</td><td>${r.y.toFixed(0)}</td>
       <td>${err.toFixed(0)}mm</td>`;
     tbody.appendChild(row);
   }
 
+  // Show perspective params
+  document.getElementById('fit-params').innerHTML =
+    `Perspective: [${computed.a.toFixed(4)}, ${computed.b.toFixed(4)}, ${computed.c.toFixed(0)}] ` +
+    `[${computed.d.toFixed(4)}, ${computed.e.toFixed(4)}, ${computed.f.toFixed(0)}] ` +
+    `[${computed.g.toFixed(6)}, ${computed.h.toFixed(6)}, 1]`;
+
+  // Residual error table (room space) — should be ~0 for perspective with 4 points
+  const fitTbody = document.querySelector('#fit-table tbody');
+  fitTbody.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const s = sensorPts[i];
+    const r = roomCorners[i];
+    const p = applyPerspective(computed, s.x, s.y);
+    const err = Math.sqrt((p.x - r.x) ** 2 + (p.y - r.y) ** 2);
+    const row = document.createElement('tr');
+    row.innerHTML = `<td style="text-align:left">${CORNER_LABELS[i]}</td>
+      <td>${r.x.toFixed(0)}</td><td>${r.y.toFixed(0)}</td>
+      <td>${p.x.toFixed(0)}</td><td>${p.y.toFixed(0)}</td>
+      <td style="color:${err < 50 ? '#4caf50' : err < 200 ? '#ff9800' : '#e94560'}">${err.toFixed(0)}mm</td>`;
+    fitTbody.appendChild(row);
+  }
+
+  // Store computed transform (not yet applied — user clicks Apply)
+  showMarkResults._computed = computed;
+
   document.getElementById('mark-results').style.display = '';
   document.getElementById('mark-redo').style.display = '';
-  idealCorners = ideal;
+  document.getElementById('mark-offsets').style.display = '';
 }
+
+// Recalculate with updated dimensions
+document.getElementById('btn-recalc').addEventListener('click', () => {
+  if (markedCorners.every(c => c !== null)) {
+    showMarkResults();
+  }
+});
+
+// Recalculate when offsets change
+document.querySelectorAll('.corner-offset').forEach(input => {
+  input.addEventListener('change', () => {
+    if (markedCorners.every(c => c !== null)) showMarkResults();
+  });
+});
+
+// Apply affine transform to explore view
+document.getElementById('btn-apply-fit').addEventListener('click', () => {
+  if (!showMarkResults._computed) return;
+  affineTransform = showMarkResults._computed;
+  // Sync Explore tab room dimensions with Mark corners dimensions
+  const markW = document.getElementById('mark-width').value;
+  const markD = document.getElementById('mark-depth').value;
+  document.getElementById('ctl-width').value = markW;
+  document.getElementById('ctl-depth').value = markD;
+  document.getElementById('btn-clear-affine').style.display = 'inline-block';
+  updateAffineUI();
+  clearAllTrails();
+});
+
+document.getElementById('btn-clear-affine').addEventListener('click', () => {
+  affineTransform = null;
+  document.getElementById('btn-clear-affine').style.display = 'none';
+  updateAffineUI();
+  clearAllTrails();
+});
+
+function updateAffineUI() {
+  const controls = document.getElementById('controls');
+  const active = !!affineTransform;
+  // Grey out sliders when affine is active
+  controls.style.opacity = active ? '0.4' : '1';
+  controls.style.pointerEvents = active ? 'none' : '';
+  // Show/hide affine indicator
+  let indicator = document.getElementById('affine-indicator');
+  if (!indicator) {
+    indicator = document.createElement('span');
+    indicator.id = 'affine-indicator';
+    indicator.style.cssText = 'color:#4caf50;font-size:12px;font-weight:bold;margin-left:12px';
+    document.getElementById('toolbar').appendChild(indicator);
+  }
+  indicator.textContent = active ? 'Affine calibration active' : '';
+}
+
+// ============================================================
+// Arc calibration
+// ============================================================
+let arcRadius = 2; // meters
+let arcIsRecording = false;
+let arcCurrentSamples = []; // {x, y, angle, dist} during recording
+let arcRecordings = {}; // keyed by radius string, value = array of {x, y, angle, dist}
+const ARC_COLORS = {
+  '1': '#ff6384', '2': '#36a2eb', '3': '#ffce56',
+  '4': '#4bc0c0', '5': '#9966ff', '6': '#ff9f40',
+};
+const ARC_BIN_DEG = 5; // bin width in degrees
+
+// Radius buttons
+document.querySelectorAll('.radius-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (arcIsRecording) return; // don't switch while recording
+    document.querySelectorAll('.radius-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    arcRadius = parseInt(btn.dataset.radius);
+    updateArcStatus();
+  });
+});
+
+function updateArcStatus() {
+  const el = document.getElementById('arc-status');
+  if (arcIsRecording) {
+    el.textContent = `Recording ${arcRadius}m arc... ${arcCurrentSamples.length} samples`;
+    el.style.color = '#e94560';
+  } else if (arcRecordings[arcRadius]) {
+    el.textContent = `${arcRadius}m arc recorded (${arcRecordings[arcRadius].length} samples). Record again to replace.`;
+    el.style.color = '#4caf50';
+  } else {
+    el.textContent = `Walk an arc at ${arcRadius}m from the sensor. Click Start when ready.`;
+    el.style.color = '#aaa';
+  }
+}
+
+// Start/stop recording
+document.getElementById('btn-arc-record').addEventListener('click', () => {
+  if (arcIsRecording) {
+    // Stop
+    arcIsRecording = false;
+    if (arcCurrentSamples.length > 10) {
+      arcRecordings[arcRadius] = arcCurrentSamples.slice();
+      updateArcEntries();
+    } else {
+      document.getElementById('arc-status').textContent = 'Too few samples (need >10). Try again, walk more slowly.';
+      document.getElementById('arc-status').style.color = '#ff9800';
+    }
+    arcCurrentSamples = [];
+    const btn = document.getElementById('btn-arc-record');
+    btn.textContent = 'Start recording';
+    btn.className = 'ready';
+    updateArcStatus();
+    updateArcComputeButton();
+  } else {
+    // Start
+    arcIsRecording = true;
+    arcCurrentSamples = [];
+    const btn = document.getElementById('btn-arc-record');
+    btn.textContent = 'Stop recording';
+    btn.className = 'recording';
+    updateArcStatus();
+  }
+});
+
+function arcRecordFrame() {
+  if (!arcIsRecording) return;
+  const tIdx = parseInt(document.getElementById('arc-target').value);
+  const t = targets[tIdx];
+  if (!t.active) return;
+  // Deduplicate: skip if same as last sample
+  const last = arcCurrentSamples[arcCurrentSamples.length - 1];
+  if (last && last.x === t.raw_x && last.y === t.raw_y) return;
+  const angle = Math.atan2(t.raw_x, t.raw_y);
+  const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
+  arcCurrentSamples.push({ x: t.raw_x, y: t.raw_y, angle, dist });
+  // Update status periodically
+  if (arcCurrentSamples.length % 10 === 0) updateArcStatus();
+}
+
+function updateArcEntries() {
+  const el = document.getElementById('arc-entries');
+  const radii = Object.keys(arcRecordings).sort((a, b) => a - b);
+  if (radii.length === 0) {
+    el.textContent = 'None yet';
+    return;
+  }
+  el.innerHTML = '';
+  for (const r of radii) {
+    const div = document.createElement('div');
+    div.className = 'arc-entry';
+    const span = document.createElement('span');
+    span.textContent = `${r}m — ${arcRecordings[r].length} samples`;
+    span.style.color = ARC_COLORS[r] || '#aaa';
+    const delBtn = document.createElement('button');
+    delBtn.className = 'arc-delete';
+    delBtn.textContent = 'delete';
+    delBtn.addEventListener('click', () => {
+      delete arcRecordings[r];
+      // Remove recorded styling from radius button
+      document.querySelector(`.radius-btn[data-radius="${r}"]`).classList.remove('recorded');
+      updateArcEntries();
+      updateArcComputeButton();
+      updateArcStatus();
+    });
+    div.appendChild(span);
+    div.appendChild(delBtn);
+    el.appendChild(div);
+  }
+  // Mark recorded radius buttons
+  document.querySelectorAll('.radius-btn').forEach(btn => {
+    const r = btn.dataset.radius;
+    if (arcRecordings[r]) btn.classList.add('recorded');
+    else btn.classList.remove('recorded');
+  });
+}
+
+function updateArcComputeButton() {
+  const radii = Object.keys(arcRecordings);
+  document.getElementById('btn-arc-compute').style.display = radii.length > 0 ? '' : 'none';
+}
+
+// Arc canvas drawing
+function drawArcCanvas() {
+  const canvas = document.getElementById('arc-canvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const { scale, ox, oy, toCanvas } = drawFovAndRings(ctx, w, h);
+
+  // Draw ideal arc circle for selected radius
+  const idealR = arcRadius * 1000;
+  ctx.beginPath();
+  ctx.arc(ox, oy, idealR * scale, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(79,195,247,0.4)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Label the ideal arc
+  const labelPos = toCanvas(idealR * Math.sin(0.1), idealR * Math.cos(0.1));
+  ctx.fillStyle = 'rgba(79,195,247,0.6)';
+  ctx.font = '11px sans-serif';
+  ctx.fillText(`${arcRadius}m ideal`, labelPos.cx + 8, labelPos.cy);
+
+  // Draw all recorded arcs
+  for (const [r, samples] of Object.entries(arcRecordings)) {
+    const color = ARC_COLORS[r] || '#888';
+    ctx.fillStyle = color;
+    for (const s of samples) {
+      const p = toCanvas(s.x, s.y);
+      ctx.beginPath();
+      ctx.arc(p.cx, p.cy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Draw ideal arc for this radius too (thin)
+    if (r !== String(arcRadius)) {
+      const rMm = parseInt(r) * 1000;
+      ctx.beginPath();
+      ctx.arc(ox, oy, rMm * scale, 0, Math.PI * 2);
+      ctx.strokeStyle = color.replace(')', ',0.2)').replace('rgb', 'rgba');
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Draw current recording samples (bright)
+  if (arcIsRecording && arcCurrentSamples.length > 0) {
+    const color = ARC_COLORS[arcRadius] || '#fff';
+    ctx.fillStyle = color;
+    for (const s of arcCurrentSamples) {
+      const p = toCanvas(s.x, s.y);
+      ctx.beginPath();
+      ctx.arc(p.cx, p.cy, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw live target
+  const tIdx = parseInt(document.getElementById('arc-target').value);
+  const t = targets[tIdx];
+  if (t.active) {
+    const p = toCanvas(t.raw_x, t.raw_y);
+    ctx.beginPath();
+    ctx.arc(p.cx, p.cy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = TARGET_COLORS[tIdx];
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Show distance from sensor
+    const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
+    const angle = Math.atan2(t.raw_x, t.raw_y) * 180 / Math.PI;
+    ctx.fillStyle = '#fff';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(`${(dist / 1000).toFixed(2)}m  ${angle.toFixed(1)}°`, p.cx + 10, p.cy + 4);
+  }
+}
+
+// Compute distortion map
+document.getElementById('btn-arc-compute').addEventListener('click', computeDistortionMap);
+
+function computeDistortionMap() {
+  const radii = Object.keys(arcRecordings).sort((a, b) => a - b);
+  if (radii.length === 0) return;
+
+  // Bin each arc's samples by |angle| in ARC_BIN_DEG degree bins
+  // For each bin, compute average measured distance
+  // range_correction = ideal_distance / measured_distance
+  const binCount = Math.ceil(60 / ARC_BIN_DEG); // 0-60° in bins
+  const distortionData = {}; // {radius: [{binCenter, avgDist, correction, count}]}
+
+  for (const r of radii) {
+    const idealDist = parseInt(r) * 1000;
+    const samples = arcRecordings[r];
+    const bins = Array.from({ length: binCount }, () => ({ sumDist: 0, count: 0 }));
+
+    for (const s of samples) {
+      const absDeg = Math.abs(s.angle) * 180 / Math.PI;
+      const binIdx = Math.min(Math.floor(absDeg / ARC_BIN_DEG), binCount - 1);
+      bins[binIdx].sumDist += s.dist;
+      bins[binIdx].count++;
+    }
+
+    distortionData[r] = bins.map((b, i) => {
+      const binCenter = i * ARC_BIN_DEG + ARC_BIN_DEG / 2;
+      if (b.count < 3) return { binCenter, avgDist: null, correction: null, count: 0 };
+      const avgDist = b.sumDist / b.count;
+      return {
+        binCenter,
+        avgDist,
+        correction: idealDist / avgDist,
+        count: b.count,
+      };
+    });
+  }
+
+  // Build distortion table
+  const thead = document.querySelector('#arc-distortion-table thead tr');
+  thead.innerHTML = '<th>|θ|°</th>';
+  for (const r of radii) {
+    thead.innerHTML += `<th style="color:${ARC_COLORS[r] || '#aaa'}">${r}m corr.</th><th>${r}m dist</th>`;
+  }
+
+  const tbody = document.querySelector('#arc-distortion-table tbody');
+  tbody.innerHTML = '';
+  for (let i = 0; i < binCount; i++) {
+    const row = document.createElement('tr');
+    const binCenter = i * ARC_BIN_DEG + ARC_BIN_DEG / 2;
+    row.innerHTML = `<td style="text-align:left">${binCenter.toFixed(0)}°</td>`;
+    for (const r of radii) {
+      const d = distortionData[r][i];
+      if (d.correction !== null) {
+        row.innerHTML += `<td style="color:${d.correction > 1.05 || d.correction < 0.95 ? '#ff9800' : '#4caf50'}">${d.correction.toFixed(3)}</td>`;
+        row.innerHTML += `<td>${(d.avgDist / 1000).toFixed(2)}m</td>`;
+      } else {
+        row.innerHTML += `<td style="color:#555">—</td><td style="color:#555">—</td>`;
+      }
+    }
+    tbody.appendChild(row);
+  }
+
+  // Fit overall range correction: range_scale(|θ|) = r0 + r1 * |θ|
+  // Collect all valid data points across all arcs
+  const allPoints = [];
+  for (const r of radii) {
+    for (const d of distortionData[r]) {
+      if (d.correction !== null) {
+        allPoints.push({ theta: d.binCenter * Math.PI / 180, correction: d.correction });
+      }
+    }
+  }
+
+  if (allPoints.length >= 2) {
+    // Weighted linear fit
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, n = allPoints.length;
+    for (const p of allPoints) {
+      sx += p.theta; sy += p.correction;
+      sxx += p.theta * p.theta; sxy += p.theta * p.correction;
+    }
+    const det = n * sxx - sx * sx;
+    let r0, r1;
+    if (Math.abs(det) < 1e-10) {
+      r0 = sy / n; r1 = 0;
+    } else {
+      r0 = (sxx * sy - sx * sxy) / det;
+      r1 = (n * sxy - sx * sy) / det;
+    }
+    document.getElementById('arc-fit-params').innerHTML =
+      `Overall fit: range_scale(|θ|) = ${r0.toFixed(4)} + ${r1.toFixed(4)} × |θ|<br>` +
+      `At 0°: ${r0.toFixed(3)}, at 30°: ${(r0 + r1 * Math.PI / 6).toFixed(3)}, at 60°: ${(r0 + r1 * Math.PI / 3).toFixed(3)}`;
+  } else {
+    document.getElementById('arc-fit-params').textContent = 'Need more data for fitting';
+  }
+
+  document.getElementById('arc-results').style.display = '';
+
+  // Draw chart
+  drawArcChart(distortionData, radii);
+}
+
+function drawArcChart(distortionData, radii) {
+  const canvas = document.getElementById('arc-chart');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = { left: 50, right: 20, top: 20, bottom: 35 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+
+  // Find y range from data
+  let yMin = 0.85, yMax = 1.25;
+  for (const r of radii) {
+    for (const d of distortionData[r]) {
+      if (d.correction !== null) {
+        yMin = Math.min(yMin, d.correction - 0.02);
+        yMax = Math.max(yMax, d.correction + 0.02);
+      }
+    }
+  }
+
+  function toPlot(degX, corrY) {
+    const px = pad.left + (degX / 60) * plotW;
+    const py = pad.top + (1 - (corrY - yMin) / (yMax - yMin)) * plotH;
+    return { px, py };
+  }
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  for (let d = 0; d <= 60; d += 10) {
+    const { px } = toPlot(d, yMin);
+    ctx.beginPath(); ctx.moveTo(px, pad.top); ctx.lineTo(px, pad.top + plotH); ctx.stroke();
+    ctx.fillStyle = '#666'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`${d}°`, px, pad.top + plotH + 14);
+  }
+  for (let c = Math.ceil(yMin * 20) / 20; c <= yMax; c += 0.05) {
+    const { py } = toPlot(0, c);
+    ctx.beginPath(); ctx.moveTo(pad.left, py); ctx.lineTo(pad.left + plotW, py); ctx.stroke();
+    ctx.fillStyle = '#666'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(c.toFixed(2), pad.left - 5, py + 3);
+  }
+
+  // Reference line at 1.0
+  const ref = toPlot(0, 1.0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(pad.left, ref.py); ctx.lineTo(pad.left + plotW, ref.py); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Plot each arc's data
+  for (const r of radii) {
+    const color = ARC_COLORS[r] || '#888';
+    const data = distortionData[r].filter(d => d.correction !== null);
+    if (data.length === 0) continue;
+
+    // Line
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    for (const d of data) {
+      const { px, py } = toPlot(d.binCenter, d.correction);
+      if (!started) { ctx.moveTo(px, py); started = true; }
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Dots
+    ctx.fillStyle = color;
+    for (const d of data) {
+      const { px, py } = toPlot(d.binCenter, d.correction);
+      ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Label
+    const last = data[data.length - 1];
+    const lp = toPlot(last.binCenter, last.correction);
+    ctx.fillStyle = color;
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${r}m`, lp.px + 6, lp.py + 4);
+  }
+
+  // Axes labels
+  ctx.fillStyle = '#888';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Angle from boresight', pad.left + plotW / 2, h - 3);
+  ctx.save();
+  ctx.translate(12, pad.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Range correction factor', 0, 0);
+  ctx.restore();
+
+  // Border
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+}
+
+// Export JSON
+document.getElementById('btn-arc-export').addEventListener('click', () => {
+  const radii = Object.keys(arcRecordings).sort((a, b) => a - b);
+  const binCount = Math.ceil(60 / ARC_BIN_DEG);
+  const result = {};
+  for (const r of radii) {
+    const idealDist = parseInt(r) * 1000;
+    const samples = arcRecordings[r];
+    const bins = Array.from({ length: binCount }, () => ({ sumDist: 0, count: 0 }));
+    for (const s of samples) {
+      const absDeg = Math.abs(s.angle) * 180 / Math.PI;
+      const binIdx = Math.min(Math.floor(absDeg / ARC_BIN_DEG), binCount - 1);
+      bins[binIdx].sumDist += s.dist;
+      bins[binIdx].count++;
+    }
+    result[`${r}m`] = bins.map((b, i) => {
+      const binCenter = i * ARC_BIN_DEG + ARC_BIN_DEG / 2;
+      if (b.count < 3) return { angle_deg: binCenter, correction: null };
+      return { angle_deg: binCenter, correction: parseFloat((idealDist / (b.sumDist / b.count)).toFixed(4)) };
+    }).filter(d => d.correction !== null);
+  }
+  navigator.clipboard.writeText(JSON.stringify(result, null, 2)).then(() => {
+    document.getElementById('btn-arc-export').textContent = 'Copied!';
+    setTimeout(() => { document.getElementById('btn-arc-export').textContent = 'Copy JSON to clipboard'; }, 2000);
+  });
+});
+
+// ============================================================
+// Grid calibration
+// ============================================================
+let gridPoints = []; // {x, y, measured: null|{x,y}, status: 'pending'|'recording'|'recorded'}
+let gridCurrentIndex = -1;
+let gridSamples = [];
+let gridRecordingStart = 0;
+let gridRecordingTimer = null;
+let gridConfig = null; // {xMin, xMax, yMin, yMax, spacing} in mm
+
+const FOV_HALF_RAD = FOV_RAD / 2; // 60° in radians
+
+function generateGrid() {
+  // Cancel any active recording
+  if (gridRecordingTimer) {
+    clearTimeout(gridRecordingTimer);
+    gridRecordingTimer = null;
+  }
+  gridSamples = [];
+
+  const xMin = parseFloat(document.getElementById('grid-x-min').value) * 1000;
+  const xMax = parseFloat(document.getElementById('grid-x-max').value) * 1000;
+  const yMin = parseFloat(document.getElementById('grid-y-min').value) * 1000;
+  const yMax = parseFloat(document.getElementById('grid-y-max').value) * 1000;
+  const spacing = parseFloat(document.getElementById('grid-spacing').value) * 1000;
+
+  gridConfig = { xMin, xMax, yMin, yMax, spacing };
+
+  // Generate points, filtering by FOV
+  const rawPoints = [];
+  // Use spacing * 0.01 as epsilon to handle floating-point boundary issues
+  for (let y = yMin; y <= yMax + spacing * 0.01; y += spacing) {
+    for (let x = xMin; x <= xMax + spacing * 0.01; x += spacing) {
+      const angle = Math.abs(Math.atan2(x, y));
+      if (angle <= FOV_HALF_RAD) {
+        rawPoints.push({ x, y });
+      }
+    }
+  }
+
+  // Sort into serpentine order
+  // Group by y, then alternate x direction per row
+  const rows = new Map();
+  for (const p of rawPoints) {
+    const key = p.y;
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push(p);
+  }
+  const sortedYs = [...rows.keys()].sort((a, b) => a - b);
+
+  gridPoints = [];
+  sortedYs.forEach((y, rowIdx) => {
+    const row = rows.get(y);
+    row.sort((a, b) => a.x - b.x);
+    if (rowIdx % 2 === 1) row.reverse();
+    for (const p of row) {
+      gridPoints.push({ x: p.x, y: p.y, measured: null, status: 'pending' });
+    }
+  });
+
+  gridCurrentIndex = gridPoints.length > 0 ? 0 : -1;
+  document.getElementById('grid-results').style.display = 'none';
+  updateGridUI();
+}
+
+function updateGridUI() {
+  const recordBtn = document.getElementById('btn-grid-record');
+  const skipBtn = document.getElementById('btn-grid-skip');
+  const computeBtn = document.getElementById('btn-grid-compute');
+  const statusEl = document.getElementById('grid-status');
+  const infoEl = document.getElementById('grid-point-info');
+
+  if (gridPoints.length === 0) {
+    statusEl.textContent = 'Configure grid and click Generate.';
+    recordBtn.style.display = 'none';
+    skipBtn.style.display = 'none';
+    computeBtn.style.display = 'none';
+    infoEl.textContent = '';
+    return;
+  }
+
+  const recorded = gridPoints.filter(p => p.status === 'recorded').length;
+  const total = gridPoints.length;
+  statusEl.textContent = `${recorded}/${total} points recorded.`;
+
+  recordBtn.style.display = 'inline-block';
+  skipBtn.style.display = 'inline-block';
+
+  // Show compute button if >= 3 recorded
+  computeBtn.style.display = recorded >= 3 ? 'block' : 'none';
+
+  // Show current point info
+  if (gridCurrentIndex >= 0 && gridCurrentIndex < gridPoints.length) {
+    const p = gridPoints[gridCurrentIndex];
+    infoEl.textContent = `Point ${gridCurrentIndex + 1}/${total}: stand at (${(p.x / 1000).toFixed(1)}m, ${(p.y / 1000).toFixed(1)}m)`;
+  } else {
+    infoEl.textContent = 'All points visited.';
+  }
+}
+
+document.getElementById('btn-grid-generate').addEventListener('click', generateGrid);
+
+document.getElementById('btn-grid-import').addEventListener('click', async () => {
+  const text = await navigator.clipboard.readText();
+  let json;
+  try { json = JSON.parse(text); } catch (e) {
+    document.getElementById('grid-status').textContent = 'Invalid JSON in clipboard.';
+    return;
+  }
+  if (!json.points || !json.points.length) {
+    document.getElementById('grid-status').textContent = 'No points found in JSON.';
+    return;
+  }
+
+  // Restore config
+  if (json.config) {
+    gridConfig = {
+      xMin: json.config.xMin * 1000, xMax: json.config.xMax * 1000,
+      yMin: json.config.yMin * 1000, yMax: json.config.yMax * 1000,
+      spacing: json.config.spacing * 1000,
+    };
+    document.getElementById('grid-x-min').value = json.config.xMin;
+    document.getElementById('grid-x-max').value = json.config.xMax;
+    document.getElementById('grid-y-min').value = json.config.yMin;
+    document.getElementById('grid-y-max').value = json.config.yMax;
+    document.getElementById('grid-spacing').value = json.config.spacing;
+  }
+
+  // Restore points
+  gridPoints = json.points.map(p => ({
+    x: p.known.x, y: p.known.y,
+    measured: p.measured ? { x: p.measured.x, y: p.measured.y } : null,
+    status: p.measured ? 'recorded' : 'pending',
+  }));
+  gridCurrentIndex = gridPoints.findIndex(p => p.status === 'pending');
+  if (gridCurrentIndex === -1 && gridPoints.length > 0) gridCurrentIndex = 0;
+
+  document.getElementById('grid-results').style.display = 'none';
+  updateGridUI();
+  document.getElementById('grid-status').textContent = `Imported ${json.points.length} points from clipboard.`;
+});
+
+// Grid canvas drawing
+function drawGridCanvas() {
+  const canvas = document.getElementById('grid-canvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const { scale, ox, oy, toCanvas } = drawFovAndRings(ctx, w, h);
+
+  // Draw grid points
+  for (let i = 0; i < gridPoints.length; i++) {
+    const p = gridPoints[i];
+    const cp = toCanvas(p.x, p.y);
+
+    if (p.status === 'recorded' && p.measured) {
+      // Error vector: red line from measured to known
+      const mp = toCanvas(p.measured.x, p.measured.y);
+      ctx.beginPath();
+      ctx.moveTo(mp.cx, mp.cy);
+      ctx.lineTo(cp.cx, cp.cy);
+      ctx.strokeStyle = '#e94560';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Measured position (small red dot)
+      ctx.beginPath();
+      ctx.arc(mp.cx, mp.cy, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#e94560';
+      ctx.fill();
+    }
+
+    // Known position circle
+    ctx.beginPath();
+    ctx.arc(cp.cx, cp.cy, 6, 0, Math.PI * 2);
+    if (i === gridCurrentIndex) {
+      // Pulsing blue for current target
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 200);
+      ctx.fillStyle = `rgba(79,195,247,${0.3 + 0.4 * pulse})`;
+      ctx.strokeStyle = '#4fc3f7';
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+      // Label
+      ctx.fillStyle = '#4fc3f7';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`(${(p.x / 1000).toFixed(1)}, ${(p.y / 1000).toFixed(1)})`, cp.cx + 10, cp.cy + 4);
+    } else if (p.status === 'recorded') {
+      ctx.fillStyle = 'rgba(76,175,80,0.6)';
+      ctx.fill();
+      ctx.strokeStyle = '#4caf50';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(150,150,150,0.3)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(150,150,150,0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // Label pending points with coordinates
+      ctx.fillStyle = 'rgba(150,150,150,0.6)';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${(p.x / 1000).toFixed(0)},${(p.y / 1000).toFixed(0)}`, cp.cx, cp.cy - 10);
+    }
+  }
+
+  // Draw live target
+  const tIdx = parseInt(document.getElementById('grid-target').value);
+  const t = targets[tIdx];
+  if (t.active) {
+    const p = toCanvas(t.raw_x, t.raw_y);
+    ctx.beginPath();
+    ctx.arc(p.cx, p.cy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = TARGET_COLORS[tIdx];
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
+    const angle = Math.atan2(t.raw_x, t.raw_y) * 180 / Math.PI;
+    ctx.fillStyle = '#fff';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${(dist / 1000).toFixed(2)}m  ${angle.toFixed(1)}°`, p.cx + 10, p.cy + 4);
+  }
+}
+
+// Grid canvas click handler for point selection
+document.getElementById('grid-canvas').addEventListener('click', (e) => {
+  if (gridPoints.length === 0) return;
+  const canvas = e.target;
+  const rect = canvas.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+
+  const xRange = MAX_RANGE * 2;
+  const scale = Math.min(canvas.width / xRange, canvas.height / MAX_RANGE);
+  const ox = canvas.width / 2;
+  const oy = 10;
+
+  for (let i = 0; i < gridPoints.length; i++) {
+    const p = gridPoints[i];
+    const cx = ox + p.x * scale;
+    const cy = oy + p.y * scale;
+    const dx = clickX - cx;
+    const dy = clickY - cy;
+    if (dx * dx + dy * dy <= 15 * 15) {
+      gridCurrentIndex = i;
+      updateGridUI();
+      return;
+    }
+  }
+});
+
+// Grid recording
+function gridRecordFrame() {
+  if (!gridRecordingTimer) return; // not recording
+  const idx = gridCurrentIndex;
+  if (idx < 0 || idx >= gridPoints.length) return;
+
+  const tIdx = parseInt(document.getElementById('grid-target').value);
+  const t = targets[tIdx];
+  if (!t.active) return;
+
+  // Skip consecutive duplicates
+  const last = gridSamples[gridSamples.length - 1];
+  if (last && last.x === t.raw_x && last.y === t.raw_y) return;
+
+  gridSamples.push({ x: t.raw_x, y: t.raw_y });
+
+  // Update progress bar
+  const elapsed = Date.now() - gridRecordingStart;
+  const duration = parseInt(document.getElementById('grid-duration').value) * 1000;
+  const pct = Math.min(100, (elapsed / duration) * 100);
+  document.getElementById('grid-progress-fill').style.width = `${pct}%`;
+  document.getElementById('grid-progress-text').textContent =
+    `${(elapsed / 1000).toFixed(1)}s — ${gridSamples.length} samples`;
+}
+
+document.getElementById('btn-grid-record').addEventListener('click', () => {
+  if (gridRecordingTimer) return; // already recording
+  if (gridCurrentIndex < 0 || gridCurrentIndex >= gridPoints.length) return;
+
+  gridSamples = [];
+  gridRecordingStart = Date.now();
+  gridPoints[gridCurrentIndex].status = 'recording';
+
+  const duration = parseInt(document.getElementById('grid-duration').value) * 1000;
+
+  document.getElementById('btn-grid-record').className = 'recording';
+  document.getElementById('btn-grid-record').textContent = 'Recording...';
+  document.getElementById('grid-progress').style.display = '';
+  document.getElementById('grid-progress-fill').style.width = '0%';
+
+  gridRecordingTimer = setTimeout(() => {
+    gridRecordingTimer = null;
+
+    document.getElementById('btn-grid-record').className = 'ready';
+    document.getElementById('btn-grid-record').textContent = 'Record';
+    document.getElementById('grid-progress').style.display = 'none';
+
+    if (gridSamples.length < 5) {
+      gridPoints[gridCurrentIndex].status = 'pending';
+      document.getElementById('grid-status').textContent =
+        'Not enough readings — ensure you are detected by the sensor.';
+      return;
+    }
+
+    // Median (more robust to noise than mean)
+    const xs = gridSamples.map(s => s.x).sort((a, b) => a - b);
+    const ys = gridSamples.map(s => s.y).sort((a, b) => a - b);
+    const mid = Math.floor(xs.length / 2);
+    gridPoints[gridCurrentIndex].measured = {
+      x: xs.length % 2 ? xs[mid] : Math.round((xs[mid - 1] + xs[mid]) / 2),
+      y: ys.length % 2 ? ys[mid] : Math.round((ys[mid - 1] + ys[mid]) / 2),
+    };
+    gridPoints[gridCurrentIndex].status = 'recorded';
+
+    // Advance to next unrecorded
+    advanceGridPoint();
+    updateGridUI();
+  }, duration);
+});
+
+document.getElementById('btn-grid-skip').addEventListener('click', () => {
+  if (gridRecordingTimer) return; // don't skip while recording
+  advanceGridPoint();
+  updateGridUI();
+});
+
+function advanceGridPoint() {
+  // Find next unrecorded point after current index, wrapping
+  const n = gridPoints.length;
+  for (let offset = 1; offset <= n; offset++) {
+    const idx = (gridCurrentIndex + offset) % n;
+    if (gridPoints[idx].status === 'pending') {
+      gridCurrentIndex = idx;
+      return;
+    }
+  }
+  // All recorded or no pending
+  gridCurrentIndex = -1;
+}
+
+// Grid analysis
+document.getElementById('btn-grid-compute').addEventListener('click', computeGridCorrections);
+
+function computeGridCorrections() {
+  const recorded = gridPoints.filter(p => p.status === 'recorded');
+  if (recorded.length < 3) return;
+
+  // Build data for each recorded point
+  const data = recorded.map(p => {
+    const kAngle = Math.atan2(p.x, p.y);
+    const kRange = Math.sqrt(p.x * p.x + p.y * p.y);
+    const mAngle = Math.atan2(p.measured.x, p.measured.y);
+    const mRange = Math.sqrt(p.measured.x * p.measured.x + p.measured.y * p.measured.y);
+    return {
+      kx: p.x, ky: p.y,
+      mx: p.measured.x, my: p.measured.y,
+      kAngle, kRange, mAngle, mRange,
+      rangeErr: mRange - kRange,
+      angleErr: (mAngle - kAngle) * 180 / Math.PI,
+    };
+  });
+
+  // Error table
+  const tbody = document.querySelector('#grid-error-table tbody');
+  tbody.innerHTML = '';
+  for (const d of data) {
+    const row = document.createElement('tr');
+    row.innerHTML =
+      `<td>${d.kx}</td><td>${d.ky}</td>` +
+      `<td>${d.mx}</td><td>${d.my}</td>` +
+      `<td style="color:${Math.abs(d.rangeErr) > 200 ? '#ff9800' : '#4caf50'}">${d.rangeErr.toFixed(0)}</td>` +
+      `<td style="color:${Math.abs(d.angleErr) > 3 ? '#ff9800' : '#4caf50'}">${d.angleErr.toFixed(1)}°</td>`;
+    tbody.appendChild(row);
+  }
+
+  // Build fitting data
+  // Angle: piecewise — only fit on wide-angle points (|θ| > 20°) where
+  // distortion is real. Below 20° the noise dominates and no correction is applied.
+  const ANGLE_FIT_THRESHOLD = 20 * Math.PI / 180; // ~0.35 rad
+  const angleFitData = [];
+  const rangeFitData = [];
+  for (const d of data) {
+    const absTheta = Math.abs(d.mAngle);
+    const absKnownTheta = Math.abs(d.kAngle);
+    const rangeRatio = d.kRange / d.mRange;
+    rangeFitData.push({ absTheta, ratio: rangeRatio });
+
+    // Only use wide-angle points for angle fit
+    if (absTheta > ANGLE_FIT_THRESHOLD && absKnownTheta > ANGLE_FIT_THRESHOLD) {
+      const angleRatio = d.kAngle / d.mAngle;
+      angleFitData.push({ absTheta, ratio: angleRatio });
+    }
+  }
+
+  const angleFit = linearFit(angleFitData, p => p.absTheta, p => p.ratio);
+  const rangeFit = linearFit(rangeFitData, p => p.absTheta, p => p.ratio);
+
+  // These are shared module-level globals (declared above), also used by Mark corners.
+  // Grid calibration intentionally overwrites any previous Mark corners fit.
+  // Store as piecewise: angle correction only applies above threshold
+  fittedAngleCoeffs = { a0: angleFit.c0, a1: angleFit.c1, threshold: ANGLE_FIT_THRESHOLD };
+  fittedRangeCoeffs = { r0: rangeFit.c0, r1: rangeFit.c1 };
+
+  // Show fit params
+  const threshDeg = (ANGLE_FIT_THRESHOLD * 180 / Math.PI).toFixed(0);
+  document.getElementById('grid-fit-params').innerHTML =
+    `angle_scale(|θ|) = 1.0 for |θ| &lt; ${threshDeg}°, ` +
+    `${angleFit.c0.toFixed(4)} + ${angleFit.c1.toFixed(4)} × |θ| for |θ| ≥ ${threshDeg}°<br>` +
+    `range_scale(|θ|) = ${rangeFit.c0.toFixed(4)} + ${rangeFit.c1.toFixed(4)} × |θ|`;
+
+  // Helper to compute angle scale with piecewise threshold
+  function angleScale(absTheta) {
+    if (absTheta < ANGLE_FIT_THRESHOLD) return 1.0;
+    return angleFit.c0 + angleFit.c1 * absTheta;
+  }
+
+  // Corrected error table
+  const ctbody = document.querySelector('#grid-corrected-table tbody');
+  ctbody.innerHTML = '';
+  for (const d of data) {
+    const absTheta = Math.abs(d.mAngle);
+    const aScale = angleScale(absTheta);
+    const rScale = rangeFit.c0 + rangeFit.c1 * absTheta;
+    const corrAngle = d.mAngle * aScale;
+    const corrRange = d.mRange * rScale;
+    const corrX = Math.round(corrRange * Math.sin(corrAngle));
+    const corrY = Math.round(corrRange * Math.cos(corrAngle));
+    const corrRangeErr = corrRange - d.kRange;
+    const corrAngleErr = (corrAngle - d.kAngle) * 180 / Math.PI;
+    const row = document.createElement('tr');
+    row.innerHTML =
+      `<td>${d.kx}</td><td>${d.ky}</td>` +
+      `<td>${corrX}</td><td>${corrY}</td>` +
+      `<td style="color:${Math.abs(corrRangeErr) > 200 ? '#ff9800' : '#4caf50'}">${corrRangeErr.toFixed(0)}</td>` +
+      `<td style="color:${Math.abs(corrAngleErr) > 3 ? '#ff9800' : '#4caf50'}">${corrAngleErr.toFixed(1)}°</td>`;
+    ctbody.appendChild(row);
+  }
+
+  document.getElementById('grid-results').style.display = 'block';
+}
+
+// Apply to Explore
+document.getElementById('btn-grid-apply').addEventListener('click', () => {
+  if (!fittedAngleCoeffs || !fittedRangeCoeffs) return;
+  // Compute median |theta| from recorded points
+  const thetas = gridPoints
+    .filter(p => p.status === 'recorded')
+    .map(p => Math.abs(Math.atan2(p.measured.x, p.measured.y)))
+    .sort((a, b) => a - b);
+  const medianTheta = thetas.length > 0
+    ? thetas[Math.floor(thetas.length / 2)]
+    : Math.PI / 6;
+  const aScale = fittedAngleCoeffs.a0 + fittedAngleCoeffs.a1 * medianTheta;
+  const rScale = fittedRangeCoeffs.r0 + fittedRangeCoeffs.r1 * medianTheta;
+  document.getElementById('ctl-scale').value = aScale.toFixed(2);
+  document.getElementById('ctl-scale-val').textContent = aScale.toFixed(2);
+  document.getElementById('ctl-range').value = rScale.toFixed(2);
+  document.getElementById('ctl-range-val').textContent = rScale.toFixed(2);
+  clearAllTrails();
+});
+
+// Export JSON
+document.getElementById('btn-grid-export').addEventListener('click', () => {
+  if (!gridConfig) return;
+  const recorded = gridPoints.filter(p => p.status === 'recorded');
+  const result = {
+    config: {
+      xMin: gridConfig.xMin / 1000, xMax: gridConfig.xMax / 1000,
+      yMin: gridConfig.yMin / 1000, yMax: gridConfig.yMax / 1000,
+      spacing: gridConfig.spacing / 1000,
+    },
+    points: recorded.map(p => ({
+      known: { x: p.x, y: p.y },
+      measured: p.measured,
+      rangeErr: Math.sqrt(p.measured.x ** 2 + p.measured.y ** 2) - Math.sqrt(p.x ** 2 + p.y ** 2),
+      angleErr: (Math.atan2(p.measured.x, p.measured.y) - Math.atan2(p.x, p.y)) * 180 / Math.PI,
+    })),
+    fit: fittedAngleCoeffs && fittedRangeCoeffs ? {
+      angle: { a0: fittedAngleCoeffs.a0, a1: fittedAngleCoeffs.a1, threshold_rad: fittedAngleCoeffs.threshold || 0 },
+      range: { r0: fittedRangeCoeffs.r0, r1: fittedRangeCoeffs.r1 },
+    } : null,
+  };
+  navigator.clipboard.writeText(JSON.stringify(result, null, 2)).then(() => {
+    const btn = document.getElementById('btn-grid-export');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy JSON to clipboard'; }, 2000);
+  });
+});
 </script>
 
 </body>

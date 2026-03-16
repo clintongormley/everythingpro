@@ -1,0 +1,12 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="128" cy="128" r="96" stroke="black" stroke-width="16" fill="white"/>
+  
+  <circle cx="128" cy="128" r="80" stroke="black" stroke-width="8" fill="none"/>
+  
+  <circle cx="128" cy="128" r="16" fill="black"/>
+  
+  <line x1="128" y1="112" x2="128" y2="48" stroke="black" stroke-width="8"/>
+  <circle cx="128" cy="48" r="8" fill="black"/>
+  
+  <path d="M 64 64 A 128 128 0 0 1 192 64" stroke="black" stroke-width="8" stroke-dasharray="8 8"/>
+</svg>
