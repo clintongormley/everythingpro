@@ -6,10 +6,9 @@ from custom_components.everything_presence_pro.zone_engine import (
     ZoneEngine,
 )
 from custom_components.everything_presence_pro.const import (
-    CELL_OUTSIDE,
-    CELL_ROOM,
-    GRID_COLS,
-    GRID_ROWS,
+    CELL_ROOM_INSIDE,
+    CELL_ROOM_OUTSIDE,
+    CELL_ZONE_SHIFT,
     ZONE_EXCLUSION,
     ZONE_HIGH,
     ZONE_LOW,
@@ -17,136 +16,179 @@ from custom_components.everything_presence_pro.const import (
 )
 
 
+def _make_grid(cols: int = 20, rows: int = 16) -> Grid:
+    """Create a grid with all cells marked as inside room."""
+    grid = Grid(origin_x=0.0, origin_y=0.0, cols=cols, rows=rows)
+    for i in range(grid.cell_count):
+        grid.cells[i] = CELL_ROOM_INSIDE
+    return grid
+
+
 def test_grid_creation():
     """Test grid initializes with correct dimensions."""
-    grid = Grid(cols=20, rows=16, range_mm=6000, fov_degrees=120)
+    grid = Grid(cols=20, rows=16)
     assert grid.cell_count == 320
     assert len(grid.cells) == 320
-    assert all(c == CELL_ROOM for c in grid.cells)
+    assert all(c == 0 for c in grid.cells)
 
 
 def test_grid_xy_to_cell():
-    """Test mapping raw coordinates to grid cell index."""
-    grid = Grid(cols=20, rows=16, range_mm=6000, fov_degrees=120)
-    cell = grid.xy_to_cell(0, 100)
-    assert cell is not None
-    assert 0 <= cell < grid.cell_count
+    """Test mapping room coordinates to grid cell index."""
+    grid = Grid(origin_x=0.0, origin_y=0.0, cols=20, rows=16, cell_size=300)
+    # (150, 150) should be in cell (0, 0) = index 0
+    cell = grid.xy_to_cell(150, 150)
+    assert cell == 0
 
-    cell = grid.xy_to_cell(0, 7000)
+    # Out of bounds
+    cell = grid.xy_to_cell(-300, 0)
+    assert cell is None
+    cell = grid.xy_to_cell(0, 5000)
     assert cell is None
 
 
-def test_grid_xy_outside_fov():
-    """Test coordinates outside field of view return None."""
-    grid = Grid(cols=20, rows=16, range_mm=6000, fov_degrees=120)
-    cell = grid.xy_to_cell(10000, 100)
-    assert cell is None
+def test_grid_cell_zone():
+    """Test cell zone read with new encoding."""
+    grid = Grid(cols=4, rows=4)
+    # Set cell 0 to inside room + zone 3: bits 0-1 = 01 (inside), bits 2-4 = 011 (zone 3)
+    grid.cells[0] = CELL_ROOM_INSIDE | (3 << CELL_ZONE_SHIFT)
+    assert grid.cell_zone(0) == 3
+    assert grid.cell_is_room(0) is True
+
+
+def test_grid_cell_is_room():
+    """Test cell room check with new encoding."""
+    grid = Grid(cols=4, rows=4)
+    grid.cells[0] = CELL_ROOM_OUTSIDE
+    assert grid.cell_is_room(0) is False
+
+    grid.cells[0] = CELL_ROOM_INSIDE
+    assert grid.cell_is_room(0) is True
+
+    # Entrance and interference are also "inside room"
+    grid.cells[0] = 0x02  # entrance
+    assert grid.cell_is_room(0) is True
+    grid.cells[0] = 0x03  # interference
+    assert grid.cell_is_room(0) is True
+
+
+def test_grid_base64_roundtrip():
+    """Test grid serialization to/from base64."""
+    grid = _make_grid(cols=4, rows=4)
+    grid.cells[0] = CELL_ROOM_INSIDE | (2 << CELL_ZONE_SHIFT)
+    b64 = grid.to_base64()
+
+    grid2 = Grid.from_base64(b64, cols=4, rows=4, origin_x=0.0, origin_y=0.0)
+    assert grid2.cell_zone(0) == 2
+    assert grid2.cell_is_room(0) is True
+    assert list(grid2.cells) == list(grid.cells)
 
 
 def test_zone_engine_no_zones():
     """Test zone engine with no zones defined."""
-    engine = ZoneEngine(cols=20, rows=16, range_mm=6000, fov_degrees=120)
-    result = engine.process_targets([(1000, 2000, True)])
+    engine = ZoneEngine()
+    engine.set_grid(_make_grid())
+    result = engine.process_targets([(150, 150, True)])
     assert result.device_tracking_present is True
     assert len(result.zone_occupancy) == 0
 
 
 def test_zone_engine_target_in_zone():
     """Test zone engine detects target in a zone."""
-    engine = ZoneEngine(cols=20, rows=16, range_mm=6000, fov_degrees=120)
+    engine = ZoneEngine()
+    grid = _make_grid()
+    # Paint zone 1 onto cell at (150, 150)
+    cell_idx = grid.xy_to_cell(150, 150)
+    assert cell_idx is not None
+    grid.cells[cell_idx] = CELL_ROOM_INSIDE | (1 << CELL_ZONE_SHIFT)
+    engine.set_grid(grid)
 
-    cell = engine.grid.xy_to_cell(1000, 2000)
-    assert cell is not None
-
-    zone = Zone(id="z1", name="Desk", sensitivity=ZONE_NORMAL, cells=[cell])
+    zone = Zone(id=1, name="Desk", sensitivity=ZONE_NORMAL)
     engine.set_zones([zone])
 
-    result = engine.process_targets([(1000, 2000, True)])
     # With SENSITIVITY_NORMAL=3, need 3 frames to confirm
-    assert result.zone_target_counts["z1"] == 1
-    # First frame won't be occupied yet (need 3 consecutive)
-    engine.process_targets([(1000, 2000, True)])
-    result = engine.process_targets([(1000, 2000, True)])
-    assert result.zone_occupancy["z1"] is True
+    result = engine.process_targets([(150, 150, True)])
+    assert result.zone_target_counts[1] == 1
+    engine.process_targets([(150, 150, True)])
+    result = engine.process_targets([(150, 150, True)])
+    assert result.zone_occupancy[1] is True
 
 
 def test_zone_engine_target_not_in_zone():
     """Test zone engine when target is outside all zones."""
-    engine = ZoneEngine(cols=20, rows=16, range_mm=6000, fov_degrees=120)
+    engine = ZoneEngine()
+    grid = _make_grid()
+    # Zone 1 only on cell 0
+    grid.cells[0] = CELL_ROOM_INSIDE | (1 << CELL_ZONE_SHIFT)
+    engine.set_grid(grid)
 
-    zone = Zone(id="z1", name="Desk", sensitivity=ZONE_NORMAL, cells=[0])
+    zone = Zone(id=1, name="Desk", sensitivity=ZONE_NORMAL)
     engine.set_zones([zone])
 
-    result = engine.process_targets([(3000, 5000, True)])
-    assert result.zone_occupancy["z1"] is False
-    assert result.zone_target_counts["z1"] == 0
+    # Target in a different cell (far from cell 0)
+    result = engine.process_targets([(3000, 3000, True)])
+    assert result.zone_occupancy[1] is False
+    assert result.zone_target_counts[1] == 0
 
 
 def test_zone_engine_exclusion_zone():
     """Test exclusion zones ignore targets."""
-    engine = ZoneEngine(cols=20, rows=16, range_mm=6000, fov_degrees=120)
+    engine = ZoneEngine()
+    grid = _make_grid()
+    cell_idx = grid.xy_to_cell(150, 150)
+    grid.cells[cell_idx] = CELL_ROOM_INSIDE | (1 << CELL_ZONE_SHIFT)
+    engine.set_grid(grid)
 
-    cell = engine.grid.xy_to_cell(1000, 2000)
-    zone = Zone(id="z1", name="Fan", sensitivity=ZONE_EXCLUSION, cells=[cell])
+    zone = Zone(id=1, name="Fan", sensitivity=ZONE_EXCLUSION)
     engine.set_zones([zone])
 
-    result = engine.process_targets([(1000, 2000, True)])
-    assert "z1" not in result.zone_occupancy
+    result = engine.process_targets([(150, 150, True)])
+    assert 1 not in result.zone_occupancy
 
 
 def test_zone_engine_outside_cells_ignored():
     """Test targets in outside cells are ignored."""
-    engine = ZoneEngine(cols=20, rows=16, range_mm=6000, fov_degrees=120)
-    cell = engine.grid.xy_to_cell(1000, 2000)
-    engine.grid.cells[cell] = CELL_OUTSIDE
+    engine = ZoneEngine()
+    grid = _make_grid()
+    cell_idx = grid.xy_to_cell(150, 150)
+    grid.cells[cell_idx] = CELL_ROOM_OUTSIDE  # mark as outside
+    engine.set_grid(grid)
 
-    result = engine.process_targets([(1000, 2000, True)])
+    result = engine.process_targets([(150, 150, True)])
     assert result.device_tracking_present is False
 
 
-def test_zone_engine_multiple_targets_same_zone():
-    """Test multiple targets in the same zone."""
-    engine = ZoneEngine(cols=20, rows=16, range_mm=6000, fov_degrees=120)
-
-    cell1 = engine.grid.xy_to_cell(1000, 2000)
-    cell2 = engine.grid.xy_to_cell(1050, 2050)
-    cells = list({cell1, cell2}) if cell1 != cell2 else [cell1]
-    zone = Zone(id="z1", name="Sofa", sensitivity=ZONE_NORMAL, cells=cells)
-    engine.set_zones([zone])
-
-    result = engine.process_targets([
-        (1000, 2000, True),
-        (1050, 2050, True),
-    ])
-    assert result.zone_target_counts["z1"] >= 1
-
-
-def test_zone_noncontiguous_cells():
-    """Test zones with non-contiguous cells work correctly."""
-    engine = ZoneEngine(cols=20, rows=16, range_mm=6000, fov_degrees=120)
-
-    cell_a = engine.grid.xy_to_cell(-1000, 1000)
-    cell_b = engine.grid.xy_to_cell(1000, 4000)
-    assert cell_a != cell_b
-
-    zone = Zone(id="z1", name="Split", sensitivity=ZONE_NORMAL, cells=[cell_a, cell_b])
-    engine.set_zones([zone])
-
-    result = engine.process_targets([(-1000, 1000, True)])
-    assert result.zone_target_counts["z1"] == 1
-
-    result = engine.process_targets([(1000, 4000, True)])
-    assert result.zone_target_counts["z1"] == 1
-
-
-def test_zone_high_sensitivity():
+def test_zone_engine_high_sensitivity():
     """Test high sensitivity zones respond immediately."""
-    engine = ZoneEngine(cols=20, rows=16, range_mm=6000, fov_degrees=120)
+    engine = ZoneEngine()
+    grid = _make_grid()
+    cell_idx = grid.xy_to_cell(150, 150)
+    grid.cells[cell_idx] = CELL_ROOM_INSIDE | (1 << CELL_ZONE_SHIFT)
+    engine.set_grid(grid)
 
-    cell = engine.grid.xy_to_cell(0, 3000)
-    zone = Zone(id="z1", name="Bed", sensitivity=ZONE_HIGH, cells=[cell])
+    zone = Zone(id=1, name="Bed", sensitivity=ZONE_HIGH)
     engine.set_zones([zone])
 
     # Single frame should trigger high sensitivity zone (threshold=1)
-    result = engine.process_targets([(0, 3000, True)])
-    assert result.zone_occupancy["z1"] is True
+    result = engine.process_targets([(150, 150, True)])
+    assert result.zone_occupancy[1] is True
+
+
+def test_zone_engine_low_sensitivity():
+    """Test low sensitivity zones require more frames."""
+    engine = ZoneEngine()
+    grid = _make_grid()
+    cell_idx = grid.xy_to_cell(150, 150)
+    grid.cells[cell_idx] = CELL_ROOM_INSIDE | (1 << CELL_ZONE_SHIFT)
+    engine.set_grid(grid)
+
+    zone = Zone(id=1, name="Hall", sensitivity=ZONE_LOW)
+    engine.set_zones([zone])
+
+    # SENSITIVITY_LOW=8, so 7 frames shouldn't trigger
+    for _ in range(7):
+        result = engine.process_targets([(150, 150, True)])
+    assert result.zone_occupancy[1] is False
+
+    # 8th frame should trigger
+    result = engine.process_targets([(150, 150, True)])
+    assert result.zone_occupancy[1] is True

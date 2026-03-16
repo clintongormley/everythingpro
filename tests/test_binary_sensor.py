@@ -27,8 +27,8 @@ def mock_coordinator():
     coordinator.static_present = True
     coordinator.last_result = ProcessingResult(
         device_tracking_present=True,
-        zone_occupancy={"z1": True, "z2": False},
-        zone_target_counts={"z1": 1, "z2": 0},
+        zone_occupancy={1: True, 2: False},
+        zone_target_counts={1: 1, 2: 0},
     )
     return coordinator
 
@@ -53,7 +53,7 @@ def test_static_presence_sensor(mock_coordinator):
 
 def test_zone_occupancy_sensor_on(mock_coordinator):
     """Test zone occupancy sensor when zone is occupied."""
-    zone = Zone(id="z1", name="Desk", sensitivity="normal", cells=[10])
+    zone = Zone(id=1, name="Desk", sensitivity="normal")
     sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, zone)
     assert sensor.is_on is True
     assert sensor.name == "Desk"
@@ -61,14 +61,14 @@ def test_zone_occupancy_sensor_on(mock_coordinator):
 
 def test_zone_occupancy_sensor_off(mock_coordinator):
     """Test zone occupancy sensor when zone is empty."""
-    zone = Zone(id="z2", name="Sofa", sensitivity="normal", cells=[20])
+    zone = Zone(id=2, name="Sofa", sensitivity="normal")
     sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, zone)
     assert sensor.is_on is False
 
 
 def test_zone_occupancy_extra_attributes(mock_coordinator):
     """Test zone occupancy sensor has target_count attribute."""
-    zone = Zone(id="z1", name="Desk", sensitivity="normal", cells=[10])
+    zone = Zone(id=1, name="Desk", sensitivity="normal")
     sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, zone)
     assert sensor.extra_state_attributes["target_count"] == 1
 
@@ -81,6 +81,6 @@ def test_occupancy_sensor_unique_id(mock_coordinator):
 
 def test_zone_sensor_unique_id(mock_coordinator):
     """Test zone sensor unique ID format."""
-    zone = Zone(id="z1", name="Desk", sensitivity="normal", cells=[10])
+    zone = Zone(id=1, name="Desk", sensitivity="normal")
     sensor = EverythingPresenceProZoneOccupancySensor(mock_coordinator, zone)
-    assert sensor.unique_id == "test_entry_zone_z1"
+    assert sensor.unique_id == "test_entry_zone_1"

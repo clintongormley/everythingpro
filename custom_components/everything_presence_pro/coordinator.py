@@ -20,7 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .calibration import SensorTransform
-from .const import CELL_FLAG_ROOM, DEFAULT_PORT, DOMAIN, MAX_TARGETS, SMOOTH_WINDOW_S
+from .const import CELL_ROOM_INSIDE, DEFAULT_PORT, DOMAIN, MAX_TARGETS, SMOOTH_WINDOW_S
 from .zone_engine import Grid, ProcessingResult, Zone, ZoneEngine
 
 _LOGGER = logging.getLogger(__name__)
@@ -230,7 +230,7 @@ class EverythingPresenceProCoordinator:
                 cx = origin_x + (c + 0.5) * grid.cell_size
                 cy = origin_y + (r + 0.5) * grid.cell_size
                 if 0 <= cx < t.room_width and 0 <= cy < t.room_depth:
-                    grid.cells[r * cols + c] = CELL_FLAG_ROOM
+                    grid.cells[r * cols + c] = CELL_ROOM_INSIDE
         self._zone_engine.set_grid(grid)
 
     # -- Connection management --

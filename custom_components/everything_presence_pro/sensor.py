@@ -88,6 +88,7 @@ class EverythingPresenceProIlluminanceSensor(SensorEntity):
     _attr_device_class = SensorDeviceClass.ILLUMINANCE
     _attr_native_unit_of_measurement = LIGHT_LUX
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
     _attr_translation_key = "illuminance"
 
     def __init__(self, coordinator: EverythingPresenceProCoordinator) -> None:
@@ -167,6 +168,7 @@ class EverythingPresenceProHumiditySensor(SensorEntity):
     _attr_device_class = SensorDeviceClass.HUMIDITY
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
     _attr_translation_key = "humidity"
 
     def __init__(self, coordinator: EverythingPresenceProCoordinator) -> None:

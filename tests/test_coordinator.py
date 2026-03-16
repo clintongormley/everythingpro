@@ -43,7 +43,7 @@ def test_coordinator_set_zones(mock_hass, mock_entry):
     """Test setting zones on coordinator."""
     coordinator = EverythingPresenceProCoordinator(mock_hass, mock_entry)
     zones = [
-        Zone(id="z1", name="Desk", sensitivity="normal", cells=[10, 11, 12]),
+        Zone(id=1, name="Desk", sensitivity="normal"),
     ]
     coordinator.set_zones(zones)
     assert len(coordinator.zones) == 1
@@ -54,7 +54,7 @@ def test_coordinator_config_roundtrip(mock_hass, mock_entry):
     """Test config data serialization roundtrip."""
     coordinator = EverythingPresenceProCoordinator(mock_hass, mock_entry)
     zones = [
-        Zone(id="z1", name="Desk", sensitivity="normal", cells=[10, 11, 12]),
+        Zone(id=1, name="Desk", sensitivity="normal"),
     ]
     coordinator.set_zones(zones)
 

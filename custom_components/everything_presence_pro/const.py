@@ -22,13 +22,19 @@ SENSITIVITY_HIGH = 1
 SENSITIVITY_LOW = 8
 
 # Grid cell byte format:
-# Bit 7: room flag (1 = inside room)
-# Bit 6: exit flag
-# Bits 5-4: reserved
-# Bits 3-0: zone number (0 = no zone, 1-15 = zone id)
-CELL_FLAG_ROOM = 0x80
-CELL_FLAG_EXIT = 0x40
-CELL_ZONE_MASK = 0x0F
+# Bits 0-1: room/overlay (00=outside, 01=inside, 10=entrance, 11=interference)
+# Bits 2-4: zone number (0=room default, 1-7=named zone)
+# Bits 5-7: per-cell training baseline (reserved)
+CELL_ROOM_MASK = 0x03
+CELL_ROOM_OUTSIDE = 0x00
+CELL_ROOM_INSIDE = 0x01
+CELL_ROOM_ENTRANCE = 0x02
+CELL_ROOM_INTERFERENCE = 0x03
+CELL_ZONE_MASK = 0x1C
+CELL_ZONE_SHIFT = 2
+CELL_TRAINING_MASK = 0xE0
+CELL_TRAINING_SHIFT = 5
+MAX_ZONES = 7
 
 # Zone sensitivity types
 ZONE_NORMAL = "normal"

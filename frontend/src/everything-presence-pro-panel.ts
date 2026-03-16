@@ -104,29 +104,26 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 ];
 
 // Byte encoding per cell:
-// Bit 0:   inside room (0=outside, 1=inside)
-// Bit 1-2: overlay (00=none, 01=entrance, 10=interference)
-// Bit 3-6: zone number (0-15)
-// Bit 7:   reserved
-const CELL_INSIDE   = 0x01;
-const CELL_OVERLAY_MASK = 0x06; // bits 1-2
-const CELL_OVERLAY_SHIFT = 1;
-const CELL_OVERLAY_NONE = 0;
-const CELL_OVERLAY_ENTRANCE = 1;
-const CELL_OVERLAY_INTERFERENCE = 2;
-const CELL_ZONE_MASK = 0x78; // bits 3-6
-const CELL_ZONE_SHIFT = 3;
+// Bits 0-1: room/overlay (00=outside, 01=inside, 10=entrance, 11=interference)
+// Bits 2-4: zone number (0=room default, 1-7=named zone)
+// Bits 5-7: per-cell training baseline (reserved)
+const CELL_ROOM_MASK = 0x03;
+const CELL_ROOM_OUTSIDE = 0x00;
+const CELL_ROOM_INSIDE = 0x01;
+const CELL_ROOM_ENTRANCE = 0x02;
+const CELL_ROOM_INTERFERENCE = 0x03;
+const CELL_ZONE_MASK = 0x1C; // bits 2-4
+const CELL_ZONE_SHIFT = 2;
+const MAX_ZONES = 7;
 
-const cellIsInside = (v: number): boolean => (v & CELL_INSIDE) !== 0;
-const cellOverlay = (v: number): number => (v >> CELL_OVERLAY_SHIFT) & 0x03;
-const cellZone = (v: number): number => (v >> CELL_ZONE_SHIFT) & 0x0F;
+const cellIsInside = (v: number): boolean => (v & CELL_ROOM_MASK) !== CELL_ROOM_OUTSIDE;
+const cellOverlay = (v: number): number => v & CELL_ROOM_MASK; // 0=outside, 1=inside, 2=entrance, 3=interference
+const cellZone = (v: number): number => (v >> CELL_ZONE_SHIFT) & 0x07;
 
-const cellSetInside = (v: number, inside: boolean): number =>
-  inside ? (v | CELL_INSIDE) : (v & ~CELL_INSIDE);
-const cellSetOverlay = (v: number, overlay: number): number =>
-  (v & ~CELL_OVERLAY_MASK) | ((overlay & 0x03) << CELL_OVERLAY_SHIFT);
+const cellSetRoom = (v: number, room: number): number =>
+  (v & ~CELL_ROOM_MASK) | (room & 0x03);
 const cellSetZone = (v: number, zone: number): number =>
-  (v & ~CELL_ZONE_MASK) | ((zone & 0x0F) << CELL_ZONE_SHIFT);
+  (v & ~CELL_ZONE_MASK) | ((zone & 0x07) << CELL_ZONE_SHIFT);
 
 const CORNER_LABELS = ["Front-left", "Front-right", "Back-right", "Back-left"];
 const CORNER_OFFSET_LABELS: [string, string][] = [
@@ -154,14 +151,6 @@ const ZONE_COLORS = [
   "#0072B2", // blue
   "#D55E00", // vermillion
   "#CC79A7", // reddish purple
-  "#332288", // indigo
-  "#88CCEE", // cyan
-  "#44AA99", // teal
-  "#DDCC77", // sand
-  "#882255", // wine
-  "#117733", // forest
-  "#AA4499", // magenta
-  "#999933", // olive
 ];
 
 @customElement("everything-presence-pro-panel")
@@ -170,8 +159,8 @@ export class EverythingPresenceProPanel extends LitElement {
 
   // Grid data: byte per cell using the encoding above
   @state() private _grid: Uint8Array = new Uint8Array(GRID_CELL_COUNT);
-  @state() private _zoneConfigs: ZoneConfig[] = []; // up to 15 zones (zone 0 = default room)
-  @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-15 = named zones, -1/-2 = overlays
+  @state() private _zoneConfigs: ZoneConfig[] = []; // up to 7 zones (zone 0 = default room)
+  @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones, -1/-2 = overlays
   @state() private _sidebarTab: "zones" | "furniture" = "zones";
   @state() private _showCustomIconPicker = false;
   @state() private _customIconValue = "";
@@ -436,11 +425,11 @@ export class EverythingPresenceProPanel extends LitElement {
     const cell = this._grid[index];
     if (this._activeZone === 0) {
       // Boundary: toggle inside/outside (only if already plain room)
-      const isPlainRoom = cellIsInside(cell) && cellZone(cell) === 0 && cellOverlay(cell) === 0;
+      const isPlainRoom = cellIsInside(cell) && cellZone(cell) === 0 && cellOverlay(cell) === CELL_ROOM_INSIDE;
       this._paintAction = isPlainRoom ? "clear" : "set";
     } else if (this._activeZone === -1 || this._activeZone === -2) {
       // Overlay: -1 = entrance, -2 = interference
-      const overlayType = this._activeZone === -1 ? CELL_OVERLAY_ENTRANCE : CELL_OVERLAY_INTERFERENCE;
+      const overlayType = this._activeZone === -1 ? CELL_ROOM_ENTRANCE : CELL_ROOM_INTERFERENCE;
       this._paintAction = cellOverlay(cell) === overlayType ? "clear" : "set";
     } else {
       // Named zone
@@ -469,18 +458,18 @@ export class EverythingPresenceProPanel extends LitElement {
     if (this._activeZone === 0) {
       // Boundary: set = plain inside room, clear = outside
       if (this._paintAction === "set") {
-        this._grid[index] = CELL_INSIDE;
+        this._grid[index] = CELL_ROOM_INSIDE;
       } else {
         this._grid[index] = 0;
       }
     } else if (this._activeZone === -1 || this._activeZone === -2) {
       // Overlay painting — only on inside-room cells
       if (!cellIsInside(cell)) return;
-      const overlayType = this._activeZone === -1 ? CELL_OVERLAY_ENTRANCE : CELL_OVERLAY_INTERFERENCE;
+      const overlayType = this._activeZone === -1 ? CELL_ROOM_ENTRANCE : CELL_ROOM_INTERFERENCE;
       if (this._paintAction === "set") {
-        this._grid[index] = cellSetOverlay(cell, overlayType);
+        this._grid[index] = cellSetRoom(cell, overlayType);
       } else {
-        this._grid[index] = cellSetOverlay(cell, CELL_OVERLAY_NONE);
+        this._grid[index] = cellSetRoom(cell, CELL_ROOM_INSIDE);
       }
     } else {
       // Named zone painting — only on inside-room cells
@@ -498,7 +487,7 @@ export class EverythingPresenceProPanel extends LitElement {
   // -- Zone management --
 
   private _addZone(): void {
-    if (this._zoneConfigs.length >= 15) return;
+    if (this._zoneConfigs.length >= MAX_ZONES) return;
 
     // Find highest "Zone N" number and add 1
     let maxNum = 0;
@@ -550,7 +539,7 @@ export class EverythingPresenceProPanel extends LitElement {
     this._grid = new Uint8Array(this._grid);
     for (let i = 0; i < GRID_CELL_COUNT; i++) {
       if (cellOverlay(this._grid[i]) === overlayType) {
-        this._grid[i] = cellSetOverlay(this._grid[i], CELL_OVERLAY_NONE);
+        this._grid[i] = cellSetRoom(this._grid[i], CELL_ROOM_INSIDE);
       }
     }
     this._dirty = true;
@@ -725,8 +714,8 @@ export class EverythingPresenceProPanel extends LitElement {
   private _getCellOverlayColor(index: number): string {
     const cell = this._grid[index];
     const overlay = cellOverlay(cell);
-    if (overlay === CELL_OVERLAY_ENTRANCE) return "#00FFFF"; // bright cyan border
-    if (overlay === CELL_OVERLAY_INTERFERENCE) return "#FF0000"; // bright red border
+    if (overlay === CELL_ROOM_ENTRANCE) return "#00FFFF"; // bright cyan border
+    if (overlay === CELL_ROOM_INTERFERENCE) return "#FF0000"; // bright red border
     return "";
   }
 
@@ -853,7 +842,7 @@ export class EverythingPresenceProPanel extends LitElement {
           r >= startRow && r < startRow + roomRows;
 
         if (inRoom) {
-          grid[idx] = CELL_INSIDE; // inside room, zone 0, no overlay
+          grid[idx] = CELL_ROOM_INSIDE; // inside room, zone 0, no overlay
         }
         // Otherwise stays 0 (outside room)
       }
@@ -2724,7 +2713,7 @@ export class EverythingPresenceProPanel extends LitElement {
             class="zone-remove-btn"
             @click=${(e: Event) => {
               e.stopPropagation();
-              this._clearOverlay(CELL_OVERLAY_ENTRANCE);
+              this._clearOverlay(CELL_ROOM_ENTRANCE);
             }}
           >
             <ha-icon icon="mdi:close"></ha-icon>
@@ -2744,7 +2733,7 @@ export class EverythingPresenceProPanel extends LitElement {
             class="zone-remove-btn"
             @click=${(e: Event) => {
               e.stopPropagation();
-              this._clearOverlay(CELL_OVERLAY_INTERFERENCE);
+              this._clearOverlay(CELL_ROOM_INTERFERENCE);
             }}
           >
             <ha-icon icon="mdi:close"></ha-icon>
@@ -2823,7 +2812,7 @@ export class EverythingPresenceProPanel extends LitElement {
         `;
       })}
 
-      ${this._zoneConfigs.length < 15
+      ${this._zoneConfigs.length < MAX_ZONES
         ? html`
           <button class="add-zone-btn" @click=${this._addZone}>
             <ha-icon icon="mdi:plus"></ha-icon>

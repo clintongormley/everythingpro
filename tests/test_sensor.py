@@ -29,8 +29,8 @@ def mock_coordinator():
     coordinator.co2 = 420.0
     coordinator.last_result = ProcessingResult(
         device_tracking_present=True,
-        zone_occupancy={"z1": True},
-        zone_target_counts={"z1": 2},
+        zone_occupancy={1: True},
+        zone_target_counts={1: 2},
     )
     return coordinator
 
@@ -61,7 +61,7 @@ def test_co2_sensor(mock_coordinator):
 
 def test_zone_target_count_sensor(mock_coordinator):
     """Test zone target count sensor."""
-    zone = Zone(id="z1", name="Desk", sensitivity="normal", cells=[10])
+    zone = Zone(id=1, name="Desk", sensitivity="normal")
     sensor = EverythingPresenceProZoneTargetCountSensor(mock_coordinator, zone)
     assert sensor.native_value == 2
     assert sensor.name == "Desk target count"
@@ -75,6 +75,6 @@ def test_illuminance_sensor_unique_id(mock_coordinator):
 
 def test_zone_target_count_unique_id(mock_coordinator):
     """Test zone target count sensor unique ID."""
-    zone = Zone(id="z1", name="Desk", sensitivity="normal", cells=[10])
+    zone = Zone(id=1, name="Desk", sensitivity="normal")
     sensor = EverythingPresenceProZoneTargetCountSensor(mock_coordinator, zone)
-    assert sensor.unique_id == "test_entry_zone_z1_count"
+    assert sensor.unique_id == "test_entry_zone_1_count"

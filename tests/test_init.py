@@ -24,8 +24,8 @@ def test_coordinator_full_lifecycle():
     from custom_components.everything_presence_pro.zone_engine import Zone
 
     zones = [
-        Zone(id="z1", name="Desk", sensitivity="normal", cells=[150, 151, 152]),
-        Zone(id="z2", name="Bed", sensitivity="high", cells=[200, 201]),
+        Zone(id=1, name="Desk", sensitivity="normal"),
+        Zone(id=2, name="Bed", sensitivity="high"),
     ]
     coordinator.set_zones(zones)
     assert len(coordinator.zones) == 2
@@ -54,19 +54,19 @@ def test_zone_engine_full_pipeline():
     cell = engine.grid.xy_to_cell(0, 3000)
     assert cell is not None
 
-    zone = Zone(id="z1", name="Center", sensitivity="high", cells=[cell])
+    zone = Zone(id=1, name="Center", sensitivity="high")
     engine.set_zones([zone])
 
     # Process target at zone location
     result = engine.process_targets([(0, 3000, True)])
     assert result.device_tracking_present is True
-    assert result.zone_occupancy["z1"] is True  # High sensitivity = immediate
-    assert result.zone_target_counts["z1"] == 1
+    assert result.zone_occupancy[1] is True  # High sensitivity = immediate
+    assert result.zone_target_counts[1] == 1
 
     # Process with no active targets
     result = engine.process_targets([(0, 0, False)])
     assert result.device_tracking_present is False
-    assert result.zone_occupancy["z1"] is False
+    assert result.zone_occupancy[1] is False
 
     # Test calibration integration
     from custom_components.everything_presence_pro.calibration import (

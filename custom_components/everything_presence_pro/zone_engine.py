@@ -11,8 +11,10 @@ import math
 from dataclasses import dataclass, field
 
 from .const import (
-    CELL_FLAG_ROOM,
+    CELL_ROOM_MASK,
+    CELL_ROOM_OUTSIDE,
     CELL_ZONE_MASK,
+    CELL_ZONE_SHIFT,
     FOV_DEGREES,
     GRID_CELL_SIZE_MM,
     MAX_RANGE_MM,
@@ -30,7 +32,7 @@ from .const import (
 class Zone:
     """A named zone with metadata."""
 
-    id: int  # 1-15
+    id: int  # 1-7
     name: str
     sensitivity: str
     color: str = ""
@@ -83,11 +85,11 @@ class Grid:
 
     def cell_zone(self, cell_index: int) -> int:
         """Get the zone number for a cell (0 = no zone)."""
-        return self.cells[cell_index] & CELL_ZONE_MASK
+        return (self.cells[cell_index] & CELL_ZONE_MASK) >> CELL_ZONE_SHIFT
 
     def cell_is_room(self, cell_index: int) -> bool:
         """Check if a cell is inside the room."""
-        return bool(self.cells[cell_index] & CELL_FLAG_ROOM)
+        return (self.cells[cell_index] & CELL_ROOM_MASK) != CELL_ROOM_OUTSIDE
 
     def load_from_bytes(self, data: bytes) -> None:
         """Load cell data from bytes."""
