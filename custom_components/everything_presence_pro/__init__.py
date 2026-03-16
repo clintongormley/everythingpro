@@ -11,9 +11,16 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
+import voluptuous as vol
+
 from .const import DOMAIN
 from .coordinator import EverythingPresenceProCoordinator
 from .websocket_api import async_register_websocket_commands
+
+CONFIG_SCHEMA = vol.Schema(
+    {DOMAIN: vol.Schema({})},
+    extra=vol.ALLOW_EXTRA,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
