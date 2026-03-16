@@ -2490,8 +2490,8 @@ export class EverythingPresenceProPanel extends LitElement {
     // Inset from room walls so badges and sensor don't clip
     const TL = { x: 50, y: 55 };   // Corner 1: front-left
     const TR = { x: 290, y: 55 };  // Corner 2: front-right (sensor here)
-    const BR = { x: 290, y: 215 }; // Corner 3: back-right
-    const BL = { x: 50, y: 215 };  // Corner 4: back-left (obstructed)
+    const BR = { x: 290, y: 215 }; // Corner 3: back-right (moved up from wall)
+    const BL = { x: 50, y: 235 };  // Corner 4: back-left (plant and 65cm stay near wall)
 
     const roomDiagram = svg`
       <svg viewBox="0 0 360 290" width="360" height="290" style="display: block; margin: 0 auto;">
@@ -2509,9 +2509,9 @@ export class EverythingPresenceProPanel extends LitElement {
         ${walker(170, 72)}
         ${arrow(TR.x, TR.y, BR.x, BR.y)}
         ${walker(265, 145, false, 90)}
-        <!-- 3rd arrow stops just before the corner 4 badge -->
-        ${arrow(BR.x, BR.y, BL.x + 15, BL.y)}
-        ${walker(190, 198, true)}
+        <!-- 3rd arrow horizontal at BR.y, arrowhead stops just before 4 badge -->
+        ${arrow(BR.x, BR.y, BL.x + 5, BR.y)}
+        ${walker(190, BR.y - 17, true)}
 
         <!-- Corner 4 badge: just past arrow end, next to plant -->
         <circle cx="${BL.x + 40}" cy="${BL.y}" r="14" fill="#FF9800" opacity="0.15"/>
