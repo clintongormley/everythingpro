@@ -2780,8 +2780,8 @@ export class EverythingPresenceProPanel extends LitElement {
         const ax1 = cx + ar * Math.cos(a1Rad), ay1 = cy + ar * Math.sin(a1Rad);
         const ax2 = cx + ar * Math.cos(a2Rad), ay2 = cy + ar * Math.sin(a2Rad);
         // Label just inside the arc
-        const amid = (centerDeg) * Math.PI / 180;
-        const lx = cx + (ar - 10) * Math.cos(amid), ly = cy + (ar - 10) * Math.sin(amid);
+        const labelAngle = centerDeg * Math.PI / 180;
+        const lx = cx + (ar - 10) * Math.cos(labelAngle), ly = cy + (ar - 10) * Math.sin(labelAngle);
         return svg`
           <path d="M ${ax1} ${ay1} A ${ar} ${ar} 0 0 1 ${ax2} ${ay2}"
                 fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="1"
@@ -2807,11 +2807,12 @@ export class EverythingPresenceProPanel extends LitElement {
           <!-- Range arcs -->
           ${arcPath(64, "2m")}
           ${arcPath(128, "4m")}
+          ${arcPath(180, "")}
           <!-- Sensor dot -->
           <circle cx="${cx}" cy="${cy}" r="6" fill="var(--primary-color, #03a9f4)"/>
           <!-- Labels -->
           <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
-          <text x="152" y="136" font-size="8" fill="var(--secondary-text-color, #aaa)" text-anchor="end">6m max</text>
+          <text x="152" y="136" font-size="8" fill="var(--secondary-text-color, #aaa)" text-anchor="end">6m</text>
         </svg>
       `;
     })();

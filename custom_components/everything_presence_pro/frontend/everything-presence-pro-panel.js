@@ -317,11 +317,12 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const _t=(t=>(
           <!-- Range arcs -->
           ${d(64,"2m")}
           ${d(128,"4m")}
+          ${d(180,"")}
           <!-- Sensor dot -->
           <circle cx="${t}" cy="${e}" r="6" fill="var(--primary-color, #03a9f4)"/>
           <!-- Labels -->
           <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
-          <text x="152" y="136" font-size="8" fill="var(--secondary-text-color, #aaa)" text-anchor="end">6m max</text>
+          <text x="152" y="136" font-size="8" fill="var(--secondary-text-color, #aaa)" text-anchor="end">6m</text>
         </svg>
       `})(),i=Z`
       <svg viewBox="0 0 200 160" width="200" height="160" style="display: block;">
