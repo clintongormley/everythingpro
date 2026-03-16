@@ -1889,7 +1889,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
     .wizard-actions {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: 12px;
     }
 

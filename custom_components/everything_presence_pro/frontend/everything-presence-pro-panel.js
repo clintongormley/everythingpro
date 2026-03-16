@@ -1897,7 +1897,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
 
     .wizard-actions {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: 12px;
     }
 
