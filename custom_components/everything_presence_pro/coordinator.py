@@ -174,8 +174,12 @@ class EverythingPresenceProCoordinator:
 
     @property
     def device_occupied(self) -> bool:
-        """Return whether any target is actively detected."""
-        return self._last_result.device_tracking_present
+        """Return whether the room is occupied (PIR or static or tracking)."""
+        return (
+            self._pir_motion
+            or self._static_present
+            or self._last_result.device_tracking_present
+        )
 
     @property
     def connected(self) -> bool:

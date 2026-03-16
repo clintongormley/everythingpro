@@ -64,7 +64,7 @@ class EverythingPresenceProOccupancySensor(BinarySensorEntity):
         return self._coordinator.device_occupied
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to target updates when added to hass."""
+        """Subscribe to both target and sensor updates for combined occupancy."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
@@ -72,10 +72,17 @@ class EverythingPresenceProOccupancySensor(BinarySensorEntity):
                 self._on_update,
             )
         )
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{SIGNAL_SENSORS_UPDATED}_{self._coordinator.entry.entry_id}",
+                self._on_update,
+            )
+        )
 
     @callback
     def _on_update(self) -> None:
-        """Handle target update."""
+        """Handle update."""
         self.async_write_ha_state()
 
 
