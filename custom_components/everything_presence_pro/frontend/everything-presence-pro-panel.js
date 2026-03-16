@@ -92,7 +92,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
     `,e=(t,e,i,r)=>{const o=i-t,s=r-e,n=Math.sqrt(o*o+s*s),a=o/n,l=s/n,d=i-40*a,c=r-40*l;return Z`
         <line x1="${t+40*a}" y1="${e+40*l}" x2="${d}" y2="${c}" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
         <polygon points="${d},${c} ${d-8*a+4*l},${c-8*l-4*a} ${d-8*a-4*l},${c-8*l+4*a}" fill="var(--primary-color, #03a9f4)" opacity="0.5"/>
-      `},i=50,r=55,o=290,s=55,n=290,a=235,l=50,d=235,c=Z`
+      `},i=50,r=55,o=290,s=55,n=290,a=215,l=50,d=215,c=Z`
       <svg viewBox="0 0 360 290" width="360" height="290" style="display: block; margin: 0 auto;">
         <!-- Room with rounded corners, soft fill -->
         <rect x="30" y="35" width="280" height="210" rx="8"
@@ -110,7 +110,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         ${t(265,145,!1,90)}
         <!-- 3rd arrow stops just before the corner 4 badge -->
         ${e(n,a,l+15,d)}
-        ${t(190,218,!0)}
+        ${t(190,198,!0)}
 
         <!-- Corner 4 badge: just past arrow end, next to plant -->
         <circle cx="${l+40}" cy="${d}" r="14" fill="#FF9800" opacity="0.15"/>
