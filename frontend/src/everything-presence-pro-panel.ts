@@ -2781,8 +2781,8 @@ export class EverythingPresenceProPanel extends LitElement {
           </defs>
           <!-- Room outline -->
           <rect x="20" y="20" width="160" height="120" fill="none" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="2"/>
-          <!-- 120° FOV wedge clipped to room -->
-          <path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z"
+          <!-- 120° FOV wedge clipped to room (large-arc=0, sweep=1 for CW 120° arc) -->
+          <path d="M ${cx} ${cy} L ${x2} ${y2} A ${r} ${r} 0 0 0 ${x1} ${y1} Z"
                 fill="var(--primary-color, #03a9f4)" opacity="0.1"
                 clip-path="url(#room-clip)"/>
           <!-- Cone edge lines (clipped) -->

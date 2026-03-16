@@ -301,8 +301,8 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const _t=(t=>(
           </defs>
           <!-- Room outline -->
           <rect x="20" y="20" width="160" height="120" fill="none" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="2"/>
-          <!-- 120° FOV wedge clipped to room -->
-          <path d="M ${t} ${e} L ${s} ${n} A ${i} ${i} 0 0 1 ${a} ${l} Z"
+          <!-- 120° FOV wedge clipped to room (large-arc=0, sweep=1 for CW 120° arc) -->
+          <path d="M ${t} ${e} L ${a} ${l} A ${i} ${i} 0 0 0 ${s} ${n} Z"
                 fill="var(--primary-color, #03a9f4)" opacity="0.1"
                 clip-path="url(#room-clip)"/>
           <!-- Cone edge lines (clipped) -->
