@@ -9,8 +9,10 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
+from homeassistant.helpers import entity_registry
+
 from .calibration import SensorTransform
-from .const import DOMAIN
+from .const import DOMAIN, MAX_ZONES
 from .coordinator import EverythingPresenceProCoordinator, SIGNAL_TARGETS_UPDATED
 from .zone_engine import Zone
 
@@ -40,6 +42,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_set_room_layout)
     websocket_api.async_register_command(hass, websocket_set_setup)
     websocket_api.async_register_command(hass, websocket_subscribe_targets)
+    websocket_api.async_register_command(hass, websocket_rename_zone_entities)
 
 
 @websocket_api.websocket_command(
@@ -218,13 +221,19 @@ async def websocket_set_zones(
         vol.Required("type"): "everything_presence_pro/set_room_layout",
         vol.Required("entry_id"): str,
         vol.Required("grid_bytes"): [int],
-        vol.Optional("zones", default=[]): [
-            {
-                vol.Required("name"): str,
-                vol.Required("color"): str,
-                vol.Required("sensitivity"): int,
-            }
-        ],
+        vol.Optional("zone_slots", default=[None] * MAX_ZONES): vol.All(
+            [
+                vol.Any(
+                    None,
+                    {
+                        vol.Required("name"): str,
+                        vol.Required("color"): str,
+                        vol.Required("sensitivity"): int,
+                    },
+                )
+            ],
+            vol.Length(min=MAX_ZONES, max=MAX_ZONES),
+        ),
         vol.Optional("room_sensitivity", default=1): int,
         vol.Optional("furniture", default=[]): [
             {
@@ -253,9 +262,23 @@ async def websocket_set_room_layout(
         connection.send_error(msg["id"], "not_found", "Config entry not found")
         return
 
+    # Build Zone objects from slot map (filter out empty slots)
+    zone_slots = msg["zone_slots"]
+    zones = [
+        Zone(
+            id=i + 1,
+            name=z["name"],
+            sensitivity=z.get("sensitivity", 1),
+            color=z.get("color", ""),
+        )
+        for i, z in enumerate(zone_slots)
+        if z is not None
+    ]
+    coordinator.set_zones(zones)
+
     layout = {
         "grid_bytes": msg["grid_bytes"],
-        "zones": msg["zones"],
+        "zone_slots": zone_slots,
         "room_sensitivity": msg["room_sensitivity"],
         "furniture": msg["furniture"],
     }
@@ -328,3 +351,39 @@ async def websocket_subscribe_targets(
         _forward_targets,
     )
     connection.subscriptions[msg["id"]] = unsub
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "everything_presence_pro/rename_zone_entities",
+        vol.Required("entry_id"): str,
+        vol.Required("renames"): [
+            {
+                vol.Required("old_entity_id"): str,
+                vol.Required("new_entity_id"): str,
+            }
+        ],
+    }
+)
+@websocket_api.async_response
+async def websocket_rename_zone_entities(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Batch-rename zone entity IDs via the entity registry."""
+    registry = entity_registry.async_get(hass)
+    errors: list[str] = []
+    for rename in msg["renames"]:
+        old_id = rename["old_entity_id"]
+        new_id = rename["new_entity_id"]
+        entry = registry.async_get(old_id)
+        if entry is None:
+            errors.append(f"{old_id} not found")
+            continue
+        if registry.async_get(new_id) is not None:
+            errors.append(f"{new_id} already exists")
+            continue
+        registry.async_update_entity(old_id, new_entity_id=new_id)
+
+    connection.send_result(msg["id"], {"errors": errors})
