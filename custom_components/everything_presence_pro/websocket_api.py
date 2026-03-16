@@ -294,6 +294,32 @@ async def websocket_set_room_layout(
             entry, options={**entry.options, "config": config}
         )
 
+    # Enable/disable zone entities based on which slots are occupied
+    registry = entity_registry.async_get(hass)
+    entry_id = msg["entry_id"]
+    for slot in range(1, MAX_ZONES + 1):
+        occupied = zone_slots[slot - 1] is not None
+        # Find entities for this slot by unique_id
+        for suffix in (f"_zone_{slot}", f"_zone_{slot}_count"):
+            unique_id = f"{entry_id}{suffix}"
+            ent = registry.async_get_entity_id(
+                "binary_sensor" if "_count" not in suffix else "sensor",
+                DOMAIN,
+                unique_id,
+            )
+            if ent is None:
+                continue
+            ent_entry = registry.async_get(ent)
+            if ent_entry is None:
+                continue
+            if occupied and ent_entry.disabled_by is not None:
+                registry.async_update_entity(ent, disabled_by=None)
+            elif not occupied and ent_entry.disabled_by is None:
+                registry.async_update_entity(
+                    ent,
+                    disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
+                )
+
     connection.send_result(msg["id"])
 
 
