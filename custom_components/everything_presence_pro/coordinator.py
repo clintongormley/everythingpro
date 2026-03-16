@@ -432,15 +432,15 @@ class EverythingPresenceProCoordinator:
         )
 
     def _schedule_rebuild(self) -> None:
-        """Schedule a target rebuild on the next event loop iteration.
+        """Schedule a target rebuild, throttled to max ~5/sec.
 
-        Batches multiple x/y/active updates from the same ESPHome message
-        into a single rebuild + dispatch cycle.
+        Batches multiple x/y/active updates and limits how often the
+        full rebuild + dispatch cycle runs to avoid blocking the event loop.
         """
         if self._rebuild_scheduled:
             return
         self._rebuild_scheduled = True
-        self.hass.loop.call_soon(self._do_rebuild)
+        self.hass.loop.call_later(0.2, self._do_rebuild)
 
     def _target_index(self, name: str) -> int | None:
         """Extract the 0-based target index from a name like target_1_x."""
@@ -476,9 +476,6 @@ class EverythingPresenceProCoordinator:
 
         async_dispatcher_send(
             self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
-        )
-        async_dispatcher_send(
-            self.hass, f"{SIGNAL_ZONES_UPDATED}_{self.entry.entry_id}"
         )
 
     # -- Config serialization --
