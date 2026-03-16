@@ -2457,58 +2457,100 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderWizardGuide() {
-    // Room diagram showing corner order and offset fields explanation
+    // Walking person icon (simple cartoon stick figure)
+    const walker = (x: number, y: number, flip = false) => svg`
+      <g transform="translate(${x}, ${y}) scale(${flip ? -0.7 : 0.7}, 0.7)">
+        <circle cx="0" cy="-12" r="4" fill="var(--primary-color, #03a9f4)"/>
+        <line x1="0" y1="-8" x2="0" y2="2" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
+        <line x1="0" y1="2" x2="-4" y2="10" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
+        <line x1="0" y1="2" x2="4" y2="10" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
+        <line x1="0" y1="-4" x2="-5" y2="2" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
+        <line x1="0" y1="-4" x2="5" y2="-1" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
+      </g>
+    `;
+
+    // Arrow between two points, shortened on both ends
+    const arrow = (x1: number, y1: number, x2: number, y2: number) => {
+      const dx = x2 - x1, dy = y2 - y1;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const ux = dx / len, uy = dy / len;
+      const inset = 24;
+      const sx = x1 + ux * inset, sy = y1 + uy * inset;
+      const ex = x2 - ux * inset, ey = y2 - uy * inset;
+      // Arrowhead
+      const ax = ex - ux * 8 + uy * 4, ay = ey - uy * 8 - ux * 4;
+      const bx = ex - ux * 8 - uy * 4, by = ey - uy * 8 + ux * 4;
+      return svg`
+        <line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+        <polygon points="${ex},${ey} ${ax},${ay} ${bx},${by}" fill="var(--primary-color, #03a9f4)" opacity="0.5"/>
+      `;
+    };
+
+    // Corner positions: sensor top-right, order: TL(1) → TR(2) → BR(3) → BL(4)
+    const TL = { x: 35, y: 35 };   // Corner 1: front-left
+    const TR = { x: 305, y: 35 };  // Corner 2: front-right (sensor here)
+    const BR = { x: 305, y: 225 }; // Corner 3: back-right
+    const BL = { x: 35, y: 225 };  // Corner 4: back-left (obstructed)
+
     const roomDiagram = svg`
-      <svg viewBox="0 0 340 260" width="340" height="260" style="display: block; margin: 0 auto;">
-        <!-- Room -->
-        <rect x="20" y="20" width="300" height="220" fill="var(--secondary-background-color, #f5f5f5)" stroke="var(--divider-color, #ccc)" stroke-width="2" rx="4"/>
-
-        <!-- Sensor in top-left corner -->
-        <circle cx="30" cy="30" r="8" fill="var(--primary-color, #03a9f4)"/>
-        <text x="42" y="35" font-size="11" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
-
-        <!-- Corner 1: front-left (accessible) -->
-        <circle cx="30" cy="230" r="12" fill="none" stroke="#4CAF50" stroke-width="2"/>
-        <text x="25" y="235" font-size="12" fill="#4CAF50" font-weight="bold" text-anchor="middle">1</text>
-        <text x="48" y="235" font-size="9" fill="var(--secondary-text-color, #888)">Front-left</text>
-
-        <!-- Corner 2: front-right (accessible) -->
-        <circle cx="310" cy="230" r="12" fill="none" stroke="#4CAF50" stroke-width="2"/>
-        <text x="305" y="235" font-size="12" fill="#4CAF50" font-weight="bold" text-anchor="middle">2</text>
-        <text x="258" y="235" font-size="9" fill="var(--secondary-text-color, #888)">Front-right</text>
-
-        <!-- Corner 3: back-right (blocked by furniture) -->
-        <circle cx="310" cy="30" r="12" fill="none" stroke="#FF9800" stroke-width="2" stroke-dasharray="4 2"/>
-        <text x="305" y="35" font-size="12" fill="#FF9800" font-weight="bold" text-anchor="middle">3</text>
-        <text x="260" y="52" font-size="9" fill="#FF9800">Blocked!</text>
-
-        <!-- Bookshelf blocking corner 3 -->
-        <rect x="280" y="20" width="40" height="50" fill="none" stroke="var(--secondary-text-color, #888)" stroke-width="1.5" rx="2" stroke-dasharray="4 2"/>
-        <text x="300" y="80" font-size="8" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Shelf</text>
-
-        <!-- Corner 4: back-left (accessible) -->
-        <circle cx="30" cy="30" r="12" fill="none" stroke="#4CAF50" stroke-width="2"/>
-        <text x="25" y="35" font-size="12" fill="#4CAF50" font-weight="bold" text-anchor="middle">4</text>
-
-        <!-- Dotted path showing walking order -->
-        <path d="M 30 228 L 308 228" stroke="var(--primary-color, #03a9f4)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
-        <path d="M 308 228 L 308 32" stroke="var(--primary-color, #03a9f4)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
-        <path d="M 308 32 L 32 32" stroke="var(--primary-color, #03a9f4)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
-
-        <!-- Offset example for blocked corner 3 -->
-        <!-- Person standing near corner 3 but offset -->
-        <circle cx="265" cy="55" r="5" fill="#FF9800" opacity="0.6"/>
-        <text x="265" y="45" font-size="7" fill="#FF9800" text-anchor="middle">You</text>
-
-        <!-- Offset arrows -->
-        <line x1="265" y1="55" x2="310" y2="55" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
-        <text x="288" y="67" font-size="7" fill="#FF9800" text-anchor="middle">45cm</text>
-        <line x1="265" y1="55" x2="265" y2="30" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
-        <text x="253" y="42" font-size="7" fill="#FF9800" text-anchor="end">25cm</text>
+      <svg viewBox="0 0 340 270" width="340" height="270" style="display: block; margin: 0 auto;">
+        <!-- Room with rounded corners, soft fill -->
+        <rect x="20" y="20" width="300" height="220" rx="8"
+              fill="var(--secondary-background-color, #f5f5f5)"
+              stroke="var(--divider-color, #d0d0d0)" stroke-width="2.5"/>
 
         <!-- Wall labels -->
-        <text x="170" y="14" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Back wall (sensor side)</text>
-        <text x="170" y="252" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Front wall (far from sensor)</text>
+        <text x="170" y="14" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Front wall (sensor side)</text>
+        <text x="170" y="258" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Back wall</text>
+
+        <!-- Arrows with walking figures: 1→2→3→4 -->
+        ${arrow(TL.x, TL.y, TR.x, TR.y)}
+        ${walker(170, 32)}
+        ${arrow(TR.x, TR.y, BR.x, BR.y)}
+        ${walker(308, 130, true)}
+        ${arrow(BR.x, BR.y, BL.x, BL.y)}
+        ${walker(170, 228, true)}
+
+        <!-- Sofa blocking corner 4 (BL) -->
+        <rect x="20" y="188" width="55" height="52" rx="6"
+              fill="var(--divider-color, #e0e0e0)"
+              stroke="var(--secondary-text-color, #aaa)" stroke-width="1.5"/>
+        <text x="47" y="218" font-size="9" fill="var(--secondary-text-color, #999)" text-anchor="middle">Sofa</text>
+
+        <!-- Person standing offset from corner 4 -->
+        <circle cx="85" cy="195" r="6" fill="#FF9800" opacity="0.7"/>
+        <text x="85" y="185" font-size="8" fill="#FF9800" text-anchor="middle" font-weight="500">You</text>
+        <!-- Offset dimension lines -->
+        <line x1="85" y1="201" x2="85" y2="238" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="78" y1="238" x2="92" y2="238" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="97" y="222" font-size="8" fill="#FF9800">50cm</text>
+        <line x1="79" y1="195" x2="22" y2="195" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="22" y1="188" x2="22" y2="202" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="50" y="190" font-size="8" fill="#FF9800" text-anchor="middle">65cm</text>
+
+        <!-- Corner 1: front-left -->
+        <circle cx="${TL.x}" cy="${TL.y}" r="14" fill="#4CAF50" opacity="0.15"/>
+        <circle cx="${TL.x}" cy="${TL.y}" r="14" fill="none" stroke="#4CAF50" stroke-width="2.5"/>
+        <text x="${TL.x}" y="${TL.y + 5}" font-size="14" fill="#4CAF50" font-weight="bold" text-anchor="middle">1</text>
+
+        <!-- Corner 2: front-right (sensor here) -->
+        <circle cx="${TR.x}" cy="${TR.y}" r="14" fill="#4CAF50" opacity="0.15"/>
+        <circle cx="${TR.x}" cy="${TR.y}" r="14" fill="none" stroke="#4CAF50" stroke-width="2.5"/>
+        <text x="${TR.x}" y="${TR.y + 5}" font-size="14" fill="#4CAF50" font-weight="bold" text-anchor="middle">2</text>
+
+        <!-- Corner 3: back-right -->
+        <circle cx="${BR.x}" cy="${BR.y}" r="14" fill="#4CAF50" opacity="0.15"/>
+        <circle cx="${BR.x}" cy="${BR.y}" r="14" fill="none" stroke="#4CAF50" stroke-width="2.5"/>
+        <text x="${BR.x}" y="${BR.y + 5}" font-size="14" fill="#4CAF50" font-weight="bold" text-anchor="middle">3</text>
+
+        <!-- Corner 4: back-left (obstructed) -->
+        <circle cx="${BL.x}" cy="${BL.y}" r="14" fill="#FF9800" opacity="0.1"/>
+        <circle cx="${BL.x}" cy="${BL.y}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
+        <text x="${BL.x}" y="${BL.y + 5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
+
+        <!-- Sensor icon at corner 2 (top-right) -->
+        <rect x="${TR.x - 5}" y="${TR.y - 22}" width="10" height="6" rx="2" fill="var(--primary-color, #03a9f4)"/>
+        <text x="${TR.x}" y="${TR.y - 25}" font-size="9" fill="var(--primary-color, #03a9f4)" text-anchor="middle" font-weight="500">Sensor</text>
       </svg>
     `;
 
@@ -2521,23 +2563,23 @@ export class EverythingPresenceProPanel extends LitElement {
 
           <div style="display: flex; flex-direction: column; gap: 14px; padding: 16px 4px 0;">
             <div style="display: flex; align-items: flex-start; gap: 10px;">
-              <div style="min-width: 22px; height: 22px; border-radius: 50%; border: 2px solid #4CAF50; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #4CAF50;">1</div>
+              <div style="min-width: 22px; height: 22px; border-radius: 50%; background: #4CAF50; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: white;">1</div>
               <div style="font-size: 13px;">
-                <strong>Walk to each corner</strong> in order (1 → 2 → 3 → 4) and click Mark. Stand still for a few seconds so the sensor can lock on to your position.
+                <strong>Walk to each corner</strong> in order (1 → 2 → 3 → 4) and click Mark. Stand still for a few seconds so the sensor can lock on.
               </div>
             </div>
 
             <div style="display: flex; align-items: flex-start; gap: 10px;">
-              <div style="min-width: 22px; height: 22px; border-radius: 50%; border: 2px solid #FF9800; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #FF9800;">!</div>
+              <div style="min-width: 22px; height: 22px; border-radius: 50%; background: #FF9800; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: white;">!</div>
               <div style="font-size: 13px;">
-                <strong>Can't reach a corner?</strong> Stand as close as you can and enter the distance from the wall in the offset fields. For example, if a shelf blocks corner 3, stand 45cm from the right wall and 25cm from the back wall, and enter those distances.
+                <strong>Can't reach a corner?</strong> Stand as close as you can and enter the distance from each wall in the offset fields — like corner 4 in the diagram above, where a sofa is in the way.
               </div>
             </div>
 
             <div style="display: flex; align-items: flex-start; gap: 10px;">
               <ha-icon icon="mdi:information-outline" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 1px;"></ha-icon>
               <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
-                Corner 4 is where your sensor is mounted. You can stand right under it.
+                Corner 2 is where your sensor is mounted. You can stand right under it.
               </div>
             </div>
           </div>
