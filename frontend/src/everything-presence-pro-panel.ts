@@ -2766,10 +2766,11 @@ export class EverythingPresenceProPanel extends LitElement {
     `;
 
     const cornerDiagram = (() => {
-      // 120° FOV from top-left corner, centered on diagonal (135°)
-      // ±60° from center → edges at 75° and 195°
+      // 120° FOV from top-left corner, centered on diagonal into room
+      // In SVG: 0°=right, 90°=down. Diagonal to bottom-right = 45°
+      // ±60° from center → edges at -15° and 105°
       const cx = 28, cy = 28, r = 180;
-      const centerDeg = 135;
+      const centerDeg = 45;
       const a1 = (centerDeg - 60) * Math.PI / 180; // 75°
       const a2 = (centerDeg + 60) * Math.PI / 180; // 195°
       const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
