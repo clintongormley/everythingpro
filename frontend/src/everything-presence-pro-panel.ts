@@ -2643,28 +2643,28 @@ export class EverythingPresenceProPanel extends LitElement {
 
             <div class="corner-offsets">
               <label>
-                ${sideLabel} (m)
+                ${sideLabel} (cm)
                 <input
                   type="number"
                   min="0"
-                  step="0.1"
+                  step="1"
                   .value=${"0"}
                   @change=${(e: Event) => {
-                    const val = 1000 * parseFloat((e.target as HTMLInputElement).value);
+                    const val = 10 * parseFloat((e.target as HTMLInputElement).value);
                     const corner = this._wizardCorners[idx];
                     if (corner) corner.offset_side = val;
                   }}
                 />
               </label>
               <label>
-                ${fbLabel} (m)
+                ${fbLabel} (cm)
                 <input
                   type="number"
                   min="0"
-                  step="0.1"
+                  step="1"
                   .value=${"0"}
                   @change=${(e: Event) => {
-                    const val = 1000 * parseFloat((e.target as HTMLInputElement).value);
+                    const val = 10 * parseFloat((e.target as HTMLInputElement).value);
                     const corner = this._wizardCorners[idx];
                     if (corner) corner.offset_fb = val;
                   }}

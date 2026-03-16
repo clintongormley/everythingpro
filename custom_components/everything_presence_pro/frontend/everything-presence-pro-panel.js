@@ -225,23 +225,23 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
 
             <div class="corner-offsets">
               <label>
-                ${o} (m)
+                ${o} (cm)
                 <input
                   type="number"
                   min="0"
-                  step="0.1"
+                  step="1"
                   .value=${"0"}
-                  @change=${e=>{const i=1e3*parseFloat(e.target.value),r=this._wizardCorners[t];r&&(r.offset_side=i)}}
+                  @change=${e=>{const i=10*parseFloat(e.target.value),r=this._wizardCorners[t];r&&(r.offset_side=i)}}
                 />
               </label>
               <label>
-                ${s} (m)
+                ${s} (cm)
                 <input
                   type="number"
                   min="0"
-                  step="0.1"
+                  step="1"
                   .value=${"0"}
-                  @change=${e=>{const i=1e3*parseFloat(e.target.value),r=this._wizardCorners[t];r&&(r.offset_fb=i)}}
+                  @change=${e=>{const i=10*parseFloat(e.target.value),r=this._wizardCorners[t];r&&(r.offset_fb=i)}}
                 />
               </label>
             </div>
