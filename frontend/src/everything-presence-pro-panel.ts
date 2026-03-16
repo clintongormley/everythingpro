@@ -2511,11 +2511,18 @@ export class EverythingPresenceProPanel extends LitElement {
         ${arrow(BR.x, BR.y, BL.x, BL.y)}
         ${walker(170, 228, true)}
 
-        <!-- Sofa blocking corner 4 (BL) -->
-        <rect x="20" y="188" width="55" height="52" rx="6"
-              fill="var(--divider-color, #e0e0e0)"
-              stroke="var(--secondary-text-color, #aaa)" stroke-width="1.5"/>
-        <text x="47" y="218" font-size="9" fill="var(--secondary-text-color, #999)" text-anchor="middle">Sofa</text>
+        <!-- Pot plant blocking corner 4 (BL) -->
+        <g transform="translate(${BL.x}, ${BL.y})">
+          <!-- Pot -->
+          <path d="M -12 -2 L -10 12 L 10 12 L 12 -2 Z" fill="#C68642" stroke="#A0522D" stroke-width="1.5" rx="2"/>
+          <rect x="-14" y="-5" width="28" height="5" rx="2" fill="#A0522D"/>
+          <!-- Plant leaves -->
+          <ellipse cx="0" cy="-18" rx="12" ry="10" fill="#66BB6A" stroke="#43A047" stroke-width="1"/>
+          <ellipse cx="-10" cy="-12" rx="9" ry="7" fill="#81C784" stroke="#43A047" stroke-width="1"/>
+          <ellipse cx="10" cy="-12" rx="9" ry="7" fill="#81C784" stroke="#43A047" stroke-width="1"/>
+          <ellipse cx="-6" cy="-22" rx="7" ry="6" fill="#A5D6A7" stroke="#66BB6A" stroke-width="1"/>
+          <ellipse cx="6" cy="-22" rx="7" ry="6" fill="#A5D6A7" stroke="#66BB6A" stroke-width="1"/>
+        </g>
 
         <!-- Person standing offset from corner 4 -->
         <circle cx="85" cy="195" r="6" fill="#FF9800" opacity="0.7"/>
@@ -2572,7 +2579,7 @@ export class EverythingPresenceProPanel extends LitElement {
             <div style="display: flex; align-items: flex-start; gap: 10px;">
               <div style="min-width: 22px; height: 22px; border-radius: 50%; background: #FF9800; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: white;">!</div>
               <div style="font-size: 13px;">
-                <strong>Can't reach a corner?</strong> Stand as close as you can and enter the distance from each wall in the offset fields — like corner 4 in the diagram above, where a sofa is in the way.
+                <strong>Can't reach a corner?</strong> Stand as close as you can and enter the distance from each wall in the offset fields — like corner 4 in the diagram above, where a plant is in the way.
               </div>
             </div>
 
