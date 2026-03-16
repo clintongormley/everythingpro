@@ -317,6 +317,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const _t=(t=>(
           <!-- Range arcs -->
           ${d(64,"2m")}
           ${d(128,"4m")}
+          ${d(180,"6m")}
           <!-- Sensor dot -->
           <circle cx="${t}" cy="${e}" r="6" fill="var(--primary-color, #03a9f4)"/>
           <!-- Labels -->
