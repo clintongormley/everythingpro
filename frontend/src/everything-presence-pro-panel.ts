@@ -745,7 +745,7 @@ export class EverythingPresenceProPanel extends LitElement {
   private async _applyLayout(): Promise<void> {
     this._saving = true;
     try {
-      await this.hass.callWS({
+      const result = await this.hass.callWS({
         type: "everything_presence_pro/set_room_layout",
         entry_id: this._selectedEntryId,
         grid_bytes: Array.from(this._grid),
@@ -761,52 +761,18 @@ export class EverythingPresenceProPanel extends LitElement {
       });
       this._dirty = false;
 
-      // Check if entity IDs should be renamed to match zone names
-      this._checkEntityRenames();
+      // Show rename dialog if backend detected entity_id mismatches
+      const renames = result?.entity_id_renames || [];
+      if (renames.length > 0) {
+        this._pendingRenames = renames;
+        this._showRenameDialog = true;
+      }
     } finally {
       this._saving = false;
     }
   }
 
-  // -- Entity rename detection --
-
-  private _checkEntityRenames(): void {
-    if (!this.hass || !this._selectedEntryId) return;
-    const renames: { old_entity_id: string; new_entity_id: string }[] = [];
-    const entityReg = Object.values(this.hass.entities || {}) as any[];
-    const deviceName = this._entries.find(
-      (e: EntryInfo) => e.entry_id === this._selectedEntryId
-    )?.title?.toLowerCase().replace(/[^a-z0-9]+/g, "_") || "epp";
-
-    for (let i = 0; i < MAX_ZONES; i++) {
-      const zone = this._zoneConfigs[i];
-      if (!zone) continue;
-      const slot = i + 1;
-      const slug = zone.name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
-      const uniqueIdOccupancy = `${this._selectedEntryId}_zone_${slot}`;
-      const uniqueIdCount = `${this._selectedEntryId}_zone_${slot}_count`;
-
-      for (const entry of entityReg) {
-        if (entry.unique_id === uniqueIdOccupancy) {
-          const desired = `binary_sensor.${deviceName}_${slug}_occupancy`;
-          if (entry.entity_id !== desired) {
-            renames.push({ old_entity_id: entry.entity_id, new_entity_id: desired });
-          }
-        }
-        if (entry.unique_id === uniqueIdCount) {
-          const desired = `sensor.${deviceName}_${slug}_target_count`;
-          if (entry.entity_id !== desired) {
-            renames.push({ old_entity_id: entry.entity_id, new_entity_id: desired });
-          }
-        }
-      }
-    }
-
-    if (renames.length > 0) {
-      this._pendingRenames = renames;
-      this._showRenameDialog = true;
-    }
-  }
+  // -- Entity rename --
 
   private async _applyRenames(): Promise<void> {
     if (!this._pendingRenames.length) return;
