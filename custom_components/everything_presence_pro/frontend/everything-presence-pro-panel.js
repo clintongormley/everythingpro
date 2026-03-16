@@ -294,7 +294,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const _t=(t=>(
         <!-- Detection cone -->
         <path d="M 26 56 L 100 30 L 100 82 Z" fill="var(--primary-color, #03a9f4)" opacity="0.1" stroke="var(--primary-color, #03a9f4)" stroke-width="0.5"/>
       </svg>
-    `,e=(()=>{const t=28,e=28,i=192,r=-15*Math.PI/180,o=105*Math.PI/180,s=t+i*Math.cos(r),n=e+i*Math.sin(r),a=t+i*Math.cos(o),l=e+i*Math.sin(o),d=(i,s)=>{const n=t+i*Math.cos(r),a=e+i*Math.sin(r),l=t+i*Math.cos(o),d=e+i*Math.sin(o),c=45*Math.PI/180,h=t+(i-10)*Math.cos(c),p=e+(i-10)*Math.sin(c);return Z`
+    `,e=(()=>{const t=28,e=28,i=180,r=-15*Math.PI/180,o=105*Math.PI/180,s=t+i*Math.cos(r),n=e+i*Math.sin(r),a=t+i*Math.cos(o),l=e+i*Math.sin(o),d=(i,s)=>{const n=t+i*Math.cos(r),a=e+i*Math.sin(r),l=t+i*Math.cos(o),d=e+i*Math.sin(o),c=45*Math.PI/180,h=t+(i-10)*Math.cos(c),p=e+(i-10)*Math.sin(c);return Z`
           <path d="M ${n} ${a} A ${i} ${i} 0 0 1 ${l} ${d}"
                 fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="1"
                 stroke-dasharray="4 3" opacity="0.35" clip-path="url(#room-clip)"/>
@@ -315,9 +315,9 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const _t=(t=>(
           <line x1="${t}" y1="${e}" x2="${s}" y2="${n}" stroke="var(--primary-color, #03a9f4)" stroke-width="0.5" opacity="0.3" clip-path="url(#room-clip)"/>
           <line x1="${t}" y1="${e}" x2="${a}" y2="${l}" stroke="var(--primary-color, #03a9f4)" stroke-width="0.5" opacity="0.3" clip-path="url(#room-clip)"/>
           <!-- Range arcs -->
-          ${d(64,"2m")}
-          ${d(128,"4m")}
-          ${d(192,"")}
+          ${d(60,"2m")}
+          ${d(120,"4m")}
+          ${d(180,"")}
           <!-- Sensor dot -->
           <circle cx="${t}" cy="${e}" r="6" fill="var(--primary-color, #03a9f4)"/>
           <!-- Labels -->
