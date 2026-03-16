@@ -2532,10 +2532,10 @@ export class EverythingPresenceProPanel extends LitElement {
         </g>
 
         <!-- Horizontal distance measure below the room -->
-        <line x1="${BL.x - 5}" y1="${BL.y + 18}" x2="${BL.x + 40}" y2="${BL.y + 18}" stroke="#FF9800" stroke-width="1.5"/>
-        <line x1="${BL.x - 5}" y1="${BL.y + 12}" x2="${BL.x - 5}" y2="${BL.y + 24}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="30" y1="${BL.y + 18}" x2="${BL.x + 40}" y2="${BL.y + 18}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="30" y1="${BL.y + 12}" x2="30" y2="${BL.y + 24}" stroke="#FF9800" stroke-width="1.5"/>
         <line x1="${BL.x + 40}" y1="${BL.y + 12}" x2="${BL.x + 40}" y2="${BL.y + 24}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${BL.x + 17}" y="${BL.y + 32}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
+        <text x="${(30 + BL.x + 40) / 2}" y="${BL.y + 32}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
 
         <!-- Corner 1: front-left -->
         <circle cx="${TL.x}" cy="${TL.y}" r="14" fill="#4CAF50" opacity="0.15"/>

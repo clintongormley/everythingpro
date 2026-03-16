@@ -131,10 +131,10 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         </g>
 
         <!-- Horizontal distance measure below the room -->
-        <line x1="${l-5}" y1="${d+18}" x2="${l+40}" y2="${d+18}" stroke="#FF9800" stroke-width="1.5"/>
-        <line x1="${l-5}" y1="${d+12}" x2="${l-5}" y2="${d+24}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="30" y1="${d+18}" x2="${l+40}" y2="${d+18}" stroke="#FF9800" stroke-width="1.5"/>
+        <line x1="30" y1="${d+12}" x2="30" y2="${d+24}" stroke="#FF9800" stroke-width="1.5"/>
         <line x1="${l+40}" y1="${d+12}" x2="${l+40}" y2="${d+24}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${l+17}" y="${d+32}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
+        <text x="${(30+l+40)/2}" y="${d+32}" font-size="9" fill="#FF9800" text-anchor="middle" font-weight="500">65cm</text>
 
         <!-- Corner 1: front-left -->
         <circle cx="${i}" cy="${r}" r="14" fill="#4CAF50" opacity="0.15"/>
