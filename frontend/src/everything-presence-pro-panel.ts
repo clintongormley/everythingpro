@@ -2769,7 +2769,7 @@ export class EverythingPresenceProPanel extends LitElement {
       // 120° FOV from top-left corner, centered on diagonal into room
       // In SVG: 0°=right, 90°=down. Diagonal to bottom-right = 45°
       // ±60° from center → edges at -15° and 105°
-      const cx = 28, cy = 28, r = 180;
+      const cx = 28, cy = 28, r = 192;
       const centerDeg = 45;
       const a1Rad = (centerDeg - 60) * Math.PI / 180; // -15°
       const a2Rad = (centerDeg + 60) * Math.PI / 180; // 105°
@@ -2807,7 +2807,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <!-- Range arcs -->
           ${arcPath(64, "2m")}
           ${arcPath(128, "4m")}
-          ${arcPath(180, "")}
+          ${arcPath(192, "")}
           <!-- Sensor dot -->
           <circle cx="${cx}" cy="${cy}" r="6" fill="var(--primary-color, #03a9f4)"/>
           <!-- Labels -->
