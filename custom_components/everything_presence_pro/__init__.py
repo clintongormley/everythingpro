@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 
@@ -38,14 +39,21 @@ async def async_setup_entry(
             StaticPathConfig(
                 url_path=f"/{DOMAIN}_static",
                 path=FRONTEND_DIR,
-                cache_headers=True,
+                cache_headers=False,
             )
         ])
+        # Cache-bust: hash the JS file so browser reloads on rebuild
+        js_path = os.path.join(FRONTEND_DIR, "everything-presence-pro-panel.js")
+        try:
+            with open(js_path, "rb") as f:
+                js_hash = hashlib.md5(f.read()).hexdigest()[:8]
+        except OSError:
+            js_hash = "0"
         await panel_custom.async_register_panel(
             hass=hass,
             frontend_url_path=DOMAIN,
             webcomponent_name="everything-presence-pro-panel",
-            module_url=f"/{DOMAIN}_static/everything-presence-pro-panel.js",
+            module_url=f"/{DOMAIN}_static/everything-presence-pro-panel.js?v={js_hash}",
             sidebar_title="EP Pro",
             sidebar_icon="mdi:radar",
             require_admin=False,
