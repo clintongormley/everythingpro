@@ -512,36 +512,6 @@ class EverythingPresenceProCoordinator:
         self._targets = calibrated
         self._last_result = self._zone_engine.process_targets(calibrated)
 
-        # Temporary debug logging
-        grid = self._zone_engine.grid
-        _LOGGER.debug(
-            "Grid: %dx%d (%d cells), origin=(%.0f, %.0f), zones=%s",
-            grid.cols, grid.rows, grid.cell_count,
-            grid.origin_x, grid.origin_y,
-            [z.id for z in self._zones],
-        )
-        for x, y, active in calibrated:
-            if active:
-                cell = grid.xy_to_cell(x, y)
-                if cell is not None:
-                    cell_val = grid.cells[cell]
-                    is_room = grid.cell_is_room(cell)
-                    zone_id = grid.cell_zone(cell)
-                    _LOGGER.debug(
-                        "Target at (%.0f, %.0f) -> cell %d, byte=0x%02x, "
-                        "is_room=%s, zone=%d | result: tracking=%s zones=%s",
-                        x, y, cell, cell_val, is_room, zone_id,
-                        self._last_result.device_tracking_present,
-                        self._last_result.zone_occupancy,
-                    )
-                else:
-                    _LOGGER.debug(
-                        "Target at (%.0f, %.0f) -> OUTSIDE grid "
-                        "(grid: %dx%d, origin=(%.0f,%.0f))",
-                        x, y, grid.cols, grid.rows,
-                        grid.origin_x, grid.origin_y,
-                    )
-
         async_dispatcher_send(
             self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
         )
