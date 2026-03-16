@@ -527,18 +527,37 @@ class EverythingPresenceProCoordinator:
             # No saved grid — compute from perspective
             self._rebuild_grid()
 
-        # Load zones
-        zone_list = data.get("zones", [])
-        zones = [
-            Zone(
-                id=z["id"],
-                name=z["name"],
-                sensitivity=z.get("sensitivity", "normal"),
-                color=z.get("color", ""),
-            )
-            for z in zone_list
-        ]
-        self.set_zones(zones)
-
         # Load room layout
         self._room_layout = data.get("room_layout", {})
+
+        # Load grid bytes from room layout (overrides base64 grid if present)
+        grid_bytes = self._room_layout.get("grid_bytes")
+        if grid_bytes and isinstance(grid_bytes, list):
+            grid = self._zone_engine.grid
+            grid.load_from_bytes(bytes(grid_bytes))
+
+        # Load zones from room_layout.zone_slots (new format) or data.zones (legacy)
+        zone_slots = self._room_layout.get("zone_slots")
+        if zone_slots:
+            zones = [
+                Zone(
+                    id=i + 1,
+                    name=z["name"],
+                    sensitivity=z.get("sensitivity", 1),
+                    color=z.get("color", ""),
+                )
+                for i, z in enumerate(zone_slots)
+                if z is not None
+            ]
+        else:
+            zone_list = data.get("zones", [])
+            zones = [
+                Zone(
+                    id=z["id"],
+                    name=z["name"],
+                    sensitivity=z.get("sensitivity", "normal"),
+                    color=z.get("color", ""),
+                )
+                for z in zone_list
+            ]
+        self.set_zones(zones)
