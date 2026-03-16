@@ -105,14 +105,14 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
 
         <!-- Arrows with walking figures: 1→2→3→4 -->
         ${e(i,r,o,s)}
-        ${t(170,52)}
+        ${t(170,72)}
         ${e(o,s,n,a)}
-        ${t(288,130,!1,90)}
+        ${t(265,145,!1,90)}
         ${e(n,a,l,d)}
-        ${t(170,208,!0)}
+        ${t(170,218,!0)}
 
-        <!-- Pot plant blocking corner 4 (BL) -->
-        <g transform="translate(${l}, ${d})">
+        <!-- Pot plant blocking corner 4 (BL), inside the room -->
+        <g transform="translate(${l+5}, ${d-5})">
           <!-- Pot -->
           <path d="M -12 -2 L -10 12 L 10 12 L 12 -2 Z" fill="#C68642" stroke="#A0522D" stroke-width="1.5" rx="2"/>
           <rect x="-14" y="-5" width="28" height="5" rx="2" fill="#A0522D"/>
@@ -125,16 +125,16 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         </g>
 
         <!-- Person standing offset from corner 4 -->
-        <circle cx="${l+50}" cy="${d-30}" r="6" fill="#FF9800" opacity="0.7"/>
-        <text x="${l+50}" y="${d-40}" font-size="8" fill="#FF9800" text-anchor="middle" font-weight="500">You</text>
-        <!-- Offset dimension: distance from back wall (below) -->
-        <line x1="${l+50}" y1="${d-24}" x2="${l+50}" y2="${d+10}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
-        <line x1="${l+43}" y1="${d+10}" x2="${l+57}" y2="${d+10}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${l+62}" y="${d-5}" font-size="8" fill="#FF9800">50cm</text>
-        <!-- Offset dimension: distance from left wall -->
-        <line x1="${l+44}" y1="${d-30}" x2="${l-20}" y2="${d-30}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
-        <line x1="${l-20}" y1="${d-37}" x2="${l-20}" y2="${d-23}" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="${l+12}" y="${d-35}" font-size="8" fill="#FF9800" text-anchor="middle">65cm</text>
+        <circle cx="${l+55}" cy="${d-35}" r="6" fill="#FF9800" opacity="0.7"/>
+        <text x="${l+55}" y="${d-45}" font-size="8" fill="#FF9800" text-anchor="middle" font-weight="500">You</text>
+        <!-- Offset dimension: distance from back wall (vertical) -->
+        <line x1="${l+55}" y1="${d-29}" x2="${l+55}" y2="${d}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="${l+48}" y1="${d}" x2="${l+62}" y2="${d}" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="${l+68}" y="${d-12}" font-size="8" fill="#FF9800">50cm</text>
+        <!-- Offset dimension: distance from left wall (horizontal) -->
+        <line x1="${l+49}" y1="${d-35}" x2="${l}" y2="${d-35}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="${l}" y1="${d-42}" x2="${l}" y2="${d-28}" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="${l+25}" y="${d-40}" font-size="8" fill="#FF9800" text-anchor="middle">65cm</text>
 
         <!-- Corner 1: front-left -->
         <circle cx="${i}" cy="${r}" r="14" fill="#4CAF50" opacity="0.15"/>
@@ -156,12 +156,12 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         <circle cx="${l}" cy="${d}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
         <text x="${l}" y="${d+5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
 
-        <!-- Sensor icon diagonally outside the top-right corner -->
-        <g transform="translate(${o+16}, ${s-16}) rotate(-45)">
+        <!-- Sensor icon at the corner junction, outside the room -->
+        <g transform="translate(${o+8}, ${s-8}) rotate(-45)">
           <rect x="-5" y="-7" width="10" height="14" rx="3" fill="var(--primary-color, #03a9f4)"/>
           <circle cx="0" cy="-11" r="3.5" fill="var(--primary-color, #03a9f4)" opacity="0.4"/>
         </g>
-        <text x="${o+22}" y="${s-24}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
+        <text x="${o+18}" y="${s-20}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
       </svg>
     `;return L`
       <div style="max-width: 560px; margin: 0 auto;">
