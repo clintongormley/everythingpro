@@ -2596,7 +2596,7 @@ export class EverythingPresenceProPanel extends LitElement {
         <div style="display: flex; justify-content: space-between; margin-top: 20px;">
           <button class="wizard-btn wizard-btn-back"
             @click=${() => { this._setupStep = null; }}
-          >Back</button>
+          >Cancel</button>
           <button class="wizard-btn wizard-btn-primary"
             @click=${() => { this._setupStep = "corners"; }}
           >Begin marking corners</button>
@@ -2614,7 +2614,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
     return html`
       <div class="wizard-card">
-        <h2>Mark room corners</h2>
+        <h2>Calibrate room size</h2>
         <p>
           Walk to each corner of the room and click Mark. The sensor will
           record your position over ${CAPTURE_DURATION_S} seconds.
@@ -2681,6 +2681,10 @@ export class EverythingPresenceProPanel extends LitElement {
               : nothing}
 
             <div class="wizard-actions">
+              <button
+                class="wizard-btn wizard-btn-back"
+                @click=${() => { this._setupStep = null; }}
+              >Cancel</button>
               ${this._wizardCapturing
                 ? html`
                   <div class="capture-progress">
@@ -2794,12 +2798,9 @@ export class EverythingPresenceProPanel extends LitElement {
         <div class="wizard-actions">
           <button
             class="wizard-btn wizard-btn-back"
-            @click=${() => {
-              this._setupStep = "corners";
-              this._perspective = null;
-            }}
+            @click=${() => { this._setupStep = null; }}
           >
-            Back
+            Cancel
           </button>
           <button
             class="wizard-btn wizard-btn-primary"
