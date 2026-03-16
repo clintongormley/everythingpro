@@ -509,7 +509,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
             </div>
           </div>
 
-          <div style="display: flex; justify-content: center; margin-top: 24px;">
+          <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
             <button
               class="wizard-btn wizard-btn-primary"
               @click=${()=>{this._setupStep="guide"}}
