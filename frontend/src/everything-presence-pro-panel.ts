@@ -2487,21 +2487,22 @@ export class EverythingPresenceProPanel extends LitElement {
     };
 
     // Corner positions: sensor top-right, order: TL(1) → TR(2) → BR(3) → BL(4)
-    const TL = { x: 35, y: 35 };   // Corner 1: front-left
-    const TR = { x: 305, y: 35 };  // Corner 2: front-right (sensor here)
-    const BR = { x: 305, y: 225 }; // Corner 3: back-right
-    const BL = { x: 35, y: 225 };  // Corner 4: back-left (obstructed)
+    // Inset from room walls so badges and sensor don't clip
+    const TL = { x: 50, y: 55 };   // Corner 1: front-left
+    const TR = { x: 290, y: 55 };  // Corner 2: front-right (sensor here)
+    const BR = { x: 290, y: 235 }; // Corner 3: back-right
+    const BL = { x: 50, y: 235 };  // Corner 4: back-left (obstructed)
 
     const roomDiagram = svg`
-      <svg viewBox="0 0 340 270" width="340" height="270" style="display: block; margin: 0 auto;">
+      <svg viewBox="0 0 360 290" width="360" height="290" style="display: block; margin: 0 auto;">
         <!-- Room with rounded corners, soft fill -->
-        <rect x="20" y="20" width="300" height="220" rx="8"
+        <rect x="30" y="35" width="280" height="210" rx="8"
               fill="var(--secondary-background-color, #f5f5f5)"
               stroke="var(--divider-color, #d0d0d0)" stroke-width="2.5"/>
 
         <!-- Wall labels -->
-        <text x="170" y="14" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Front wall (sensor side)</text>
-        <text x="170" y="258" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Back wall</text>
+        <text x="170" y="28" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Front wall (sensor side)</text>
+        <text x="170" y="262" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Back wall</text>
 
         <!-- Arrows with walking figures: 1→2→3→4 -->
         ${arrow(TL.x, TL.y, TR.x, TR.y)}
@@ -2525,15 +2526,16 @@ export class EverythingPresenceProPanel extends LitElement {
         </g>
 
         <!-- Person standing offset from corner 4 -->
-        <circle cx="85" cy="195" r="6" fill="#FF9800" opacity="0.7"/>
-        <text x="85" y="185" font-size="8" fill="#FF9800" text-anchor="middle" font-weight="500">You</text>
-        <!-- Offset dimension lines -->
-        <line x1="85" y1="201" x2="85" y2="238" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
-        <line x1="78" y1="238" x2="92" y2="238" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="97" y="222" font-size="8" fill="#FF9800">50cm</text>
-        <line x1="79" y1="195" x2="22" y2="195" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
-        <line x1="22" y1="188" x2="22" y2="202" stroke="#FF9800" stroke-width="1.5"/>
-        <text x="50" y="190" font-size="8" fill="#FF9800" text-anchor="middle">65cm</text>
+        <circle cx="${BL.x + 50}" cy="${BL.y - 30}" r="6" fill="#FF9800" opacity="0.7"/>
+        <text x="${BL.x + 50}" y="${BL.y - 40}" font-size="8" fill="#FF9800" text-anchor="middle" font-weight="500">You</text>
+        <!-- Offset dimension: distance from back wall (below) -->
+        <line x1="${BL.x + 50}" y1="${BL.y - 24}" x2="${BL.x + 50}" y2="${BL.y + 10}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="${BL.x + 43}" y1="${BL.y + 10}" x2="${BL.x + 57}" y2="${BL.y + 10}" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="${BL.x + 62}" y="${BL.y - 5}" font-size="8" fill="#FF9800">50cm</text>
+        <!-- Offset dimension: distance from left wall -->
+        <line x1="${BL.x + 44}" y1="${BL.y - 30}" x2="${BL.x - 20}" y2="${BL.y - 30}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="${BL.x - 20}" y1="${BL.y - 37}" x2="${BL.x - 20}" y2="${BL.y - 23}" stroke="#FF9800" stroke-width="1.5"/>
+        <text x="${BL.x + 12}" y="${BL.y - 35}" font-size="8" fill="#FF9800" text-anchor="middle">65cm</text>
 
         <!-- Corner 1: front-left -->
         <circle cx="${TL.x}" cy="${TL.y}" r="14" fill="#4CAF50" opacity="0.15"/>
@@ -2556,11 +2558,11 @@ export class EverythingPresenceProPanel extends LitElement {
         <text x="${BL.x}" y="${BL.y + 5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
 
         <!-- Sensor icon diagonally outside the top-right corner -->
-        <g transform="translate(${TR.x + 10}, ${TR.y - 10}) rotate(-45)">
-          <rect x="-4" y="-6" width="8" height="12" rx="2" fill="var(--primary-color, #03a9f4)"/>
-          <circle cx="0" cy="-9" r="3" fill="var(--primary-color, #03a9f4)" opacity="0.4"/>
+        <g transform="translate(${TR.x + 16}, ${TR.y - 16}) rotate(-45)">
+          <rect x="-5" y="-7" width="10" height="14" rx="3" fill="var(--primary-color, #03a9f4)"/>
+          <circle cx="0" cy="-11" r="3.5" fill="var(--primary-color, #03a9f4)" opacity="0.4"/>
         </g>
-        <text x="${TR.x + 16}" y="${TR.y - 18}" font-size="9" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
+        <text x="${TR.x + 22}" y="${TR.y - 24}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
       </svg>
     `;
 
