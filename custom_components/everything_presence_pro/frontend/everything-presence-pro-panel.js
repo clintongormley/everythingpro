@@ -108,8 +108,8 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         ${t(170,72)}
         ${e(o,s,n,a)}
         ${t(265,145,!1,90)}
-        <!-- 3rd arrow goes right up to corner 4 -->
-        ${e(n,a,l+55,d)}
+        <!-- 3rd arrow goes right up to corner 4 badge -->
+        ${e(n,a,l,d)}
         ${t(190,218,!0)}
 
         <!-- Corner 4 badge: just past arrow end, next to plant -->

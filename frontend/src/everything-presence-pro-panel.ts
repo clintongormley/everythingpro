@@ -2509,8 +2509,8 @@ export class EverythingPresenceProPanel extends LitElement {
         ${walker(170, 72)}
         ${arrow(TR.x, TR.y, BR.x, BR.y)}
         ${walker(265, 145, false, 90)}
-        <!-- 3rd arrow goes right up to corner 4 -->
-        ${arrow(BR.x, BR.y, BL.x + 55, BL.y)}
+        <!-- 3rd arrow goes right up to corner 4 badge -->
+        ${arrow(BR.x, BR.y, BL.x, BL.y)}
         ${walker(190, 218, true)}
 
         <!-- Corner 4 badge: just past arrow end, next to plant -->
