@@ -2492,7 +2492,7 @@ export class EverythingPresenceProPanel extends LitElement {
     const TR = { x: 290, y: 55 };  // Corner 2: front-right (sensor here)
     const BR = { x: 290, y: 225 }; // Corner 3: back-right (same distance from bottom as 1/2 from top)
     const BL = { x: 50, y: 235 };  // Corner 4 plant/65cm position (stays near wall)
-    const BL_BADGE = { x: 90, y: 225 }; // Corner 4 badge at same height as 3
+    const BL_BADGE = { x: 98, y: 225 }; // Corner 4 badge at same height as 3
 
     const roomDiagram = svg`
       <svg viewBox="0 0 360 290" width="360" height="290" style="display: block; margin: 0 auto;">
