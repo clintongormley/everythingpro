@@ -80,8 +80,8 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
       <div class="wizard-container">
         ${this._renderHeader()} ${t}
       </div>
-    `}_renderWizardGuide(){const t=(t,e,i=!1)=>Z`
-      <g transform="translate(${t}, ${e}) scale(${i?-.7:.7}, 0.7)">
+    `}_renderWizardGuide(){const t=(t,e,i=!1,r=0)=>Z`
+      <g transform="translate(${t}, ${e}) rotate(${r}) scale(${i?-.7:.7}, 0.7)">
         <circle cx="0" cy="-12" r="4" fill="var(--primary-color, #03a9f4)"/>
         <line x1="0" y1="-8" x2="0" y2="2" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
         <line x1="0" y1="2" x2="-4" y2="10" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
@@ -107,7 +107,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         ${e(i,r,o,s)}
         ${t(170,52)}
         ${e(o,s,n,a)}
-        ${t(288,130,!0)}
+        ${t(288,130,!1,90)}
         ${e(n,a,l,d)}
         ${t(170,208,!0)}
 

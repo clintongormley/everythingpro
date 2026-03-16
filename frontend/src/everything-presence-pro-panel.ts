@@ -2458,8 +2458,8 @@ export class EverythingPresenceProPanel extends LitElement {
 
   private _renderWizardGuide() {
     // Walking person icon (simple cartoon stick figure)
-    const walker = (x: number, y: number, flip = false) => svg`
-      <g transform="translate(${x}, ${y}) scale(${flip ? -0.7 : 0.7}, 0.7)">
+    const walker = (x: number, y: number, flip = false, rotate = 0) => svg`
+      <g transform="translate(${x}, ${y}) rotate(${rotate}) scale(${flip ? -0.7 : 0.7}, 0.7)">
         <circle cx="0" cy="-12" r="4" fill="var(--primary-color, #03a9f4)"/>
         <line x1="0" y1="-8" x2="0" y2="2" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
         <line x1="0" y1="2" x2="-4" y2="10" stroke="var(--primary-color, #03a9f4)" stroke-width="2" stroke-linecap="round"/>
@@ -2507,7 +2507,7 @@ export class EverythingPresenceProPanel extends LitElement {
         ${arrow(TL.x, TL.y, TR.x, TR.y)}
         ${walker(170, 52)}
         ${arrow(TR.x, TR.y, BR.x, BR.y)}
-        ${walker(288, 130, true)}
+        ${walker(288, 130, false, 90)}
         ${arrow(BR.x, BR.y, BL.x, BL.y)}
         ${walker(170, 208, true)}
 
