@@ -124,9 +124,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           <ellipse cx="6" cy="-22" rx="7" ry="6" fill="#A5D6A7" stroke="#66BB6A" stroke-width="1"/>
         </g>
 
-        <!-- Person standing offset from corner 4 -->
-        <circle cx="${l+55}" cy="${d-35}" r="6" fill="#FF9800" opacity="0.7"/>
-        <text x="${l+55}" y="${d-45}" font-size="8" fill="#FF9800" text-anchor="middle" font-weight="500">You</text>
+        <!-- Offset dimensions from corner 4 position to walls -->
         <!-- Offset dimension: distance from back wall (vertical) -->
         <line x1="${l+55}" y1="${d-29}" x2="${l+55}" y2="${d}" stroke="#FF9800" stroke-width="1" stroke-dasharray="3 2"/>
         <line x1="${l+48}" y1="${d}" x2="${l+62}" y2="${d}" stroke="#FF9800" stroke-width="1.5"/>
@@ -151,17 +149,17 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         <circle cx="${n}" cy="${a}" r="14" fill="none" stroke="#4CAF50" stroke-width="2.5"/>
         <text x="${n}" y="${a+5}" font-size="14" fill="#4CAF50" font-weight="bold" text-anchor="middle">3</text>
 
-        <!-- Corner 4: back-left (obstructed) -->
-        <circle cx="${l}" cy="${d}" r="14" fill="#FF9800" opacity="0.1"/>
-        <circle cx="${l}" cy="${d}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
-        <text x="${l}" y="${d+5}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
+        <!-- Corner 4: at the offset "You" position (obstructed corner) -->
+        <circle cx="${l+55}" cy="${d-35}" r="14" fill="#FF9800" opacity="0.15"/>
+        <circle cx="${l+55}" cy="${d-35}" r="14" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-dasharray="5 3"/>
+        <text x="${l+55}" y="${d-30}" font-size="14" fill="#FF9800" font-weight="bold" text-anchor="middle">4</text>
 
-        <!-- Sensor icon at the corner junction, outside the room -->
-        <g transform="translate(${o+8}, ${s-8}) rotate(-45)">
+        <!-- Sensor icon right at the corner junction -->
+        <g transform="translate(${o+3}, ${s-3}) rotate(-45)">
           <rect x="-5" y="-7" width="10" height="14" rx="3" fill="var(--primary-color, #03a9f4)"/>
           <circle cx="0" cy="-11" r="3.5" fill="var(--primary-color, #03a9f4)" opacity="0.4"/>
         </g>
-        <text x="${o+18}" y="${s-20}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
+        <text x="${o+14}" y="${s-14}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
       </svg>
     `;return L`
       <div style="max-width: 560px; margin: 0 auto;">
