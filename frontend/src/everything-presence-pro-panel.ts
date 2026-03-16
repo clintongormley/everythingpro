@@ -220,6 +220,7 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _settingsSection = "tracking";
 
   // Add sensor form
+  @state() private _addName = "";
   @state() private _addHost = "";
   @state() private _addError = "";
   @state() private _addLoading = false;
@@ -2866,6 +2867,17 @@ export class EverythingPresenceProPanel extends LitElement {
 
         <div class="setting-group">
           <div class="setting-row">
+            <label>Name</label>
+            <input
+              type="text"
+              class="setting-input"
+              style="width: 200px; text-align: left;"
+              placeholder="e.g. Living room"
+              .value=${this._addName}
+              @input=${(e: Event) => { this._addName = (e.target as HTMLInputElement).value; }}
+            />
+          </div>
+          <div class="setting-row">
             <label>Host</label>
             <input
               type="text"
@@ -2910,11 +2922,21 @@ export class EverythingPresenceProPanel extends LitElement {
         },
       );
       if (result.type === "create_entry") {
+        // Rename the entry if a custom name was provided
+        const name = this._addName.trim();
+        if (name && result.result?.entry_id) {
+          await this.hass.callApi(
+            "PATCH",
+            `config/config_entries/entry/${result.result.entry_id}`,
+            { title: name },
+          );
+        }
         // Reload entries
         await this._loadEntries();
         if (this._entries.length) {
-          this._selectedEntryId = this._entries[0].entry_id;
-          await this._loadEntryConfig(this._selectedEntryId);
+          const entryId = result.result?.entry_id || this._entries[0].entry_id;
+          this._selectedEntryId = entryId;
+          await this._loadEntryConfig(entryId);
         }
         this._loading = false;
       } else if (result.errors) {
