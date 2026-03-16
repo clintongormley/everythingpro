@@ -1605,6 +1605,7 @@ export class EverythingPresenceProPanel extends LitElement {
       right: 0;
       bottom: 0;
       pointer-events: none;
+      z-index: 20;
     }
 
     .target-dot {

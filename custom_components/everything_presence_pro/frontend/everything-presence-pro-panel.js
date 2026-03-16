@@ -1312,6 +1312,7 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const _t=(t=>(
       right: 0;
       bottom: 0;
       pointer-events: none;
+      z-index: 20;
     }
 
     .target-dot {
