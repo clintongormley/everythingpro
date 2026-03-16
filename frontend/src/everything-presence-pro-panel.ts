@@ -2807,11 +2807,11 @@ export class EverythingPresenceProPanel extends LitElement {
           <!-- Range arcs -->
           ${arcPath(64, "2m")}
           ${arcPath(128, "4m")}
-          ${arcPath(180, "6m")}
           <!-- Sensor dot -->
           <circle cx="${cx}" cy="${cy}" r="6" fill="var(--primary-color, #03a9f4)"/>
           <!-- Labels -->
           <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
+          <text x="152" y="136" font-size="8" fill="var(--secondary-text-color, #aaa)" text-anchor="end">6m max</text>
         </svg>
       `;
     })();
