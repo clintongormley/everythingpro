@@ -3552,7 +3552,7 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _infoTip(text: string) {
-    return html`<span class="setting-info"><ha-icon icon="mdi:information-outline"></ha-icon><span class="setting-info-tooltip">${text}</span></span>`;
+    return html`<span class="setting-info"><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${text}</span></span>`;
   }
 
   private _renderDetectionRanges() {
