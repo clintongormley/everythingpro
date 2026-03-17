@@ -1060,7 +1060,8 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
     `}_renderLiveSidebar(){const t=this._sensorState,e=this._zoneState,i=[{id:"occupancy",label:"Occupancy",on:t.occupancy,info:"Combined occupancy from all sources — PIR motion, static mmWave presence, and zone tracking. Shows detected if any source detects presence."},{id:"static",label:"Static presence",on:t.static_presence,info:"mmWave radar detects stationary people by measuring micro-movements like breathing. Works through furniture and blankets."},{id:"motion",label:"PIR motion",on:t.pir_motion,info:"Passive infrared sensor detects movement by sensing body heat. Fast response but only triggers on motion, not stationary presence."}];for(let t=0;t<7;t++){const r=this._zoneConfigs[t];if(!r)continue;const o=t+1,s=e.occupancy[o]??!1,n=e.target_counts[o]??0;i.push({id:`zone_${o}`,label:r.name,on:s,info:`Zone ${o} occupancy. Currently ${n} target${1!==n?"s":""} detected. Sensitivity determines how many consecutive frames are needed to confirm presence.`})}const r=[];return null!==t.illuminance&&r.push({id:"illuminance",label:"Illuminance",value:`${t.illuminance.toFixed(1)} lux`}),null!==t.temperature&&r.push({id:"temperature",label:"Temperature",value:`${t.temperature.toFixed(1)} °C`}),null!==t.humidity&&r.push({id:"humidity",label:"Humidity",value:`${t.humidity.toFixed(1)} %`}),null!==t.co2&&r.push({id:"co2",label:"CO₂",value:`${Math.round(t.co2)} ppm`}),L`
       <div style="padding: 8px 0;">
         <div class="live-section-header">Presence</div>
-        ${i.map(t=>L`
+        ${i.map((t,e)=>L`
+          ${3===e&&i.length>3?L`<hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 6px 12px;">`:V}
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${t.on?"on":"off"}"></div>
             <span class="live-sensor-label">${t.label}</span>

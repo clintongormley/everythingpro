@@ -3901,7 +3901,8 @@ export class EverythingPresenceProPanel extends LitElement {
     return html`
       <div style="padding: 8px 0;">
         <div class="live-section-header">Presence</div>
-        ${sensorDefs.map((s) => html`
+        ${sensorDefs.map((s, i) => html`
+          ${i === 3 && sensorDefs.length > 3 ? html`<hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 6px 12px;">` : nothing}
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>
             <span class="live-sensor-label">${s.label}</span>
