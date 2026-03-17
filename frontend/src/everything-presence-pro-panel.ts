@@ -189,6 +189,16 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _showRenameDialog = false;
   @state() private _roomSensitivity = 1; // zone 0 sensitivity (0=low, 1=medium, 2=high)
   @state() private _targets: Target[] = [];
+  @state() private _sensorState: {
+    occupancy: boolean;
+    static_presence: boolean;
+    pir_motion: boolean;
+    illuminance: number | null;
+    temperature: number | null;
+    humidity: number | null;
+    co2: number | null;
+  } = { occupancy: false, static_presence: false, pir_motion: false, illuminance: null, temperature: null, humidity: null, co2: null };
+  @state() private _zoneState: { occupancy: Record<number, boolean>; target_counts: Record<number, number> } = { occupancy: {}, target_counts: {} };
   @state() private _isPainting = false;
   @state() private _paintAction: "set" | "clear" = "set";
   private _frozenBounds: { minCol: number; maxCol: number; minRow: number; maxRow: number } | null = null;
@@ -397,7 +407,7 @@ export class EverythingPresenceProPanel extends LitElement {
     conn
       .subscribeMessage(
         (event: any) => {
-          const targets: Target[] = (event.targets || []).map((t: any) => ({
+          this._targets = (event.targets || []).map((t: any) => ({
             x: t.x,
             y: t.y,
             raw_x: t.raw_x ?? t.x,
@@ -405,7 +415,23 @@ export class EverythingPresenceProPanel extends LitElement {
             speed: 0,
             active: t.active,
           }));
-          this._targets = targets;
+          if (event.sensors) {
+            this._sensorState = {
+              occupancy: event.sensors.occupancy ?? false,
+              static_presence: event.sensors.static_presence ?? false,
+              pir_motion: event.sensors.pir_motion ?? false,
+              illuminance: event.sensors.illuminance ?? null,
+              temperature: event.sensors.temperature ?? null,
+              humidity: event.sensors.humidity ?? null,
+              co2: event.sensors.co2 ?? null,
+            };
+          }
+          if (event.zones) {
+            this._zoneState = {
+              occupancy: event.zones.occupancy ?? {},
+              target_counts: event.zones.target_counts ?? {},
+            };
+          }
         },
         {
           type: "everything_presence_pro/subscribe_targets",
@@ -2964,44 +2990,65 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderUncalibratedFov() {
-    const occupied = this._entityState("occupancy")?.state === "on";
+    const occupied = this._sensorState.occupancy;
     const fovColor = occupied ? "#4CAF50" : "var(--primary-color, #03a9f4)";
+    // 120° FOV centered at 90° (pointing down), ±60°
+    const cx = 150, cy = 10, maxR = 180;
+    const a1 = (90 - 60) * Math.PI / 180; // 30°
+    const a2 = (90 + 60) * Math.PI / 180; // 150°
+    const ex1 = cx + maxR * Math.cos(a1), ey1 = cy + maxR * Math.sin(a1);
+    const ex2 = cx + maxR * Math.cos(a2), ey2 = cy + maxR * Math.sin(a2);
 
     return html`
       <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
-        <svg viewBox="0 0 200 220" width="200" height="220" style="display: block;">
+        <svg viewBox="0 0 300 210" width="300" height="210" style="display: block;">
           <!-- Sensor at top center -->
-          <rect x="94" y="2" width="12" height="8" rx="3" fill="${fovColor}"/>
-          <circle cx="100" cy="2" r="4" fill="${fovColor}" opacity="0.4"/>
+          <rect x="${cx - 6}" y="0" width="12" height="8" rx="3" fill="${fovColor}"/>
+          <circle cx="${cx}" cy="0" r="4" fill="${fovColor}" opacity="0.4"/>
 
-          <!-- 120° FOV cone pointing down -->
-          <path d="M 100 10 L 10 210 A 120 120 0 0 0 190 210 Z"
-                fill="${fovColor}" opacity="${occupied ? 0.2 : 0.08}"
-                stroke="${fovColor}" stroke-width="1" opacity="${occupied ? 0.4 : 0.15}"/>
+          <!-- 120° FOV wedge with rounded arc end -->
+          <path d="M ${cx} ${cy} L ${ex1} ${ey1} A ${maxR} ${maxR} 0 0 1 ${ex2} ${ey2} Z"
+                fill="${fovColor}" fill-opacity="${occupied ? 0.15 : 0.06}"
+                stroke="${fovColor}" stroke-width="1" stroke-opacity="0.2"/>
 
           <!-- Range arcs -->
-          ${[70, 140].map((r) => {
-            const a1 = (-60 + 90) * Math.PI / 180;
-            const a2 = (60 + 90) * Math.PI / 180;
-            const x1 = 100 + r * Math.cos(a1), y1 = 10 + r * Math.sin(a1);
-            const x2 = 100 + r * Math.cos(a2), y2 = 10 + r * Math.sin(a2);
+          ${[60, 120, 180].map((r) => {
+            const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+            const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
             return svg`
               <path d="M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}"
                     fill="none" stroke="${fovColor}" stroke-width="1"
-                    stroke-dasharray="4 3" opacity="0.25"/>
+                    stroke-dasharray="4 3" opacity="0.2"/>
             `;
           })}
 
+          <!-- Edge lines -->
+          <line x1="${cx}" y1="${cy}" x2="${ex1}" y2="${ey1}" stroke="${fovColor}" stroke-width="0.5" opacity="0.2"/>
+          <line x1="${cx}" y1="${cy}" x2="${ex2}" y2="${ey2}" stroke="${fovColor}" stroke-width="0.5" opacity="0.2"/>
+
+          <!-- Target dots -->
+          ${this._targets.map((t, i) => {
+            if (!t.active) return nothing;
+            // Map raw coords to FOV: x maps left-right, y maps top-bottom
+            const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
+            const angle = Math.atan2(t.raw_x, t.raw_y); // angle from center
+            const r = Math.min(dist / 6000, 1) * maxR;
+            const svgAngle = Math.PI / 2 + angle; // rotate so 0=down
+            const tx = cx + r * Math.cos(svgAngle);
+            const ty = cy + r * Math.sin(svgAngle);
+            return svg`<circle cx="${tx}" cy="${ty}" r="5" fill="${TARGET_COLORS[i] || TARGET_COLORS[0]}"/>`;
+          })}
+
           ${occupied ? svg`
-            <text x="100" y="130" font-size="12" fill="${fovColor}" text-anchor="middle" font-weight="500">Detected</text>
+            <text x="${cx}" y="120" font-size="13" fill="${fovColor}" text-anchor="middle" font-weight="500">Detected</text>
           ` : svg`
-            <text x="100" y="130" font-size="12" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">No presence</text>
+            <text x="${cx}" y="120" font-size="13" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">No presence</text>
           `}
         </svg>
 
         <button
           class="live-nav-link" style="margin-top: 16px;"
-          @click=${() => { this._setupStep = "guide"; }}
+          @click=${() => { this._setupStep = "guide"; this._view = "live"; }}
         >
           <ha-icon icon="mdi:target" style="--mdc-icon-size: 16px;"></ha-icon>
           Calibrate room size
@@ -3880,48 +3927,27 @@ export class EverythingPresenceProPanel extends LitElement {
     `;
   }
 
-  /** Find a HA entity state by unique_id suffix for the current entry */
-  private _entityState(uniqueSuffix: string): any | null {
-    if (!this.hass || !this._selectedEntryId) return null;
-    const uid = `${this._selectedEntryId}_${uniqueSuffix}`;
-    const entities = this.hass.entities || {};
-    for (const eid of Object.keys(entities)) {
-      if (entities[eid].unique_id === uid) {
-        return this.hass.states?.[eid] ?? null;
-      }
-    }
-    return null;
-  }
-
   private _renderLiveSidebar() {
-    const binaryState = (suffix: string): boolean => {
-      const s = this._entityState(suffix);
-      return s?.state === "on";
-    };
-
-    const sensorValue = (suffix: string): string | null => {
-      const s = this._entityState(suffix);
-      return s?.state !== undefined && s.state !== "unavailable" && s.state !== "unknown"
-        ? s.state : null;
-    };
+    const ss = this._sensorState;
+    const zs = this._zoneState;
 
     const sensorDefs: { id: string; label: string; on: boolean; info: string }[] = [
       {
         id: "occupancy",
         label: "Occupancy",
-        on: binaryState("occupancy"),
+        on: ss.occupancy,
         info: "Combined occupancy from all sources — PIR motion, static mmWave presence, and zone tracking. Shows detected if any source detects presence.",
       },
       {
         id: "static",
         label: "Static presence",
-        on: binaryState("static_presence"),
+        on: ss.static_presence,
         info: "mmWave radar detects stationary people by measuring micro-movements like breathing. Works through furniture and blankets.",
       },
       {
         id: "motion",
         label: "PIR motion",
-        on: binaryState("motion"),
+        on: ss.pir_motion,
         info: "Passive infrared sensor detects movement by sensing body heat. Fast response but only triggers on motion, not stationary presence.",
       },
     ];
@@ -3931,9 +3957,8 @@ export class EverythingPresenceProPanel extends LitElement {
       const zone = this._zoneConfigs[i];
       if (!zone) continue;
       const slot = i + 1;
-      const occupied = binaryState(`zone_${slot}`);
-      const countStr = sensorValue(`zone_${slot}_count`);
-      const count = countStr !== null ? parseInt(countStr) : 0;
+      const occupied = zs.occupancy[slot] ?? false;
+      const count = zs.target_counts[slot] ?? 0;
       sensorDefs.push({
         id: `zone_${slot}`,
         label: zone.name,
@@ -3944,14 +3969,10 @@ export class EverythingPresenceProPanel extends LitElement {
 
     // Environment sensors
     const envSensors: { id: string; label: string; value: string }[] = [];
-    const lux = sensorValue("illuminance");
-    if (lux !== null) envSensors.push({ id: "illuminance", label: "Illuminance", value: `${parseFloat(lux).toFixed(1)} lux` });
-    const temp = sensorValue("temperature");
-    if (temp !== null) envSensors.push({ id: "temperature", label: "Temperature", value: `${parseFloat(temp).toFixed(1)} °C` });
-    const hum = sensorValue("humidity");
-    if (hum !== null) envSensors.push({ id: "humidity", label: "Humidity", value: `${parseFloat(hum).toFixed(1)} %` });
-    const co2 = sensorValue("co2");
-    if (co2 !== null) envSensors.push({ id: "co2", label: "CO₂", value: `${parseInt(co2)} ppm` });
+    if (ss.illuminance !== null) envSensors.push({ id: "illuminance", label: "Illuminance", value: `${ss.illuminance.toFixed(1)} lux` });
+    if (ss.temperature !== null) envSensors.push({ id: "temperature", label: "Temperature", value: `${ss.temperature.toFixed(1)} °C` });
+    if (ss.humidity !== null) envSensors.push({ id: "humidity", label: "Humidity", value: `${ss.humidity.toFixed(1)} %` });
+    if (ss.co2 !== null) envSensors.push({ id: "co2", label: "CO₂", value: `${Math.round(ss.co2)} ppm` });
 
     return html`
       <div style="padding: 8px 0;">

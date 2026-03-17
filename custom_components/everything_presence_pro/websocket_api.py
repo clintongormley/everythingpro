@@ -13,7 +13,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry
 
 from .calibration import SensorTransform
 from .const import DOMAIN, MAX_ZONES
-from .coordinator import EverythingPresenceProCoordinator, SIGNAL_TARGETS_UPDATED
+from .coordinator import EverythingPresenceProCoordinator, SIGNAL_SENSORS_UPDATED, SIGNAL_TARGETS_UPDATED
 from .zone_engine import Zone
 
 _REGISTERED: set[str] = set()
@@ -381,10 +381,11 @@ async def websocket_subscribe_targets(
         return
 
     @callback
-    def _forward_targets() -> None:
-        """Forward target positions to the WebSocket subscriber."""
+    def _forward_state() -> None:
+        """Forward targets, sensors, and zone state to the WebSocket subscriber."""
         targets = coordinator.targets
         raw_targets = coordinator.raw_targets
+        result = coordinator.last_result
         connection.send_message(
             websocket_api.event_message(
                 msg["id"],
@@ -399,23 +400,47 @@ async def websocket_subscribe_targets(
                         }
                         for t, r in zip(targets, raw_targets)
                     ],
+                    "sensors": {
+                        "occupancy": coordinator.device_occupied,
+                        "static_presence": coordinator.static_present,
+                        "pir_motion": coordinator.pir_motion,
+                        "illuminance": coordinator.illuminance,
+                        "temperature": coordinator.temperature,
+                        "humidity": coordinator.humidity,
+                        "co2": coordinator.co2,
+                    },
+                    "zones": {
+                        "occupancy": result.zone_occupancy,
+                        "target_counts": result.zone_target_counts,
+                    },
                 },
             )
         )
 
     # Send initial state
     connection.send_result(msg["id"])
-    _forward_targets()
+    _forward_state()
 
-    # Subscribe to target updates via dispatcher
+    # Subscribe to both target and sensor updates
     from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-    unsub = async_dispatcher_connect(
+    unsub_targets = async_dispatcher_connect(
         hass,
         f"{SIGNAL_TARGETS_UPDATED}_{msg['entry_id']}",
-        _forward_targets,
+        _forward_state,
     )
-    connection.subscriptions[msg["id"]] = unsub
+    unsub_sensors = async_dispatcher_connect(
+        hass,
+        f"{SIGNAL_SENSORS_UPDATED}_{msg['entry_id']}",
+        _forward_state,
+    )
+
+    @callback
+    def _unsub_all() -> None:
+        unsub_targets()
+        unsub_sensors()
+
+    connection.subscriptions[msg["id"]] = _unsub_all
 
 
 @websocket_api.websocket_command(
