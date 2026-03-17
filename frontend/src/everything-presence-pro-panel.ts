@@ -2455,7 +2455,6 @@ export class EverythingPresenceProPanel extends LitElement {
       this._wizardCorners = [null, null, null, null];
       this._wizardRoomWidth = this._roomWidth;
       this._wizardRoomDepth = this._roomDepth;
-      this._perspective = null;
     });
   }
 
