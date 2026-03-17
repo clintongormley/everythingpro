@@ -166,6 +166,7 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
   @state() private _showLiveMenu = false;
+  @state() private _showDeleteCalibrationDialog = false;
   @state() private _showCustomIconPicker = false;
   @state() private _customIconValue = "";
   @state() private _furniture: FurnitureItem[] = [];
@@ -351,7 +352,7 @@ export class EverythingPresenceProPanel extends LitElement {
   private _applyConfig(config: any): void {
     // Load calibration / perspective first (needed for grid init)
     const cal = config.calibration;
-    if (cal?.perspective) {
+    if (cal?.perspective && cal.room_width > 0) {
       this._perspective = cal.perspective;
       this._roomWidth = cal.room_width || 0;
       this._roomDepth = cal.room_depth || 0;
@@ -2533,7 +2534,57 @@ export class EverythingPresenceProPanel extends LitElement {
       return this._renderEditor();
     }
 
-    return this._renderLiveOverview();
+    return html`
+      ${this._renderLiveOverview()}
+      ${this._showDeleteCalibrationDialog ? html`
+        <div class="template-dialog">
+          <div class="template-dialog-card">
+            <h3>Delete room calibration?</h3>
+            <p class="overlay-help">This will also delete all detection zones and furniture. This cannot be undone.</p>
+            <div class="template-dialog-actions">
+              <button class="wizard-btn wizard-btn-back"
+                @click=${() => { this._showDeleteCalibrationDialog = false; }}
+              >Cancel</button>
+              <button class="wizard-btn wizard-btn-primary" style="background: var(--error-color, #f44336);"
+                @click=${this._deleteCalibration}
+              >Delete</button>
+            </div>
+          </div>
+        </div>
+      ` : nothing}
+    `;
+  }
+
+  private async _deleteCalibration(): Promise<void> {
+    this._showDeleteCalibrationDialog = false;
+    this._perspective = null;
+    this._roomWidth = 0;
+    this._roomDepth = 0;
+    this._grid = new Uint8Array(GRID_COLS * GRID_ROWS);
+    this._zoneConfigs = new Array(MAX_ZONES).fill(null);
+    this._furniture = [];
+    // Clear calibration and layout on the backend
+    try {
+      await this.hass.callWS({
+        type: "everything_presence_pro/set_setup",
+        entry_id: this._selectedEntryId,
+        perspective: [0, 0, 0, 0, 0, 0, 0, 0],
+        room_width: 0,
+        room_depth: 0,
+      });
+      await this.hass.callWS({
+        type: "everything_presence_pro/set_room_layout",
+        entry_id: this._selectedEntryId,
+        grid_bytes: Array.from(this._grid),
+        zone_slots: this._zoneConfigs.map(() => null),
+        room_sensitivity: 1,
+        furniture: [],
+      });
+    } catch (e) {
+      console.error("Failed to delete calibration", e);
+    }
+    this._dirty = false;
+    this._view = "live";
   }
 
   private _changePlacement(): void {
@@ -3006,14 +3057,7 @@ export class EverythingPresenceProPanel extends LitElement {
                     </button>
                     ${this._perspective ? html`
                       <button class="sidebar-menu-item" style="color: var(--error-color, #f44336);" @click=${() => {
-                        this._perspective = null;
-                        this._roomWidth = 0;
-                        this._roomDepth = 0;
-                        this._grid = new Uint8Array(GRID_COLS * GRID_ROWS);
-                        this._zoneConfigs = new Array(MAX_ZONES).fill(null);
-                        this._furniture = [];
-                        this._dirty = true;
-                        this._applyLayout();
+                        this._showDeleteCalibrationDialog = true;
                       }}>
                         <ha-icon icon="mdi:delete" style="--mdc-icon-size: 18px;"></ha-icon> Delete room calibration
                       </button>
