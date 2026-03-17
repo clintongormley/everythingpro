@@ -2491,7 +2491,7 @@ class xt extends ft{}xt.directiveName="unsafeSVG",xt.resultType=2;const mt=(t=>(
       padding-bottom: 0;
     }
 
-    .setting-row label {
+    .setting-row label:not(.toggle-switch) {
       font-size: 14px;
       color: var(--primary-text-color, #212121);
       flex: 1;
