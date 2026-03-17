@@ -2211,6 +2211,13 @@ export class EverythingPresenceProPanel extends LitElement {
     }
 
     /* Live sidebar */
+    .sidebar-title {
+      font-size: 15px;
+      font-weight: 600;
+      padding: 10px 12px 8px;
+      color: var(--primary-text-color, #212121);
+    }
+
     .live-section-header {
       font-size: 11px;
       font-weight: 600;
@@ -2862,17 +2869,41 @@ export class EverythingPresenceProPanel extends LitElement {
     `;
   }
 
+  private _renderActionButtons() {
+    return html`
+      <div class="mode-tabs">
+        <button
+          class="mode-tab"
+          @click=${() => { this._showTemplateLoad = true; this._showTemplateSave = false; }}
+        >Load</button>
+        <button
+          class="mode-tab"
+          @click=${() => { this._showTemplateSave = true; this._showTemplateLoad = false; }}
+        >Save</button>
+        <button
+          class="mode-tab apply-btn"
+          ?disabled=${this._saving || !this._dirty}
+          @click=${this._applyLayout}
+        >${this._saving ? "Applying..." : "Apply"}</button>
+      </div>
+    `;
+  }
+
   private _renderLiveOverview() {
     return html`
       <div class="panel">
         ${this._renderHeader()}
         <div class="editor-layout">
-          <div class="grid-container">
-            ${this._perspective
-              ? this._renderLiveGrid()
-              : this._renderUncalibratedFov()}
+          <div style="flex: 1; min-width: 0;">
+            ${this._dirty ? this._renderActionButtons() : nothing}
+            <div class="grid-container">
+              ${this._perspective
+                ? this._renderLiveGrid()
+                : this._renderUncalibratedFov()}
+            </div>
           </div>
           <div class="zone-sidebar">
+            <div class="sidebar-title">Live overview</div>
             ${this._renderLiveSidebar()}
           </div>
         </div>
@@ -3415,26 +3446,11 @@ export class EverythingPresenceProPanel extends LitElement {
       <div class="main-area">
         ${this._renderHeader()}
 
-        <!-- Mode tabs -->
-        <div class="mode-tabs">
-          <button
-            class="mode-tab"
-            @click=${() => { this._showTemplateLoad = true; this._showTemplateSave = false; }}
-          >Load</button>
-          <button
-            class="mode-tab"
-            @click=${() => { this._showTemplateSave = true; this._showTemplateLoad = false; }}
-          >Save</button>
-          <button
-            class="mode-tab apply-btn"
-            ?disabled=${this._saving}
-            @click=${this._applyLayout}
-          >${this._saving ? "Applying..." : "Apply"}</button>
-        </div>
-
         <div class="editor-layout">
-          <!-- Grid -->
-          <div class="grid-container" @click=${(e: Event) => {
+          <div style="flex: 1; min-width: 0;">
+            ${this._renderActionButtons()}
+            <!-- Grid -->
+            <div class="grid-container" @click=${(e: Event) => {
             if (!(e.target as HTMLElement).closest(".furniture-item")) {
               this._selectedFurnitureId = null;
             }
@@ -3465,19 +3481,11 @@ export class EverythingPresenceProPanel extends LitElement {
                 })}
             </div>
           </div>
+          </div>
 
           <!-- Sidebar -->
           <div class="zone-sidebar">
-            <div class="sidebar-tabs">
-              <button
-                class="sidebar-tab ${this._sidebarTab === "zones" ? "active" : ""}"
-                @click=${() => { this._sidebarTab = "zones"; this._selectedFurnitureId = null; }}
-              >Zones</button>
-              <button
-                class="sidebar-tab ${this._sidebarTab === "furniture" ? "active" : ""}"
-                @click=${() => { this._sidebarTab = "furniture"; }}
-              >Furniture</button>
-            </div>
+            <div class="sidebar-title">${this._sidebarTab === "furniture" ? "Furniture" : "Detection zones"}</div>
             ${this._sidebarTab === "zones"
               ? this._renderZoneSidebar()
               : this._renderFurnitureSidebar()}
@@ -3934,9 +3942,13 @@ export class EverythingPresenceProPanel extends LitElement {
 
         <div class="live-nav-links">
           ${this._perspective ? html`
-            <button class="live-nav-link" @click=${() => { this._view = "editor"; }}>
+            <button class="live-nav-link" @click=${() => { this._view = "editor"; this._sidebarTab = "zones"; }}>
               <ha-icon icon="mdi:vector-square" style="--mdc-icon-size: 16px;"></ha-icon>
               Edit zones
+            </button>
+            <button class="live-nav-link" @click=${() => { this._view = "editor"; this._sidebarTab = "furniture"; }}>
+              <ha-icon icon="mdi:sofa" style="--mdc-icon-size: 16px;"></ha-icon>
+              Edit furniture
             </button>
           ` : nothing}
           <button class="live-nav-link" @click=${() => { this._view = "settings"; }}>
