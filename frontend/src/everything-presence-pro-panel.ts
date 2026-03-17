@@ -1,5 +1,5 @@
 import { LitElement, html, svg, css, PropertyValues, nothing } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { property, state } from "lit/decorators.js";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 
 interface Target {
@@ -156,7 +156,6 @@ const ZONE_COLORS = [
   "#CC79A7", // reddish purple
 ];
 
-@customElement("everything-presence-pro-panel")
 export class EverythingPresenceProPanel extends LitElement {
   @property({ attribute: false }) hass: any;
 
@@ -2647,7 +2646,9 @@ export class EverythingPresenceProPanel extends LitElement {
 
   private _renderWizardCorners() {
     const idx = this._wizardCornerIndex;
-    const hasTarget = this._targets.some((t) => t.active);
+    const activeTargets = this._targets.filter((t) => t.active);
+    const hasTarget = activeTargets.length > 0;
+    const tooManyTargets = activeTargets.length > 1;
     const allMarked = this._wizardCorners.every((c) => c !== null);
     const label = CORNER_LABELS[idx] || "";
     const [sideLabel, fbLabel] = CORNER_OFFSET_LABELS[idx] || ["", ""];
@@ -2718,6 +2719,10 @@ export class EverythingPresenceProPanel extends LitElement {
               ? html`<p class="no-target-warning">
                   No target detected. Make sure you are visible to the sensor.
                 </p>`
+              : tooManyTargets
+              ? html`<p class="no-target-warning">
+                  Multiple targets detected. Only one person should be in the room during calibration.
+                </p>`
               : nothing}
 
             <div class="wizard-actions">
@@ -2740,7 +2745,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 : html`
                   <button
                     class="wizard-btn wizard-btn-primary"
-                    ?disabled=${!hasTarget}
+                    ?disabled=${!hasTarget || tooManyTargets}
                     @click=${() => this._wizardStartCapture()}
                   >
                     Mark ${label}
@@ -2916,17 +2921,15 @@ export class EverythingPresenceProPanel extends LitElement {
                 ></div>
               `;
             })}
-          <!-- Live targets -->
-          ${this._targets
-            .filter((t) => t.active)
-            .map(
-              (t) => html`
-                <div
-                  class="mini-grid-target"
-                  style=${this._getWizardTargetStyle(t)}
-                ></div>
-              `
-            )}
+          <!-- Live targets (per-target colors) -->
+          ${this._targets.map(
+            (t, i) => t.active ? html`
+              <div
+                class="mini-grid-target"
+                style="${this._getWizardTargetStyle(t)} background: ${TARGET_COLORS[i] || TARGET_COLORS[0]};"
+              ></div>
+            ` : nothing
+          )}
         </div>
       </div>
     `;
@@ -4119,6 +4122,10 @@ export class EverythingPresenceProPanel extends LitElement {
       ` : nothing}
     `;
   }
+}
+
+if (!customElements.get("everything-presence-pro-panel")) {
+  customElements.define("everything-presence-pro-panel", EverythingPresenceProPanel);
 }
 
 declare global {
