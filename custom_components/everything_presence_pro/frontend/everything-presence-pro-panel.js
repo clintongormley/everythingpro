@@ -251,7 +251,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
 
         ${o?V:L`
 
-            <div class="corner-offsets">
+            <div class="corner-offsets" key="${t}">
               <span class="offset-label">Distance from:</span>
               <input
                 type="number"
@@ -259,7 +259,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
                 min="0"
                 step="1"
                 placeholder="${n} (cm)"
-                .value=${""}
+                .value=${this._wizardCorners[t]?.offset_side?String(this._wizardCorners[t].offset_side/10):""}
                 @change=${e=>{const i=10*(parseFloat(e.target.value)||0),r=this._wizardCorners[t];r&&(r.offset_side=i)}}
               />
               <input
@@ -268,7 +268,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
                 min="0"
                 step="1"
                 placeholder="${a} (cm)"
-                .value=${""}
+                .value=${this._wizardCorners[t]?.offset_fb?String(this._wizardCorners[t].offset_fb/10):""}
                 @change=${e=>{const i=10*(parseFloat(e.target.value)||0),r=this._wizardCorners[t];r&&(r.offset_fb=i)}}
               />
             </div>
