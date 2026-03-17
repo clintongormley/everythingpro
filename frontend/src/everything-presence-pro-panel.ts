@@ -2090,6 +2090,16 @@ export class EverythingPresenceProPanel extends LitElement {
       color: #fff;
     }
 
+    .corner-arrow {
+      font-size: 18px;
+      color: var(--disabled-text-color, #ccc);
+      font-weight: bold;
+    }
+
+    .corner-arrow.done {
+      color: var(--primary-color, #03a9f4);
+    }
+
     .corner-instruction {
       font-size: 15px;
       color: var(--primary-text-color, #212121);
@@ -2097,7 +2107,15 @@ export class EverythingPresenceProPanel extends LitElement {
 
     .corner-offsets {
       display: flex;
-      gap: 16px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .offset-label {
+      font-size: 13px;
+      color: var(--secondary-text-color, #888);
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .capture-overlay {
@@ -2691,19 +2709,6 @@ export class EverythingPresenceProPanel extends LitElement {
           record your position over ${CAPTURE_DURATION_S} seconds.
         </p>
 
-        <div class="corner-progress">
-          ${CORNER_LABELS.map(
-            (name, i) => html`
-              <span
-                class="corner-chip ${this._wizardCorners[i] ? "done" : ""} ${i === idx ? "active" : ""}"
-                @click=${() => { this._wizardCornerIndex = i; }}
-              >
-                ${name} ${this._wizardCorners[i] ? "\u2713" : ""}
-              </span>
-            `
-          )}
-        </div>
-
         ${allMarked
           ? nothing
           : html`
@@ -2711,14 +2716,42 @@ export class EverythingPresenceProPanel extends LitElement {
               <strong>Corner ${idx + 1}/4:</strong> Walk to the
               <strong>${label.toLowerCase()}</strong> corner.
             </p>
+        `}
+
+        <div class="corner-progress">
+          ${CORNER_LABELS.map(
+            (name, i) => {
+              const done = !!this._wizardCorners[i];
+              const active = i === idx;
+              const showArrow = i < 3;
+              const arrowDone = i < idx;
+              return html`
+                <span
+                  class="corner-chip ${done ? "done" : ""} ${active ? "active" : ""}"
+                  @click=${() => { this._wizardCornerIndex = i; }}
+                >
+                  ${name} ${done ? "\u2713" : ""}
+                </span>
+                ${showArrow ? html`
+                  <span class="corner-arrow ${arrowDone ? "done" : ""}">›</span>
+                ` : nothing}
+              `;
+            }
+          )}
+        </div>
+
+        ${allMarked
+          ? nothing
+          : html`
 
             <div class="corner-offsets">
+              <span class="offset-label">Distance from:</span>
               <input
                 type="number"
                 class="offset-input"
                 min="0"
                 step="1"
-                placeholder="Distance ${sideLabel} (cm)"
+                placeholder="${sideLabel} (cm)"
                 .value=${""}
                 @change=${(e: Event) => {
                   const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
@@ -2731,7 +2764,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 class="offset-input"
                 min="0"
                 step="1"
-                placeholder="Distance ${fbLabel} (cm)"
+                placeholder="${fbLabel} (cm)"
                 .value=${""}
                 @change=${(e: Event) => {
                   const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);

@@ -228,30 +228,37 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           record your position over ${5} seconds.
         </p>
 
-        <div class="corner-progress">
-          ${Ct.map((e,i)=>L`
-              <span
-                class="corner-chip ${this._wizardCorners[i]?"done":""} ${i===t?"active":""}"
-                @click=${()=>{this._wizardCornerIndex=i}}
-              >
-                ${e} ${this._wizardCorners[i]?"✓":""}
-              </span>
-            `)}
-        </div>
-
         ${o?V:L`
             <p class="corner-instruction">
               <strong>Corner ${t+1}/4:</strong> Walk to the
               <strong>${s.toLowerCase()}</strong> corner.
             </p>
+        `}
+
+        <div class="corner-progress">
+          ${Ct.map((e,i)=>{const r=!!this._wizardCorners[i];return L`
+                <span
+                  class="corner-chip ${r?"done":""} ${i===t?"active":""}"
+                  @click=${()=>{this._wizardCornerIndex=i}}
+                >
+                  ${e} ${r?"✓":""}
+                </span>
+                ${i<3?L`
+                  <span class="corner-arrow ${i<t?"done":""}">›</span>
+                `:V}
+              `})}
+        </div>
+
+        ${o?V:L`
 
             <div class="corner-offsets">
+              <span class="offset-label">Distance from:</span>
               <input
                 type="number"
                 class="offset-input"
                 min="0"
                 step="1"
-                placeholder="Distance ${n} (cm)"
+                placeholder="${n} (cm)"
                 .value=${""}
                 @change=${e=>{const i=10*(parseFloat(e.target.value)||0),r=this._wizardCorners[t];r&&(r.offset_side=i)}}
               />
@@ -260,7 +267,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
                 class="offset-input"
                 min="0"
                 step="1"
-                placeholder="Distance ${a} (cm)"
+                placeholder="${a} (cm)"
                 .value=${""}
                 @change=${e=>{const i=10*(parseFloat(e.target.value)||0),r=this._wizardCorners[t];r&&(r.offset_fb=i)}}
               />
@@ -2102,6 +2109,16 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
       color: #fff;
     }
 
+    .corner-arrow {
+      font-size: 18px;
+      color: var(--disabled-text-color, #ccc);
+      font-weight: bold;
+    }
+
+    .corner-arrow.done {
+      color: var(--primary-color, #03a9f4);
+    }
+
     .corner-instruction {
       font-size: 15px;
       color: var(--primary-text-color, #212121);
@@ -2109,7 +2126,15 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
 
     .corner-offsets {
       display: flex;
-      gap: 16px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .offset-label {
+      font-size: 13px;
+      color: var(--secondary-text-color, #888);
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .capture-overlay {
