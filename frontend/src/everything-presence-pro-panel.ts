@@ -1212,13 +1212,16 @@ export class EverythingPresenceProPanel extends LitElement {
       font-family: var(--paper-font-body1_-_font-family, "Roboto", sans-serif);
     }
 
-    .main-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    .panel {
       padding: 24px;
-      overflow: auto;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .main-area {
+      padding: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
     }
 
     .mode-tabs {
@@ -3615,7 +3618,7 @@ export class EverythingPresenceProPanel extends LitElement {
     const cellPx = Math.min(32, Math.floor(maxGridPx / visCols), Math.floor(maxGridPx / visRows));
 
     return html`
-      <div class="main-area" @click=${(e: Event) => {
+      <div class="panel" @click=${(e: Event) => {
         const el = e.target as HTMLElement;
         if (!el.closest(".grid") && !el.closest(".zone-sidebar")) {
           this._activeZone = null;

@@ -800,7 +800,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
             </div>
           </div>
         `;default:return V}}_renderEditor(){const t=this._frozenBounds??this._getRoomBounds(),e=t.minCol>t.maxCol,i=e?0:t.minCol,r=e?19:t.maxCol,o=e?0:t.minRow,s=e?19:t.maxRow,n=r-i+1,a=s-o+1,l=Math.min(520,.55*(this.offsetWidth||800)),d=Math.min(32,Math.floor(l/n),Math.floor(l/a));return L`
-      <div class="main-area" @click=${t=>{const e=t.target;e.closest(".grid")||e.closest(".zone-sidebar")||(this._activeZone=null)}}>
+      <div class="panel" @click=${t=>{const e=t.target;e.closest(".grid")||e.closest(".zone-sidebar")||(this._activeZone=null)}}>
         ${this._renderHeader()}
 
         <div class="editor-layout">
@@ -1241,13 +1241,16 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
       font-family: var(--paper-font-body1_-_font-family, "Roboto", sans-serif);
     }
 
-    .main-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    .panel {
       padding: 24px;
-      overflow: auto;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .main-area {
+      padding: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
     }
 
     .mode-tabs {
