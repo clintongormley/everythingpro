@@ -1216,12 +1216,7 @@ export class EverythingPresenceProPanel extends LitElement {
       padding: 24px;
       max-width: 1100px;
       margin: 0 auto;
-    }
-
-    .main-area {
-      padding: 24px;
-      max-width: 1100px;
-      margin: 0 auto;
+      font-size: 14px;
     }
 
     .mode-tabs {
