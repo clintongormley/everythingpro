@@ -4108,7 +4108,9 @@ export class EverythingPresenceProPanel extends LitElement {
           ` : nothing}
         `)}
 
-        <button class="live-section-header live-section-link" style="padding-top: 16px;" @click=${() => { this._view = "editor"; this._sidebarTab = "zones"; }}>Detection zones</button>
+        <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 10px 12px;"/>
+
+        <button class="live-section-header live-section-link" @click=${() => { this._view = "editor"; this._sidebarTab = "zones"; }}>Detection zones</button>
         ${hasZones ? sensorDefs.slice(3).map((s) => html`
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>

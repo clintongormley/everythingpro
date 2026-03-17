@@ -1120,7 +1120,9 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           `:V}
         `)}
 
-        <button class="live-section-header live-section-link" style="padding-top: 16px;" @click=${()=>{this._view="editor",this._sidebarTab="zones"}}>Detection zones</button>
+        <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 10px 12px;"/>
+
+        <button class="live-section-header live-section-link" @click=${()=>{this._view="editor",this._sidebarTab="zones"}}>Detection zones</button>
         ${o?i.slice(3).map(t=>L`
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${t.on?"on":"off"}"></div>
