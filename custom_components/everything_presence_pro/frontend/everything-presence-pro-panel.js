@@ -752,7 +752,7 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
 
         <div class="editor-layout">
           <!-- Grid -->
-          <div class="grid-container" @click=${t=>{t.target.closest(".furniture-item")||(this._selectedFurnitureId=null)}}
+          <div class="grid-container" @click=${t=>{t.target.closest(".furniture-item")||(this._selectedFurnitureId=null)}}>
             <div
               class="grid"
               style="grid-template-columns: repeat(${n}, ${l}px); grid-template-rows: repeat(${a}, ${l}px);"

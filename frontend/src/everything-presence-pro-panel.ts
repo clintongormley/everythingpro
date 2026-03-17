@@ -3438,7 +3438,7 @@ export class EverythingPresenceProPanel extends LitElement {
             if (!(e.target as HTMLElement).closest(".furniture-item")) {
               this._selectedFurnitureId = null;
             }
-          }}
+          }}>
             <div
               class="grid"
               style="grid-template-columns: repeat(${visCols}, ${cellPx}px); grid-template-rows: repeat(${visRows}, ${cellPx}px);"
