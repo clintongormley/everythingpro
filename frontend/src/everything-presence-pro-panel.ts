@@ -2603,11 +2603,7 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderHeader() {
-    const headerBtns = this._view !== "live" && this._setupStep === null ? html`
-      <button class="header-settings-btn" @click=${() => { this._view = "live"; }} title="Back">
-        <ha-icon icon="mdi:arrow-left"></ha-icon>
-      </button>
-    ` : nothing;
+    const headerBtns = nothing;
 
     return html`
       <div class="panel-header">
