@@ -1028,27 +1028,59 @@ export class EverythingPresenceProPanel extends LitElement {
     const active = this._targets.find((t) => t.active);
     if (!active) return;
 
-    // TODO: restore 5-second capture with median
-    const idx = this._wizardCornerIndex;
-    this._wizardCorners = [...this._wizardCorners];
-    this._wizardCorners[idx] = {
-      raw_x: active.raw_x,
-      raw_y: active.raw_y,
-      offset_side: 0,
-      offset_fb: 0,
+    this._wizardCapturing = true;
+    this._wizardCaptureProgress = 0;
+
+    const samples: { x: number; y: number }[] = [];
+    const startTime = Date.now();
+    const duration = CAPTURE_DURATION_S * 1000;
+
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      this._wizardCaptureProgress = Math.min(elapsed / duration, 1);
+
+      // Collect sample from first active target
+      const t = this._targets.find((t) => t.active);
+      if (t) samples.push({ x: t.raw_x, y: t.raw_y });
+
+      if (elapsed < duration) {
+        requestAnimationFrame(tick);
+        return;
+      }
+
+      // Done — compute median position
+      this._wizardCapturing = false;
+      if (samples.length === 0) return;
+
+      const sortedX = samples.map((s) => s.x).sort((a, b) => a - b);
+      const sortedY = samples.map((s) => s.y).sort((a, b) => a - b);
+      const mid = Math.floor(samples.length / 2);
+      const medianX = samples.length % 2 ? sortedX[mid] : (sortedX[mid - 1] + sortedX[mid]) / 2;
+      const medianY = samples.length % 2 ? sortedY[mid] : (sortedY[mid - 1] + sortedY[mid]) / 2;
+
+      const idx = this._wizardCornerIndex;
+      this._wizardCorners = [...this._wizardCorners];
+      this._wizardCorners[idx] = {
+        raw_x: medianX,
+        raw_y: medianY,
+        offset_side: 0,
+        offset_fb: 0,
+      };
+
+      // Advance to next unmarked corner
+      if (idx < 3) {
+        this._wizardCornerIndex = idx + 1;
+      }
+
+      // If all 4 corners marked, compute dimensions and save immediately
+      if (this._wizardCorners.every((c) => c !== null)) {
+        this._autoComputeRoomDimensions();
+        this._computeWizardPerspective();
+        this._wizardFinish();
+      }
     };
 
-    // Advance to next unmarked corner
-    if (idx < 3) {
-      this._wizardCornerIndex = idx + 1;
-    }
-
-    // If all 4 corners marked, compute dimensions and save immediately
-    if (this._wizardCorners.every((c) => c !== null)) {
-      this._autoComputeRoomDimensions();
-      this._computeWizardPerspective();
-      this._wizardFinish();
-    }
+    requestAnimationFrame(tick);
   }
 
   private _autoComputeRoomDimensions(): void {
@@ -2068,6 +2100,27 @@ export class EverythingPresenceProPanel extends LitElement {
       gap: 16px;
     }
 
+    .capture-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .capture-overlay-content {
+      background: var(--card-background-color, #fff);
+      padding: 24px 32px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
     .offset-input {
       flex: 1;
       width: 100%;
@@ -2455,6 +2508,19 @@ export class EverythingPresenceProPanel extends LitElement {
     return html`
       <div class="wizard-container">
         ${this._renderHeader()} ${stepContent}
+        ${this._wizardCapturing ? html`
+          <div class="capture-overlay">
+            <div class="capture-overlay-content">
+              <div class="capture-progress" style="width: 200px;">
+                <div class="capture-bar">
+                  <div class="capture-fill" style="width: ${this._wizardCaptureProgress * 100}%"></div>
+                </div>
+                <span>Recording... ${Math.round(this._wizardCaptureProgress * CAPTURE_DURATION_S)}s / ${CAPTURE_DURATION_S}s</span>
+              </div>
+              <p style="margin: 8px 0 0; font-size: 13px; color: var(--secondary-text-color);">Stand still</p>
+            </div>
+          </div>
+        ` : nothing}
       </div>
     `;
   }
