@@ -239,10 +239,8 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
                 min="0"
                 step="1"
                 placeholder="${n} (cm)"
-                .value=${"0"}
-                @change=${e=>{const i=10*parseFloat(e.target.value),r=this._wizardCorners[t];r&&(r.offset_side=i)}}
-                @focus=${t=>{const e=t.target;"0"===e.value&&(e.value="")}}
-                @blur=${t=>{const e=t.target;""===e.value&&(e.value="0")}}
+                .value=${""}
+                @change=${e=>{const i=10*(parseFloat(e.target.value)||0),r=this._wizardCorners[t];r&&(r.offset_side=i)}}
               />
               <input
                 type="number"
@@ -250,10 +248,8 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
                 min="0"
                 step="1"
                 placeholder="${a} (cm)"
-                .value=${"0"}
-                @change=${e=>{const i=10*parseFloat(e.target.value),r=this._wizardCorners[t];r&&(r.offset_fb=i)}}
-                @focus=${t=>{const e=t.target;"0"===e.value&&(e.value="")}}
-                @blur=${t=>{const e=t.target;""===e.value&&(e.value="0")}}
+                .value=${""}
+                @change=${e=>{const i=10*(parseFloat(e.target.value)||0),r=this._wizardCorners[t];r&&(r.offset_fb=i)}}
               />
             </div>
 

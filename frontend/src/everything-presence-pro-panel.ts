@@ -2653,14 +2653,12 @@ export class EverythingPresenceProPanel extends LitElement {
                 min="0"
                 step="1"
                 placeholder="${sideLabel} (cm)"
-                .value=${"0"}
+                .value=${""}
                 @change=${(e: Event) => {
-                  const val = 10 * parseFloat((e.target as HTMLInputElement).value);
+                  const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
                   const corner = this._wizardCorners[idx];
                   if (corner) corner.offset_side = val;
                 }}
-                @focus=${(e: Event) => { const el = e.target as HTMLInputElement; if (el.value === "0") el.value = ""; }}
-                @blur=${(e: Event) => { const el = e.target as HTMLInputElement; if (el.value === "") el.value = "0"; }}
               />
               <input
                 type="number"
@@ -2668,14 +2666,12 @@ export class EverythingPresenceProPanel extends LitElement {
                 min="0"
                 step="1"
                 placeholder="${fbLabel} (cm)"
-                .value=${"0"}
+                .value=${""}
                 @change=${(e: Event) => {
-                  const val = 10 * parseFloat((e.target as HTMLInputElement).value);
+                  const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
                   const corner = this._wizardCorners[idx];
                   if (corner) corner.offset_fb = val;
                 }}
-                @focus=${(e: Event) => { const el = e.target as HTMLInputElement; if (el.value === "0") el.value = ""; }}
-                @blur=${(e: Event) => { const el = e.target as HTMLInputElement; if (el.value === "") el.value = "0"; }}
               />
             </div>
 
