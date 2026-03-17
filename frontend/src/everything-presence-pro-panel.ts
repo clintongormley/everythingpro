@@ -3950,15 +3950,6 @@ export class EverythingPresenceProPanel extends LitElement {
           `)}
         ` : nothing}
 
-        <div class="live-section-header" style="padding-top: 16px;">Targets</div>
-        ${this._targets.map((t, i) => html`
-          <div class="live-sensor-row">
-            <div class="live-sensor-dot" style="background: ${t.active ? (TARGET_COLORS[i] || TARGET_COLORS[0]) : "var(--disabled-text-color, #bbb)"};"></div>
-            <span class="live-sensor-label">Target ${i + 1}</span>
-            <span class="live-sensor-state">${t.active ? `(${Math.round(t.x)}, ${Math.round(t.y)})` : "Inactive"}</span>
-          </div>
-        `)}
-
         <div class="live-nav-links">
           ${this._perspective ? html`
             <button class="live-nav-link" @click=${() => { this._view = "editor"; }}>
