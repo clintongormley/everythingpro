@@ -944,6 +944,39 @@ export class EverythingPresenceProPanel extends LitElement {
     };
   }
 
+  /** Compute room dimensions and furthest point from sensor based on grid */
+  private _getGridRoomMetrics(): { widthM: string; depthM: string; furthestM: string } | null {
+    const raw = this._getRawRoomBounds();
+    if (raw.minCol > raw.maxCol) return null;
+
+    const widthCells = raw.maxCol - raw.minCol + 1;
+    const depthCells = raw.maxRow - raw.minRow + 1;
+    const widthMm = widthCells * GRID_CELL_MM;
+    const depthMm = depthCells * GRID_CELL_MM;
+
+    // Sensor is centered at top of room (row 0, center of room columns)
+    const sensorCol = (raw.minCol + raw.maxCol) / 2;
+    const sensorRow = raw.minRow;
+
+    // Find furthest inside cell from sensor
+    let maxDistSq = 0;
+    for (let i = 0; i < GRID_CELL_COUNT; i++) {
+      if (!cellIsInside(this._grid[i])) continue;
+      const col = (i % GRID_COLS) + 0.5; // cell center
+      const row = Math.floor(i / GRID_COLS) + 0.5;
+      const dx = (col - sensorCol) * GRID_CELL_MM;
+      const dy = (row - sensorRow) * GRID_CELL_MM;
+      const distSq = dx * dx + dy * dy;
+      if (distSq > maxDistSq) maxDistSq = distSq;
+    }
+
+    return {
+      widthM: (widthMm / 1000).toFixed(1),
+      depthM: (depthMm / 1000).toFixed(1),
+      furthestM: (Math.sqrt(maxDistSq) / 1000).toFixed(1),
+    };
+  }
+
   /** Get raw room bounds without padding (only actual inside cells) */
   private _getRawRoomBounds(): { minCol: number; maxCol: number; minRow: number; maxRow: number } {
     let minCol = GRID_COLS, maxCol = 0, minRow = GRID_ROWS, maxRow = 0;
@@ -2429,6 +2462,13 @@ export class EverythingPresenceProPanel extends LitElement {
     }
 
     /* Settings view */
+    .grid-dimensions {
+      text-align: center;
+      font-size: 12px;
+      color: var(--secondary-text-color, #757575);
+      margin-top: 8px;
+    }
+
     .settings-container {
       width: 560px;
       max-width: 100%;
@@ -3282,6 +3322,17 @@ export class EverythingPresenceProPanel extends LitElement {
           `;
         })}
       </div>
+      ${this._renderGridDimensions()}
+    `;
+  }
+
+  private _renderGridDimensions() {
+    const metrics = this._getGridRoomMetrics();
+    if (!metrics) return nothing;
+    return html`
+      <div class="grid-dimensions">
+        ${metrics.widthM}m × ${metrics.depthM}m · Furthest point: ${metrics.furthestM}m
+      </div>
     `;
   }
 
@@ -3837,6 +3888,7 @@ export class EverythingPresenceProPanel extends LitElement {
                   `;
                 })}
             </div>
+            ${this._renderGridDimensions()}
           </div>
           </div>
 
