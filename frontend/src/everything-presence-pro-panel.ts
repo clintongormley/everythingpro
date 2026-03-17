@@ -2068,19 +2068,26 @@ export class EverythingPresenceProPanel extends LitElement {
       gap: 16px;
     }
 
-    .corner-offsets label {
+    .offset-input {
       flex: 1;
-    }
-
-    .corner-offsets input {
       width: 100%;
-      padding: 8px;
+      padding: 14px 12px 6px;
       border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 10px;
+      font-size: 16px;
       box-sizing: border-box;
       background: var(--card-background-color, #fff);
       color: var(--primary-text-color, #212121);
+    }
+
+    .offset-input::placeholder {
+      color: var(--secondary-text-color, #888);
+      font-size: 13px;
+    }
+
+    .offset-input:focus {
+      outline: none;
+      border-color: var(--primary-color, #03a9f4);
     }
 
     .dimension-inputs {
@@ -2640,34 +2647,36 @@ export class EverythingPresenceProPanel extends LitElement {
             </p>
 
             <div class="corner-offsets">
-              <label>
-                ${sideLabel} (cm)
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  .value=${"0"}
-                  @change=${(e: Event) => {
-                    const val = 10 * parseFloat((e.target as HTMLInputElement).value);
-                    const corner = this._wizardCorners[idx];
-                    if (corner) corner.offset_side = val;
-                  }}
-                />
-              </label>
-              <label>
-                ${fbLabel} (cm)
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  .value=${"0"}
-                  @change=${(e: Event) => {
-                    const val = 10 * parseFloat((e.target as HTMLInputElement).value);
-                    const corner = this._wizardCorners[idx];
-                    if (corner) corner.offset_fb = val;
-                  }}
-                />
-              </label>
+              <input
+                type="number"
+                class="offset-input"
+                min="0"
+                step="1"
+                placeholder="${sideLabel} (cm)"
+                .value=${"0"}
+                @change=${(e: Event) => {
+                  const val = 10 * parseFloat((e.target as HTMLInputElement).value);
+                  const corner = this._wizardCorners[idx];
+                  if (corner) corner.offset_side = val;
+                }}
+                @focus=${(e: Event) => { const el = e.target as HTMLInputElement; if (el.value === "0") el.value = ""; }}
+                @blur=${(e: Event) => { const el = e.target as HTMLInputElement; if (el.value === "") el.value = "0"; }}
+              />
+              <input
+                type="number"
+                class="offset-input"
+                min="0"
+                step="1"
+                placeholder="${fbLabel} (cm)"
+                .value=${"0"}
+                @change=${(e: Event) => {
+                  const val = 10 * parseFloat((e.target as HTMLInputElement).value);
+                  const corner = this._wizardCorners[idx];
+                  if (corner) corner.offset_fb = val;
+                }}
+                @focus=${(e: Event) => { const el = e.target as HTMLInputElement; if (el.value === "0") el.value = ""; }}
+                @blur=${(e: Event) => { const el = e.target as HTMLInputElement; if (el.value === "") el.value = "0"; }}
+              />
             </div>
 
             ${this._renderMiniSensorView()}
