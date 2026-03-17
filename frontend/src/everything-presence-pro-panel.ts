@@ -3434,7 +3434,11 @@ export class EverythingPresenceProPanel extends LitElement {
 
         <div class="editor-layout">
           <!-- Grid -->
-          <div class="grid-container">
+          <div class="grid-container" @click=${(e: Event) => {
+            if (!(e.target as HTMLElement).closest(".furniture-item")) {
+              this._selectedFurnitureId = null;
+            }
+          }}
             <div
               class="grid"
               style="grid-template-columns: repeat(${visCols}, ${cellPx}px); grid-template-rows: repeat(${visRows}, ${cellPx}px);"
