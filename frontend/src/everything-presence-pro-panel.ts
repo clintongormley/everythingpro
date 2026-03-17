@@ -2652,7 +2652,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 class="offset-input"
                 min="0"
                 step="1"
-                placeholder="${sideLabel} (cm)"
+                placeholder="Distance ${sideLabel} (cm)"
                 .value=${""}
                 @change=${(e: Event) => {
                   const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
@@ -2665,7 +2665,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 class="offset-input"
                 min="0"
                 step="1"
-                placeholder="${fbLabel} (cm)"
+                placeholder="Distance ${fbLabel} (cm)"
                 .value=${""}
                 @change=${(e: Event) => {
                   const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
