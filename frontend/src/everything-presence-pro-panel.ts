@@ -2584,8 +2584,10 @@ export class EverythingPresenceProPanel extends LitElement {
       position: relative;
       display: inline-block;
       width: 40px;
+      min-width: 40px;
       height: 22px;
       flex-shrink: 0;
+      flex-grow: 0;
     }
 
     .toggle-switch input {

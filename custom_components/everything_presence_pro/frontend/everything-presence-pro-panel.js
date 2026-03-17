@@ -2573,8 +2573,10 @@ class xt extends ft{}xt.directiveName="unsafeSVG",xt.resultType=2;const mt=(t=>(
       position: relative;
       display: inline-block;
       width: 40px;
+      min-width: 40px;
       height: 22px;
       flex-shrink: 0;
+      flex-grow: 0;
     }
 
     .toggle-switch input {
