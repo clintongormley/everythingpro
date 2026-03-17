@@ -783,12 +783,8 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
                 class="sidebar-tab ${"furniture"===this._sidebarTab?"active":""}"
                 @click=${()=>{this._sidebarTab="furniture"}}
               >Furniture</button>
-              <button
-                class="sidebar-tab ${"live"===this._sidebarTab?"active":""}"
-                @click=${()=>{this._sidebarTab="live",this._selectedFurnitureId=null}}
-              >Live</button>
             </div>
-            ${"zones"===this._sidebarTab?this._renderZoneSidebar():"furniture"===this._sidebarTab?this._renderFurnitureSidebar():this._renderLiveSidebar()}
+            ${"zones"===this._sidebarTab?this._renderZoneSidebar():this._renderFurnitureSidebar()}
           </div>
         </div>
 

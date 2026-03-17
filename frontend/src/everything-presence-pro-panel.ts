@@ -3472,16 +3472,10 @@ export class EverythingPresenceProPanel extends LitElement {
                 class="sidebar-tab ${this._sidebarTab === "furniture" ? "active" : ""}"
                 @click=${() => { this._sidebarTab = "furniture"; }}
               >Furniture</button>
-              <button
-                class="sidebar-tab ${this._sidebarTab === "live" ? "active" : ""}"
-                @click=${() => { this._sidebarTab = "live"; this._selectedFurnitureId = null; }}
-              >Live</button>
             </div>
             ${this._sidebarTab === "zones"
               ? this._renderZoneSidebar()
-              : this._sidebarTab === "furniture"
-              ? this._renderFurnitureSidebar()
-              : this._renderLiveSidebar()}
+              : this._renderFurnitureSidebar()}
           </div>
         </div>
 
