@@ -127,10 +127,10 @@ const cellSetZone = (v: number, zone: number): number =>
 
 const CORNER_LABELS = ["Front-left", "Front-right", "Back-right", "Back-left"];
 const CORNER_OFFSET_LABELS: [string, string][] = [
-  ["from left wall", "from front wall"],
-  ["from right wall", "from front wall"],
-  ["from right wall", "from back wall"],
-  ["from left wall", "from back wall"],
+  ["left wall", "front wall"],
+  ["right wall", "front wall"],
+  ["right wall", "back wall"],
+  ["left wall", "back wall"],
 ];
 
 const GRID_COLS = 20;
