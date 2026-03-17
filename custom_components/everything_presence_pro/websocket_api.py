@@ -58,12 +58,15 @@ def websocket_list_entries(
 ) -> None:
     """Return all configured Everything Presence Pro entries."""
     entries = hass.config_entries.async_entries(DOMAIN)
-    connection.send_result(
-        msg["id"],
-        [
+    dev_reg = dr.async_get(hass)
+    result = []
+    for e in entries:
+        device = dev_reg.async_get_device(identifiers={(DOMAIN, e.entry_id)})
+        device_name = device.name_by_user or device.name if device else None
+        result.append(
             {
                 "entry_id": e.entry_id,
-                "title": e.title,
+                "title": device_name or e.title,
                 "has_perspective": bool(
                     e.options.get("config", {})
                     .get("calibration", {})
@@ -73,9 +76,8 @@ def websocket_list_entries(
                     e.options.get("config", {}).get("room_layout")
                 ),
             }
-            for e in entries
-        ],
-    )
+        )
+    connection.send_result(msg["id"], result)
 
 
 @websocket_api.websocket_command(
