@@ -3573,8 +3573,8 @@ export class EverythingPresenceProPanel extends LitElement {
   private _autoDetectionRange(): number {
     const maxMm = Math.max(this._roomWidth, this._roomDepth);
     if (maxMm <= 0) return 0;
-    const cm = maxMm / 10;
-    return Math.ceil(cm / 50) * 50;
+    const m = maxMm / 1000;
+    return Math.ceil(m * 2) / 2; // round up to nearest 0.5m
   }
 
   private _renderSettings() {
@@ -3633,12 +3633,12 @@ export class EverythingPresenceProPanel extends LitElement {
     const metrics = this._getGridRoomMetrics();
     return html`
       <div class="settings-section">
-        ${metrics ? html`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong>${metrics.furthestM}m</strong></p>` : nothing}
+        ${metrics ? html`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong style="color: var(--error-color, #e53935);">${metrics.furthestM}m</strong></p>` : nothing}
         <div class="setting-group">
           <h4>Target Sensor</h4>
           <div class="setting-row">
             <label>Detection range</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="600" step="10" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> cm</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="6" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> m</span>
             ${this._infoTip("Maximum detection distance for the target sensor. Auto-set from room dimensions.")}
           </div>
           <div class="setting-row">
@@ -3655,17 +3655,17 @@ export class EverythingPresenceProPanel extends LitElement {
           <h4>Static Sensor</h4>
           <div class="setting-row">
             <label>Min distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="0" max="2500" step="10" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> cm</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> m</span>
             ${this._infoTip("Minimum detection distance for the static sensor.")}
           </div>
           <div class="setting-row">
             <label>Max distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="2500" step="10" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> cm</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> m</span>
             ${this._infoTip("Maximum detection distance for the static sensor. Auto-set from room dimensions.")}
           </div>
           <div class="setting-row">
             <label>Trigger distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="2500" step="10" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> cm</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> m</span>
             ${this._infoTip("Distance at which the static sensor triggers presence.")}
           </div>
         </div>

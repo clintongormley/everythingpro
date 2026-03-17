@@ -586,7 +586,7 @@ class xt extends vt{}xt.directiveName="unsafeSVG",xt.resultType=2;const mt=(t=>(
           </div>
         </div>
       </div>
-    `}_toggleAccordion(t){const e=new Set(this._openAccordions);e.has(t)?e.delete(t):e.add(t),this._openAccordions=e}_autoDetectionRange(){const t=Math.max(this._roomWidth,this._roomDepth);if(t<=0)return 0;const e=t/10;return 50*Math.ceil(e/50)}_renderSettings(){return O`
+    `}_toggleAccordion(t){const e=new Set(this._openAccordions);e.has(t)?e.delete(t):e.add(t),this._openAccordions=e}_autoDetectionRange(){const t=Math.max(this._roomWidth,this._roomDepth);if(t<=0)return 0;const e=t/1e3;return Math.ceil(2*e)/2}_renderSettings(){return O`
       <div class="panel">
         ${this._renderHeader()}
         <div class="settings-container">
@@ -609,12 +609,12 @@ class xt extends vt{}xt.directiveName="unsafeSVG",xt.resultType=2;const mt=(t=>(
       </div>
     `}_renderSettingsSection(t){switch(t){case"detection":return this._renderDetectionRanges();case"sensitivity":return this._renderSensitivities();case"reporting":return this._renderReporting();default:return V}}_infoTip(t){return O`<span class="setting-info"><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${t}</span></span>`}_renderDetectionRanges(){const t=this._autoDetectionRange(),e=this._getGridRoomMetrics();return O`
       <div class="settings-section">
-        ${e?O`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong>${e.furthestM}m</strong></p>`:V}
+        ${e?O`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong style="color: var(--error-color, #e53935);">${e.furthestM}m</strong></p>`:V}
         <div class="setting-group">
           <h4>Target Sensor</h4>
           <div class="setting-row">
             <label>Detection range</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(t)} min="0" max="600" step="10" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${t}</span> cm</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(t)} min="0" max="6" step="0.1" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${t}</span> m</span>
             ${this._infoTip("Maximum detection distance for the target sensor. Auto-set from room dimensions.")}
           </div>
           <div class="setting-row">
@@ -631,17 +631,17 @@ class xt extends vt{}xt.directiveName="unsafeSVG",xt.resultType=2;const mt=(t=>(
           <h4>Static Sensor</h4>
           <div class="setting-row">
             <label>Min distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="0" max="2500" step="10" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">0</span> cm</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="0" max="25" step="0.1" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">0</span> m</span>
             ${this._infoTip("Minimum detection distance for the static sensor.")}
           </div>
           <div class="setting-row">
             <label>Max distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(t)} min="0" max="2500" step="10" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${t}</span> cm</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(t)} min="0" max="25" step="0.1" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${t}</span> m</span>
             ${this._infoTip("Maximum detection distance for the static sensor. Auto-set from room dimensions.")}
           </div>
           <div class="setting-row">
             <label>Trigger distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(t)} min="0" max="2500" step="10" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${t}</span> cm</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(t)} min="0" max="25" step="0.1" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${t}</span> m</span>
             ${this._infoTip("Distance at which the static sensor triggers presence.")}
           </div>
         </div>
