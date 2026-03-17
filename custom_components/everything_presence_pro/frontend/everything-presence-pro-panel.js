@@ -605,6 +605,7 @@ class xt extends vt{}xt.directiveName="unsafeSVG",xt.resultType=2;const mt=(t=>(
                 `:V}
               </div>
             `})}
+          ${this._renderSaveCancelButtons()}
         </div>
       </div>
     `}_renderSettingsSection(t){switch(t){case"detection":return this._renderDetectionRanges();case"sensitivity":return this._renderSensitivities();case"reporting":return this._renderReporting();default:return V}}_infoTip(t){return O`<span class="setting-info"><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${t}</span></span>`}_renderDetectionRanges(){const t=this._autoDetectionRange(),e=this._getGridRoomMetrics();return O`

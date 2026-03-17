@@ -3606,6 +3606,7 @@ export class EverythingPresenceProPanel extends LitElement {
               </div>
             `;
           })}
+          ${this._renderSaveCancelButtons()}
         </div>
       </div>
     `;
