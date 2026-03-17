@@ -2514,22 +2514,13 @@ export class EverythingPresenceProPanel extends LitElement {
       display: inline-flex;
       align-items: center;
       flex-shrink: 0;
+      margin-left: 8px;
     }
 
-    .setting-info-btn {
-      background: none;
-      border: 1px solid var(--divider-color, #ccc);
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      min-width: 20px;
-      font-size: 11px;
-      color: var(--secondary-text-color, #757575);
+    .setting-info ha-icon {
+      --mdc-icon-size: 18px;
+      color: var(--primary-text-color, #212121);
       cursor: default;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
     }
 
     .setting-info .setting-info-tooltip {
@@ -2543,10 +2534,10 @@ export class EverythingPresenceProPanel extends LitElement {
       padding: 10px 12px;
       font-size: 12px;
       color: var(--primary-text-color, #212121);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       white-space: normal;
       width: 240px;
-      z-index: 10;
+      z-index: 100;
       line-height: 1.4;
     }
 
@@ -3561,7 +3552,7 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _infoTip(text: string) {
-    return html`<span class="setting-info"><span class="setting-info-btn">i</span><span class="setting-info-tooltip">${text}</span></span>`;
+    return html`<span class="setting-info"><ha-icon icon="mdi:information-outline"></ha-icon><span class="setting-info-tooltip">${text}</span></span>`;
   }
 
   private _renderDetectionRanges() {
@@ -3571,31 +3562,36 @@ export class EverythingPresenceProPanel extends LitElement {
         <div class="setting-group">
           <h4>Target Sensor</h4>
           <div class="setting-row">
-            <label>Detection range ${this._infoTip("Maximum detection distance for the target sensor. Auto-set from room dimensions.")}</label>
+            <label>Detection range</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="600" step="10" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> cm</span>
+            ${this._infoTip("Maximum detection distance for the target sensor. Auto-set from room dimensions.")}
           </div>
           <div class="setting-row">
-            <label>Update rate ${this._infoTip("How often the sensor reports target data.")}</label>
+            <label>Update rate</label>
             <select class="setting-input">
               <option value="5" selected>5 Hz (default)</option>
               <option value="10">10 Hz (fast)</option>
               <option value="2">2 Hz (low power)</option>
             </select>
+            ${this._infoTip("How often the sensor reports target data.")}
           </div>
         </div>
         <div class="setting-group">
           <h4>Static Sensor</h4>
           <div class="setting-row">
-            <label>Min distance ${this._infoTip("Minimum detection distance for the static sensor.")}</label>
+            <label>Min distance</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="0" max="2500" step="10" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> cm</span>
+            ${this._infoTip("Minimum detection distance for the static sensor.")}
           </div>
           <div class="setting-row">
-            <label>Max distance ${this._infoTip("Maximum detection distance for the static sensor. Auto-set from room dimensions.")}</label>
+            <label>Max distance</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="2500" step="10" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> cm</span>
+            ${this._infoTip("Maximum detection distance for the static sensor. Auto-set from room dimensions.")}
           </div>
           <div class="setting-row">
-            <label>Trigger distance ${this._infoTip("Distance at which the static sensor triggers presence.")}</label>
+            <label>Trigger distance</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="2500" step="10" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> cm</span>
+            ${this._infoTip("Distance at which the static sensor triggers presence.")}
           </div>
         </div>
       </div>
@@ -3608,23 +3604,27 @@ export class EverythingPresenceProPanel extends LitElement {
         <div class="setting-group">
           <h4>Motion Sensor</h4>
           <div class="setting-row">
-            <label>Presence timeout ${this._infoTip("Time after last motion before the motion sensor clears.")}</label>
+            <label>Presence timeout</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" value="5" min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">5</span> sec</span>
+            ${this._infoTip("Time after last motion before the motion sensor clears.")}
           </div>
         </div>
         <div class="setting-group">
           <h4>Static Sensor</h4>
           <div class="setting-row">
-            <label>Presence timeout ${this._infoTip("Time after last static detection before the sensor clears.")}</label>
+            <label>Presence timeout</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" value="30" min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">30</span> sec</span>
+            ${this._infoTip("Time after last static detection before the sensor clears.")}
           </div>
           <div class="setting-row">
-            <label>Trigger sensitivity ${this._infoTip("How easily static presence is initially detected. Higher = more sensitive.")}</label>
+            <label>Trigger sensitivity</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="7" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">7</span></span>
+            ${this._infoTip("How easily static presence is initially detected. Higher = more sensitive.")}
           </div>
           <div class="setting-row">
-            <label>Sustain sensitivity ${this._infoTip("How easily static presence is sustained after initial detection. Higher = holds longer.")}</label>
+            <label>Sustain sensitivity</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="5" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">5</span></span>
+            ${this._infoTip("How easily static presence is sustained after initial detection. Higher = holds longer.")}
           </div>
         </div>
         <div class="setting-group">
@@ -3649,20 +3649,24 @@ export class EverythingPresenceProPanel extends LitElement {
       <div class="zone-type-group">
         <h5>${label}</h5>
         <div class="setting-row">
-          <label>Presence timeout ${this._infoTip("Time after last target detection in this zone type before presence clears.")}</label>
+          <label>Presence timeout</label>
           <span class="setting-input-unit"><input type="range" class="setting-range" value=${timeout} min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${timeout}</span> sec</span>
+          ${this._infoTip("Time after last target detection in this zone type before presence clears.")}
         </div>
         <div class="setting-row">
-          <label>Trigger sensitivity ${this._infoTip("Consecutive frames needed to confirm target presence. Lower = more sensitive.")}</label>
+          <label>Trigger sensitivity</label>
           <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${trigger} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${trigger}</span></span>
+          ${this._infoTip("Consecutive frames needed to confirm target presence. Lower = more sensitive.")}
         </div>
         <div class="setting-row">
-          <label>Sustain sensitivity ${this._infoTip("Consecutive empty frames needed before target is considered gone. Lower = clears faster.")}</label>
+          <label>Sustain sensitivity</label>
           <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${sustain} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${sustain}</span></span>
+          ${this._infoTip("Consecutive empty frames needed before target is considered gone. Lower = clears faster.")}
         </div>
         <div class="setting-row">
-          <label>Expect appear/vanish ${this._infoTip("Enable if targets typically enter/leave through this zone (e.g. doorways).")}</label>
+          <label>Expect appear/vanish</label>
           <input type="checkbox" class="setting-toggle" ?checked=${expectAppearVanish} />
+          ${this._infoTip("Enable if targets typically enter/leave through this zone (e.g. doorways).")}
         </div>
       </div>
     `;
@@ -3676,22 +3680,27 @@ export class EverythingPresenceProPanel extends LitElement {
           <div class="setting-row">
             <label>Occupancy</label>
             <label class="toggle-switch"><input type="checkbox" checked /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Combined room occupancy from all sensors.")}
           </div>
           <div class="setting-row">
             <label>Static presence</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("mmWave static presence detection.")}
           </div>
           <div class="setting-row">
             <label>Motion presence</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("PIR motion detection.")}
           </div>
           <div class="setting-row">
             <label>Target presence</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Whether any target is actively tracked.")}
           </div>
           <div class="setting-row">
             <label>Target count</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Number of targets detected in the room.")}
           </div>
         </div>
         <div class="setting-group">
@@ -3699,10 +3708,12 @@ export class EverythingPresenceProPanel extends LitElement {
           <div class="setting-row">
             <label>Presence</label>
             <label class="toggle-switch"><input type="checkbox" checked /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Per-zone occupancy based on target tracking.")}
           </div>
           <div class="setting-row">
             <label>Target count</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Number of targets in each zone.")}
           </div>
         </div>
         <div class="setting-group">
@@ -3710,30 +3721,37 @@ export class EverythingPresenceProPanel extends LitElement {
           <div class="setting-row">
             <label>XY position, relative to sensor</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Raw XY coordinates from the sensor.")}
           </div>
           <div class="setting-row">
             <label>XY position, relative to grid</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("XY coordinates mapped to the room grid.")}
           </div>
           <div class="setting-row">
             <label>Active</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Whether each target slot is actively tracking.")}
           </div>
           <div class="setting-row">
             <label>Distance</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Distance from sensor to each target.")}
           </div>
           <div class="setting-row">
             <label>Angle</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Angle from sensor to each target.")}
           </div>
           <div class="setting-row">
             <label>Speed</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Movement speed of each target.")}
           </div>
           <div class="setting-row">
             <label>Resolution</label>
             <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            ${this._infoTip("Detection resolution for each target.")}
           </div>
         </div>
       </div>
