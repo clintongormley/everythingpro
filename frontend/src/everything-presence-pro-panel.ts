@@ -3630,8 +3630,10 @@ export class EverythingPresenceProPanel extends LitElement {
 
   private _renderDetectionRanges() {
     const autoRange = this._autoDetectionRange();
+    const metrics = this._getGridRoomMetrics();
     return html`
       <div class="settings-section">
+        ${metrics ? html`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong>${metrics.furthestM}m</strong></p>` : nothing}
         <div class="setting-group">
           <h4>Target Sensor</h4>
           <div class="setting-row">
