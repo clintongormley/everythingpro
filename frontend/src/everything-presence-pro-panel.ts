@@ -2520,6 +2520,10 @@ export class EverythingPresenceProPanel extends LitElement {
       font-size: 14px;
       color: var(--secondary-text-color, #757575);
       font-weight: 500;
+      display: inline-block;
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
     }
 
     .setting-input {

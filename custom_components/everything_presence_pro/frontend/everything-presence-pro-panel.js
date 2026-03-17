@@ -2509,6 +2509,10 @@ class xt extends ft{}xt.directiveName="unsafeSVG",xt.resultType=2;const mt=(t=>(
       font-size: 14px;
       color: var(--secondary-text-color, #757575);
       font-weight: 500;
+      display: inline-block;
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
     }
 
     .setting-input {
