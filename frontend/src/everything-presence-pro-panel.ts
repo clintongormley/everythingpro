@@ -1269,6 +1269,8 @@ export class EverythingPresenceProPanel extends LitElement {
     .grid-container {
       position: relative;
       display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
     }
 
     .grid {
@@ -3090,7 +3092,7 @@ export class EverythingPresenceProPanel extends LitElement {
     const maxRow = noRoom ? GRID_ROWS - 1 : bounds.maxRow;
     const visCols = maxCol - minCol + 1;
     const visRows = maxRow - minRow + 1;
-    const maxPx = 480;
+    const maxPx = Math.min(480, (this.offsetWidth || 800) * 0.55);
     const cellPx = Math.min(Math.floor(maxPx / visCols), Math.floor(maxPx / visRows), 32);
 
     return html`
@@ -3609,7 +3611,8 @@ export class EverythingPresenceProPanel extends LitElement {
 
     const visCols = maxCol - minCol + 1;
     const visRows = maxRow - minRow + 1;
-    const cellPx = Math.min(32, Math.floor(520 / Math.max(visCols, visRows)));
+    const maxGridPx = Math.min(520, (this.offsetWidth || 800) * 0.55);
+    const cellPx = Math.min(32, Math.floor(maxGridPx / visCols), Math.floor(maxGridPx / visRows));
 
     return html`
       <div class="main-area" @click=${(e: Event) => {
