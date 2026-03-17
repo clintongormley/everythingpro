@@ -2459,28 +2459,10 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderHeader() {
-    const headerBtns = this._setupStep === null ? html`
-      ${this._perspective ? html`
-        ${this._view !== "editor" ? html`
-          <button class="header-settings-btn" @click=${() => { this._view = "editor"; }} title="Edit zones">
-            <ha-icon icon="mdi:vector-square"></ha-icon>
-          </button>
-        ` : nothing}
-        ${this._view !== "live" ? html`
-          <button class="header-settings-btn" @click=${() => { this._view = "live"; }} title="Live overview">
-            <ha-icon icon="mdi:eye"></ha-icon>
-          </button>
-        ` : nothing}
-      ` : nothing}
-      ${this._view !== "settings" ? html`
-        <button class="header-settings-btn" @click=${() => { this._view = "settings"; }} title="Settings">
-          <ha-icon icon="mdi:cog"></ha-icon>
-        </button>
-      ` : html`
-        <button class="header-settings-btn" @click=${() => { this._view = "live"; }} title="Back">
-          <ha-icon icon="mdi:arrow-left"></ha-icon>
-        </button>
-      `}
+    const headerBtns = this._view !== "live" && this._setupStep === null ? html`
+      <button class="header-settings-btn" @click=${() => { this._view = "live"; }} title="Back">
+        <ha-icon icon="mdi:arrow-left"></ha-icon>
+      </button>
     ` : nothing;
 
     return html`
