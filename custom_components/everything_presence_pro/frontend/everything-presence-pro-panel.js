@@ -1106,7 +1106,7 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           `:V}
         `)}
 
-        <div class="live-section-header" style="padding-top: 16px;">Detection zones</div>
+        <button class="live-section-header live-section-link" style="padding-top: 16px;" @click=${()=>{this._view="editor",this._sidebarTab="zones"}}>Detection zones</button>
         ${o?i.slice(3).map(t=>L`
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${t.on?"on":"off"}"></div>
@@ -2297,6 +2297,17 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
       padding: 12px;
       border-top: 1px solid var(--divider-color, #eee);
       margin-top: auto;
+    }
+
+    .live-section-link {
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: var(--primary-color, #03a9f4);
+    }
+
+    .live-section-link:hover {
+      text-decoration: underline;
     }
 
     .live-section-header {
