@@ -165,6 +165,7 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones, -1/-2 = overlays
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
+  @state() private _showLiveMenu = false;
   @state() private _showCustomIconPicker = false;
   @state() private _customIconValue = "";
   @state() private _furniture: FurnitureItem[] = [];
@@ -2211,11 +2212,79 @@ export class EverythingPresenceProPanel extends LitElement {
     }
 
     /* Live sidebar */
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 4px 4px 12px;
+    }
+
     .sidebar-title {
       font-size: 15px;
       font-weight: 600;
       padding: 10px 12px 8px;
       color: var(--primary-text-color, #212121);
+    }
+
+    .sidebar-header .sidebar-title {
+      padding: 0;
+    }
+
+    .sidebar-menu-wrapper {
+      position: relative;
+    }
+
+    .sidebar-menu-btn {
+      background: none;
+      border: none;
+      color: var(--secondary-text-color, #757575);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+    }
+
+    .sidebar-menu-btn:hover {
+      background: var(--secondary-background-color, #f0f0f0);
+    }
+
+    .sidebar-menu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: var(--card-background-color, #fff);
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      z-index: 100;
+      min-width: 220px;
+      padding: 4px 0;
+    }
+
+    .sidebar-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 14px;
+      border: none;
+      background: none;
+      color: var(--primary-text-color, #212121);
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .sidebar-menu-item:hover {
+      background: var(--secondary-background-color, #f5f5f5);
+    }
+
+    .save-cancel-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px;
+      border-top: 1px solid var(--divider-color, #eee);
+      margin-top: auto;
     }
 
     .live-section-header {
@@ -2869,22 +2938,20 @@ export class EverythingPresenceProPanel extends LitElement {
     `;
   }
 
-  private _renderActionButtons() {
+  private _renderSaveCancelButtons() {
     return html`
-      <div class="mode-tabs">
-        <button
-          class="mode-tab"
-          @click=${() => { this._showTemplateLoad = true; this._showTemplateSave = false; }}
-        >Load</button>
-        <button
-          class="mode-tab"
-          @click=${() => { this._showTemplateSave = true; this._showTemplateLoad = false; }}
-        >Save</button>
-        <button
-          class="mode-tab apply-btn"
+      <div class="save-cancel-bar">
+        <button class="wizard-btn wizard-btn-back"
+          @click=${() => {
+            this._dirty = false;
+            this._view = "live";
+            this._loadEntryConfig(this._selectedEntryId);
+          }}
+        >Cancel</button>
+        <button class="wizard-btn wizard-btn-primary"
           ?disabled=${this._saving || !this._dirty}
           @click=${this._applyLayout}
-        >${this._saving ? "Applying..." : "Apply"}</button>
+        >${this._saving ? "Saving..." : "Save"}</button>
       </div>
     `;
   }
@@ -2895,7 +2962,7 @@ export class EverythingPresenceProPanel extends LitElement {
         ${this._renderHeader()}
         <div class="editor-layout">
           <div style="flex: 1; min-width: 0;">
-            ${this._dirty ? this._renderActionButtons() : nothing}
+            ${nothing}
             <div class="grid-container">
               ${this._perspective
                 ? this._renderLiveGrid()
@@ -2903,7 +2970,54 @@ export class EverythingPresenceProPanel extends LitElement {
             </div>
           </div>
           <div class="zone-sidebar">
-            <div class="sidebar-title">Live overview</div>
+            <div class="sidebar-header">
+              <span class="sidebar-title">Live overview</span>
+              <div class="sidebar-menu-wrapper">
+                <button class="sidebar-menu-btn" @click=${() => { this._showLiveMenu = !this._showLiveMenu; }}>
+                  <ha-icon icon="mdi:dots-vertical" style="--mdc-icon-size: 20px;"></ha-icon>
+                </button>
+                ${this._showLiveMenu ? html`
+                  <div class="sidebar-menu" @click=${() => { this._showLiveMenu = false; }}>
+                    ${this._perspective ? html`
+                      <button class="sidebar-menu-item" @click=${() => { this._view = "editor"; this._sidebarTab = "zones"; }}>
+                        <ha-icon icon="mdi:vector-square" style="--mdc-icon-size: 18px;"></ha-icon> Detection zones
+                      </button>
+                      <button class="sidebar-menu-item" @click=${() => { this._view = "editor"; this._sidebarTab = "furniture"; }}>
+                        <ha-icon icon="mdi:sofa" style="--mdc-icon-size: 18px;"></ha-icon> Furniture
+                      </button>
+                    ` : nothing}
+                    <button class="sidebar-menu-item" @click=${() => { this._view = "settings"; }}>
+                      <ha-icon icon="mdi:cog" style="--mdc-icon-size: 18px;"></ha-icon> Sensor configuration
+                    </button>
+                    <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 4px 0;"/>
+                    <button class="sidebar-menu-item" @click=${this._changePlacement}>
+                      <ha-icon icon="mdi:target" style="--mdc-icon-size: 18px;"></ha-icon> Room size calibration
+                    </button>
+                    ${this._perspective ? html`
+                      <button class="sidebar-menu-item" style="color: var(--error-color, #f44336);" @click=${() => {
+                        this._perspective = null;
+                        this._roomWidth = 0;
+                        this._roomDepth = 0;
+                        this._grid = new Uint8Array(GRID_COLS * GRID_ROWS);
+                        this._zoneConfigs = new Array(MAX_ZONES).fill(null);
+                        this._furniture = [];
+                        this._dirty = true;
+                        this._applyLayout();
+                      }}>
+                        <ha-icon icon="mdi:delete" style="--mdc-icon-size: 18px;"></ha-icon> Delete room calibration
+                      </button>
+                    ` : nothing}
+                    <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 4px 0;"/>
+                    <button class="sidebar-menu-item" @click=${() => { this._showTemplateSave = true; }}>
+                      <ha-icon icon="mdi:content-save" style="--mdc-icon-size: 18px;"></ha-icon> Save template
+                    </button>
+                    <button class="sidebar-menu-item" @click=${() => { this._showTemplateLoad = true; }}>
+                      <ha-icon icon="mdi:folder-open" style="--mdc-icon-size: 18px;"></ha-icon> Load template
+                    </button>
+                  </div>
+                ` : nothing}
+              </div>
+            </div>
             ${this._renderLiveSidebar()}
           </div>
         </div>
@@ -3453,7 +3567,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
         <div class="editor-layout">
           <div style="flex: 1; min-width: 0;">
-            ${this._renderActionButtons()}
+            ${nothing}
             <!-- Grid -->
             <div class="grid-container" @click=${(e: Event) => {
             if (!(e.target as HTMLElement).closest(".furniture-item")) {
@@ -3494,6 +3608,7 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._sidebarTab === "zones"
               ? this._renderZoneSidebar()
               : this._renderFurnitureSidebar()}
+            ${this._renderSaveCancelButtons()}
           </div>
         </div>
 
@@ -3915,11 +4030,12 @@ export class EverythingPresenceProPanel extends LitElement {
     if (ss.humidity !== null) envSensors.push({ id: "humidity", label: "Humidity", value: `${ss.humidity.toFixed(1)} %` });
     if (ss.co2 !== null) envSensors.push({ id: "co2", label: "CO₂", value: `${Math.round(ss.co2)} ppm` });
 
+    const hasZones = sensorDefs.length > 3;
+
     return html`
       <div style="padding: 8px 0;">
         <div class="live-section-header">Presence</div>
-        ${sensorDefs.map((s, i) => html`
-          ${i === 3 && sensorDefs.length > 3 ? html`<hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 6px 12px;">` : nothing}
+        ${sensorDefs.slice(0, 3).map((s) => html`
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>
             <span class="live-sensor-label">${s.label}</span>
@@ -3935,8 +4051,32 @@ export class EverythingPresenceProPanel extends LitElement {
           ` : nothing}
         `)}
 
+        <div class="live-section-header" style="padding-top: 16px;">Detection zones</div>
+        ${hasZones ? sensorDefs.slice(3).map((s) => html`
+          <div class="live-sensor-row">
+            <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>
+            <span class="live-sensor-label">${s.label}</span>
+            <span class="live-sensor-state ${s.on ? "detected" : ""}">${s.on ? "Detected" : "Clear"}</span>
+            <button class="live-sensor-info-btn"
+              @click=${() => { this._expandedSensorInfo = this._expandedSensorInfo === s.id ? null : s.id; }}
+            >
+              <ha-icon icon="mdi:information-outline" style="--mdc-icon-size: 16px;"></ha-icon>
+            </button>
+          </div>
+          ${this._expandedSensorInfo === s.id ? html`
+            <div class="live-sensor-info-text">${s.info}</div>
+          ` : nothing}
+        `) : html`
+          <button class="live-nav-link" style="padding: 4px 12px;" @click=${() => { this._view = "editor"; this._sidebarTab = "zones"; }}>
+            <ha-icon icon="mdi:plus" style="--mdc-icon-size: 16px;"></ha-icon>
+            Add zones
+          </button>
+        `}
+
+        <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 10px 12px;"/>
+
         ${envSensors.length ? html`
-          <div class="live-section-header" style="padding-top: 16px;">Environment</div>
+          <div class="live-section-header">Environment</div>
           ${envSensors.map((s) => html`
             <div class="live-sensor-row">
               <span class="live-sensor-label">${s.label}</span>
@@ -3945,26 +4085,6 @@ export class EverythingPresenceProPanel extends LitElement {
           `)}
         ` : nothing}
 
-        <div class="live-nav-links">
-          ${this._perspective ? html`
-            <button class="live-nav-link" @click=${() => { this._view = "editor"; this._sidebarTab = "zones"; }}>
-              <ha-icon icon="mdi:vector-square" style="--mdc-icon-size: 16px;"></ha-icon>
-              Edit zones
-            </button>
-            <button class="live-nav-link" @click=${() => { this._view = "editor"; this._sidebarTab = "furniture"; }}>
-              <ha-icon icon="mdi:sofa" style="--mdc-icon-size: 16px;"></ha-icon>
-              Edit furniture
-            </button>
-          ` : nothing}
-          <button class="live-nav-link" @click=${() => { this._view = "settings"; }}>
-            <ha-icon icon="mdi:cog" style="--mdc-icon-size: 16px;"></ha-icon>
-            Configuration
-          </button>
-          <button class="live-nav-link" @click=${this._changePlacement}>
-            <ha-icon icon="mdi:target" style="--mdc-icon-size: 16px;"></ha-icon>
-            Redo room calibration
-          </button>
-        </div>
       </div>
     `;
   }
