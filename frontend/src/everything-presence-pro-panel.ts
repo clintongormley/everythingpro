@@ -3445,7 +3445,7 @@ export class EverythingPresenceProPanel extends LitElement {
     return html`
       <div class="main-area" @click=${(e: Event) => {
         const el = e.target as HTMLElement;
-        if (!el.closest(".cell") && !el.closest(".zone-item") && !el.closest(".zone-scroll-area") && !el.closest(".overlay-item")) {
+        if (!el.closest(".grid") && !el.closest(".zone-sidebar")) {
           this._activeZone = null;
         }
       }}>
