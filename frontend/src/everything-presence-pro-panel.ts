@@ -134,7 +134,7 @@ const CORNER_OFFSET_LABELS: [string, string][] = [
 ];
 
 const GRID_COLS = 20;
-const GRID_ROWS = 16;
+const GRID_ROWS = 20;
 const GRID_CELL_COUNT = GRID_COLS * GRID_ROWS;
 const GRID_CELL_MM = 300; // each cell represents 300mm x 300mm
 const MAX_RANGE = 6000;
@@ -215,8 +215,8 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _wizardCapturing = false;
   @state() private _wizardCaptureProgress = 0; // 0..1
 
-  // View mode: editor (grid/zones) or settings (configuration)
-  @state() private _view: "editor" | "settings" = "editor";
+  // View mode: live (default), editor (grid/zones), or settings (configuration)
+  @state() private _view: "live" | "editor" | "settings" = "live";
   @state() private _settingsSection = "tracking";
 
 
@@ -2374,15 +2374,15 @@ export class EverythingPresenceProPanel extends LitElement {
       return this._renderWizard();
     }
 
-    if (!this._perspective) {
-      return this._renderNeedsCalibration();
-    }
-
     if (this._view === "settings") {
       return this._renderSettings();
     }
 
-    return this._renderEditor();
+    if (this._view === "editor" && this._perspective) {
+      return this._renderEditor();
+    }
+
+    return this._renderLiveOverview();
   }
 
   private _changePlacement(): void {
@@ -2397,14 +2397,28 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderHeader() {
-    const headerBtns = this._setupStep === null && this._perspective ? html`
-      <button
-        class="header-settings-btn"
-        @click=${() => { this._view = this._view === "settings" ? "editor" : "settings"; }}
-        title=${this._view === "settings" ? "Room layout" : "Settings"}
-      >
-        <ha-icon icon=${this._view === "settings" ? "mdi:grid" : "mdi:cog"}></ha-icon>
-      </button>
+    const headerBtns = this._setupStep === null ? html`
+      ${this._perspective ? html`
+        ${this._view !== "editor" ? html`
+          <button class="header-settings-btn" @click=${() => { this._view = "editor"; }} title="Edit zones">
+            <ha-icon icon="mdi:vector-square"></ha-icon>
+          </button>
+        ` : nothing}
+        ${this._view !== "live" ? html`
+          <button class="header-settings-btn" @click=${() => { this._view = "live"; }} title="Live overview">
+            <ha-icon icon="mdi:eye"></ha-icon>
+          </button>
+        ` : nothing}
+      ` : nothing}
+      ${this._view !== "settings" ? html`
+        <button class="header-settings-btn" @click=${() => { this._view = "settings"; }} title="Settings">
+          <ha-icon icon="mdi:cog"></ha-icon>
+        </button>
+      ` : html`
+        <button class="header-settings-btn" @click=${() => { this._view = "live"; }} title="Back">
+          <ha-icon icon="mdi:arrow-left"></ha-icon>
+        </button>
+      `}
     ` : nothing;
 
     return html`
@@ -2888,6 +2902,110 @@ export class EverythingPresenceProPanel extends LitElement {
               `
             )}
         </div>
+      </div>
+    `;
+  }
+
+  private _renderLiveOverview() {
+    return html`
+      <div class="panel">
+        ${this._renderHeader()}
+        <div class="editor-layout">
+          <div class="grid-container">
+            ${this._perspective
+              ? this._renderLiveGrid()
+              : this._renderUncalibratedFov()}
+          </div>
+          <div class="zone-sidebar">
+            ${this._renderLiveSidebar()}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderLiveGrid() {
+    // Reuse the same grid rendering as the editor but read-only (no painting)
+    const bounds = this._getRoomBounds();
+    const noRoom = bounds.minCol > bounds.maxCol;
+    const minCol = noRoom ? 0 : bounds.minCol;
+    const maxCol = noRoom ? GRID_COLS - 1 : bounds.maxCol;
+    const minRow = noRoom ? 0 : bounds.minRow;
+    const maxRow = noRoom ? GRID_ROWS - 1 : bounds.maxRow;
+    const visCols = maxCol - minCol + 1;
+    const visRows = maxRow - minRow + 1;
+    const maxPx = 480;
+    const cellPx = Math.min(Math.floor(maxPx / visCols), Math.floor(maxPx / visRows), 32);
+
+    return html`
+      <div
+        class="grid"
+        style="grid-template-columns: repeat(${visCols}, ${cellPx}px); grid-template-rows: repeat(${visRows}, ${cellPx}px);"
+      >
+        ${this._renderVisibleCells(minCol, maxCol, minRow, maxRow, cellPx)}
+      </div>
+      ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
+      <div class="targets-overlay" style="pointer-events: none;">
+        ${this._targets.map((t, i) => {
+          if (!t.active) return nothing;
+          const pos = this._mapTargetToGridCell(t);
+          if (!pos) return nothing;
+          const xPct = ((pos.col - minCol) / visCols) * 100;
+          const yPct = ((pos.row - minRow) / visRows) * 100;
+          return html`
+            <div
+              class="target-dot"
+              style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]};"
+            ></div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
+  private _renderUncalibratedFov() {
+    const occupied = this._entityState("occupancy")?.state === "on";
+    const fovColor = occupied ? "#4CAF50" : "var(--primary-color, #03a9f4)";
+
+    return html`
+      <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
+        <svg viewBox="0 0 200 220" width="200" height="220" style="display: block;">
+          <!-- Sensor at top center -->
+          <rect x="94" y="2" width="12" height="8" rx="3" fill="${fovColor}"/>
+          <circle cx="100" cy="2" r="4" fill="${fovColor}" opacity="0.4"/>
+
+          <!-- 120° FOV cone pointing down -->
+          <path d="M 100 10 L 10 210 A 120 120 0 0 0 190 210 Z"
+                fill="${fovColor}" opacity="${occupied ? 0.2 : 0.08}"
+                stroke="${fovColor}" stroke-width="1" opacity="${occupied ? 0.4 : 0.15}"/>
+
+          <!-- Range arcs -->
+          ${[70, 140].map((r) => {
+            const a1 = (-60 + 90) * Math.PI / 180;
+            const a2 = (60 + 90) * Math.PI / 180;
+            const x1 = 100 + r * Math.cos(a1), y1 = 10 + r * Math.sin(a1);
+            const x2 = 100 + r * Math.cos(a2), y2 = 10 + r * Math.sin(a2);
+            return svg`
+              <path d="M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}"
+                    fill="none" stroke="${fovColor}" stroke-width="1"
+                    stroke-dasharray="4 3" opacity="0.25"/>
+            `;
+          })}
+
+          ${occupied ? svg`
+            <text x="100" y="130" font-size="12" fill="${fovColor}" text-anchor="middle" font-weight="500">Detected</text>
+          ` : svg`
+            <text x="100" y="130" font-size="12" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">No presence</text>
+          `}
+        </svg>
+
+        <button
+          class="live-nav-link" style="margin-top: 16px;"
+          @click=${() => { this._setupStep = "guide"; }}
+        >
+          <ha-icon icon="mdi:target" style="--mdc-icon-size: 16px;"></ha-icon>
+          Calibrate room size
+        </button>
       </div>
     `;
   }
@@ -3874,10 +3992,12 @@ export class EverythingPresenceProPanel extends LitElement {
         `)}
 
         <div class="live-nav-links">
-          <button class="live-nav-link" @click=${() => { this._sidebarTab = "zones"; }}>
-            <ha-icon icon="mdi:vector-square" style="--mdc-icon-size: 16px;"></ha-icon>
-            Detection zones
-          </button>
+          ${this._perspective ? html`
+            <button class="live-nav-link" @click=${() => { this._view = "editor"; }}>
+              <ha-icon icon="mdi:vector-square" style="--mdc-icon-size: 16px;"></ha-icon>
+              Edit zones
+            </button>
+          ` : nothing}
           <button class="live-nav-link" @click=${() => { this._view = "settings"; }}>
             <ha-icon icon="mdi:cog" style="--mdc-icon-size: 16px;"></ha-icon>
             Configuration
