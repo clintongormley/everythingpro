@@ -228,7 +228,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   // View mode: live (default), editor (grid/zones), or settings (configuration)
   @state() private _view: "live" | "editor" | "settings" = "live";
-  @state() private _settingsSection = "tracking";
+  @state() private _openAccordions: Set<string> = new Set(["detection"]);
 
 
   // Perspective transform state (client-side, set after corner marking)
@@ -2413,17 +2413,55 @@ export class EverythingPresenceProPanel extends LitElement {
       padding: 0 16px;
     }
 
-    .settings-section-select {
-      width: 100%;
-      padding: 10px 12px;
-      font-size: 15px;
+    .accordion {
       border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 10px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
       background: var(--card-background-color, #fff);
-      color: var(--primary-text-color, #212121);
-      margin-bottom: 20px;
+    }
+
+    .accordion-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
       cursor: pointer;
-      appearance: auto;
+      user-select: none;
+      background: var(--card-background-color, #fff);
+      border: none;
+      width: 100%;
+      text-align: left;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--primary-text-color, #212121);
+    }
+
+    .accordion-header:hover {
+      background: var(--secondary-background-color, #f5f5f5);
+    }
+
+    .accordion-header ha-icon {
+      --mdc-icon-size: 20px;
+      color: var(--secondary-text-color, #757575);
+    }
+
+    .accordion-header .accordion-title {
+      flex: 1;
+    }
+
+    .accordion-chevron {
+      transition: transform 0.2s ease;
+      --mdc-icon-size: 20px;
+      color: var(--secondary-text-color, #757575);
+    }
+
+    .accordion-chevron[data-open] {
+      transform: rotate(180deg);
+    }
+
+    .accordion-body {
+      padding: 0 16px 16px;
     }
 
     .settings-section {
@@ -2508,6 +2546,67 @@ export class EverythingPresenceProPanel extends LitElement {
       height: 18px;
       accent-color: var(--primary-color, #03a9f4);
       cursor: pointer;
+    }
+
+    .zone-type-group {
+      background: var(--secondary-background-color, #f5f5f5);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .zone-type-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .zone-type-group h5 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary-text-color, #212121);
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: var(--divider-color, #ccc);
+      border-radius: 22px;
+      transition: background-color 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: var(--primary-color, #03a9f4);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(18px);
     }
   `;
 
@@ -3045,7 +3144,7 @@ export class EverythingPresenceProPanel extends LitElement {
                       </button>
                     ` : nothing}
                     <button class="sidebar-menu-item" @click=${() => { this._view = "settings"; }}>
-                      <ha-icon icon="mdi:cog" style="--mdc-icon-size: 18px;"></ha-icon> Sensor configuration
+                      <ha-icon icon="mdi:cog" style="--mdc-icon-size: 18px;"></ha-icon> Settings
                     </button>
                     <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 4px 0;"/>
                     <button class="sidebar-menu-item" @click=${this._changePlacement}>
@@ -3339,259 +3438,250 @@ export class EverythingPresenceProPanel extends LitElement {
     `;
   }
 
+  private _toggleAccordion(id: string) {
+    const next = new Set(this._openAccordions);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    this._openAccordions = next;
+  }
+
+  private _autoDetectionRange(): number {
+    const maxMm = Math.max(this._roomWidth, this._roomDepth);
+    if (maxMm <= 0) return 0;
+    const cm = maxMm / 10;
+    return Math.ceil(cm / 50) * 50;
+  }
+
   private _renderSettings() {
     const sections: { id: string; label: string; icon: string }[] = [
-      { id: "tracking", label: "Tracking sensor", icon: "mdi:crosshairs-gps" },
-      { id: "static", label: "Static sensor", icon: "mdi:motion-sensor" },
-      { id: "pir", label: "PIR sensor", icon: "mdi:motion" },
-      { id: "occupancy", label: "Occupancy & timeouts", icon: "mdi:account-clock" },
-      { id: "environment", label: "Environmental sensors", icon: "mdi:thermometer" },
-      { id: "entities", label: "Entities & data", icon: "mdi:format-list-checks" },
-      { id: "setup", label: "Room setup", icon: "mdi:floor-plan" },
+      { id: "detection", label: "Detection Ranges", icon: "mdi:signal-distance-variant" },
+      { id: "sensitivity", label: "Sensitivities and Timeout", icon: "mdi:tune-vertical" },
+      { id: "reporting", label: "Reporting", icon: "mdi:format-list-checks" },
     ];
 
     return html`
       <div class="panel">
         ${this._renderHeader()}
         <div class="settings-container">
-          <select
-            class="settings-section-select"
-            .value=${this._settingsSection}
-            @change=${(e: Event) => {
-              this._settingsSection = (e.target as HTMLSelectElement).value;
-            }}
-          >
-            ${sections.map((s) => html`
-              <option value=${s.id}>${s.label}</option>
-            `)}
-          </select>
+          <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 500;">Settings</h2>
+          ${sections.map((s) => {
+            const open = this._openAccordions.has(s.id);
+            return html`
+              <div class="accordion">
+                <button class="accordion-header" @click=${() => this._toggleAccordion(s.id)}>
+                  <ha-icon icon=${s.icon}></ha-icon>
+                  <span class="accordion-title">${s.label}</span>
+                  <ha-icon class="accordion-chevron" icon="mdi:chevron-down" ?data-open=${open}></ha-icon>
+                </button>
+                ${open ? html`
+                  <div class="accordion-body">
+                    ${this._renderSettingsSection(s.id)}
+                  </div>
+                ` : nothing}
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
 
-          <div class="settings-section">
-            ${this._renderSettingsSection()}
+  private _renderSettingsSection(id: string) {
+    switch (id) {
+      case "detection":
+        return this._renderDetectionRanges();
+      case "sensitivity":
+        return this._renderSensitivities();
+      case "reporting":
+        return this._renderReporting();
+      default:
+        return nothing;
+    }
+  }
+
+  private _renderDetectionRanges() {
+    const autoRange = this._autoDetectionRange();
+    return html`
+      <div class="settings-section">
+        <div class="setting-group">
+          <h4>Target Sensor</h4>
+          <div class="setting-row">
+            <label>Detection range</label>
+            <span class="setting-hint">Auto-set to furthest room point${autoRange > 0 ? ` (${autoRange} cm)` : ""}</span>
+            <input type="number" class="setting-input" .value=${String(autoRange)} min="0" max="600" step="10" /> cm
+          </div>
+          <div class="setting-row">
+            <label>Update rate</label>
+            <select class="setting-input">
+              <option value="5" selected>5 Hz (default)</option>
+              <option value="10">10 Hz (fast)</option>
+              <option value="2">2 Hz (low power)</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-group">
+          <h4>Static Sensor</h4>
+          <div class="setting-row">
+            <label>Min distance</label>
+            <input type="number" class="setting-input" value="0" min="0" max="2500" step="10" /> cm
+          </div>
+          <div class="setting-row">
+            <label>Max distance</label>
+            <span class="setting-hint">Auto-set to furthest room point${autoRange > 0 ? ` (${autoRange} cm)` : ""}</span>
+            <input type="number" class="setting-input" .value=${String(autoRange)} min="0" max="2500" step="10" /> cm
+          </div>
+          <div class="setting-row">
+            <label>Trigger distance</label>
+            <input type="number" class="setting-input" .value=${String(autoRange)} min="0" max="2500" step="10" /> cm
           </div>
         </div>
       </div>
     `;
   }
 
-  private _renderSettingsSection() {
-    switch (this._settingsSection) {
-      case "tracking":
-        return html`
-          <div class="setting-group">
-            <h4>Detection</h4>
-            <div class="setting-row">
-              <label>Detection range</label>
-              <span class="setting-hint">Auto-configured from room dimensions</span>
-              <span class="setting-value">${this._roomWidth > 0 && this._roomDepth > 0
-                ? `${(Math.max(this._roomWidth, this._roomDepth) / 1000).toFixed(1)}m`
-                : "Not set"}</span>
-            </div>
-            <div class="setting-row">
-              <label>Update rate</label>
-              <select class="setting-input">
-                <option value="5" selected>5 Hz (default)</option>
-                <option value="10">10 Hz (fast)</option>
-                <option value="2">2 Hz (low power)</option>
-              </select>
-            </div>
+  private _renderSensitivities() {
+    return html`
+      <div class="settings-section">
+        <div class="setting-group">
+          <h4>Motion Sensor</h4>
+          <div class="setting-row">
+            <label>Presence timeout</label>
+            <input type="number" class="setting-input" value="5" min="0" max="600" step="1" /> sec
           </div>
-          <div class="setting-group">
-            <h4>Target data</h4>
-            <div class="setting-row">
-              <label>Report target XY coordinates</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>Report target speed</label>
-              <input type="checkbox" class="setting-toggle" />
-            </div>
-            <div class="setting-row">
-              <label>Report target resolution</label>
-              <input type="checkbox" class="setting-toggle" />
-            </div>
+        </div>
+        <div class="setting-group">
+          <h4>Static Sensor</h4>
+          <div class="setting-row">
+            <label>Presence timeout</label>
+            <input type="number" class="setting-input" value="30" min="0" max="600" step="1" /> sec
           </div>
-        `;
-      case "static":
-        return html`
-          <div class="setting-group">
-            <h4>Sensitivity</h4>
-            <div class="setting-row">
-              <label>Trigger sensitivity</label>
-              <span class="setting-hint">How easily presence is detected</span>
-              <input type="range" class="setting-range" min="0" max="9" value="5" />
-            </div>
-            <div class="setting-row">
-              <label>Sustain sensitivity</label>
-              <span class="setting-hint">How long presence is held after last detection</span>
-              <input type="range" class="setting-range" min="0" max="9" value="5" />
-            </div>
+          <div class="setting-row">
+            <label>Trigger sensitivity</label>
+            <input type="range" class="setting-range" min="0" max="9" value="7" />
+            <span class="setting-value">7</span>
           </div>
-          <div class="setting-group">
-            <h4>Range</h4>
-            <div class="setting-row">
-              <label>Minimum distance</label>
-              <input type="number" class="setting-input" value="0" min="0" max="600" step="10" /> cm
-            </div>
-            <div class="setting-row">
-              <label>Maximum distance</label>
-              <input type="number" class="setting-input" value="600" min="0" max="600" step="10" /> cm
-            </div>
-            <div class="setting-row">
-              <label>Trigger distance</label>
-              <span class="setting-hint">Distance at which presence triggers</span>
-              <input type="number" class="setting-input" value="250" min="0" max="600" step="10" /> cm
-            </div>
+          <div class="setting-row">
+            <label>Sustain sensitivity</label>
+            <input type="range" class="setting-range" min="0" max="9" value="5" />
+            <span class="setting-value">5</span>
           </div>
-        `;
-      case "pir":
-        return html`
-          <div class="setting-group">
-            <h4>PIR motion sensor</h4>
-            <div class="setting-row">
-              <label>Enabled</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>Cooldown period</label>
-              <span class="setting-hint">Time after last motion before clearing</span>
-              <input type="number" class="setting-input" value="3" min="1" max="60" step="1" /> sec
-            </div>
+        </div>
+        <div class="setting-group">
+          <h4>Target Sensor</h4>
+          ${this._renderZoneTypeProfile("Entrance / Exit", 5, 1, 1, true)}
+          ${this._renderZoneTypeProfile("Thoroughfare", 3, 1, 1, false)}
+          ${this._renderZoneTypeProfile("Living area", 15, 3, 3, false)}
+          ${this._renderZoneTypeProfile("Bed / Sofa", 60, 5, 1, false)}
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderZoneTypeProfile(
+    label: string,
+    timeout: number,
+    trigger: number,
+    sustain: number,
+    expectAppearVanish: boolean,
+  ) {
+    return html`
+      <div class="zone-type-group">
+        <h5>${label}</h5>
+        <div class="setting-row">
+          <label>Presence timeout</label>
+          <input type="number" class="setting-input" value=${timeout} min="0" max="600" step="1" /> sec
+        </div>
+        <div class="setting-row">
+          <label>Trigger sensitivity</label>
+          <input type="range" class="setting-range" min="0" max="9" value=${trigger} />
+          <span class="setting-value">${trigger}</span>
+        </div>
+        <div class="setting-row">
+          <label>Sustain sensitivity</label>
+          <input type="range" class="setting-range" min="0" max="9" value=${sustain} />
+          <span class="setting-value">${sustain}</span>
+        </div>
+        <div class="setting-row">
+          <label>Expect appear/vanish</label>
+          <input type="checkbox" class="setting-toggle" ?checked=${expectAppearVanish} />
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderReporting() {
+    return html`
+      <div class="settings-section">
+        <div class="setting-group">
+          <h4>Room level</h4>
+          <div class="setting-row">
+            <label>Occupancy</label>
+            <label class="toggle-switch"><input type="checkbox" checked /><span class="toggle-slider"></span></label>
           </div>
-        `;
-      case "occupancy":
-        return html`
-          <div class="setting-group">
-            <h4>Room occupancy</h4>
-            <div class="setting-row">
-              <label>Occupancy timeout</label>
-              <span class="setting-hint">Time after last detection before room clears</span>
-              <input type="number" class="setting-input" value="15" min="0" max="600" step="1" /> sec
-            </div>
-            <div class="setting-row">
-              <label>Motion timeout</label>
-              <span class="setting-hint">Time after last motion before motion sensor clears</span>
-              <input type="number" class="setting-input" value="5" min="0" max="120" step="1" /> sec
-            </div>
+          <div class="setting-row">
+            <label>Static presence</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
           </div>
-          <div class="setting-group">
-            <h4>Zone timeouts</h4>
-            <div class="setting-row">
-              <label>Zone occupancy timeout</label>
-              <span class="setting-hint">Per-zone clear delay after target leaves</span>
-              <input type="number" class="setting-input" value="10" min="0" max="300" step="1" /> sec
-            </div>
-            <div class="setting-row">
-              <label>Assumed presence hysteresis</label>
-              <span class="setting-hint">Extra hold time when sustained presence detected</span>
-              <input type="number" class="setting-input" value="30" min="0" max="600" step="5" /> sec
-            </div>
+          <div class="setting-row">
+            <label>Motion presence</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
           </div>
-          <div class="setting-group">
-            <h4>AI learning</h4>
-            <div class="setting-row">
-              <label>Continuous learning</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <button class="wizard-btn wizard-btn-back" style="width: auto;">
-                <ha-icon icon="mdi:brain"></ha-icon>
-                Run empty room calibration
-              </button>
-            </div>
+          <div class="setting-row">
+            <label>Target presence</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
           </div>
-        `;
-      case "environment":
-        return html`
-          <div class="setting-group">
-            <h4>Illuminance (BH1750)</h4>
-            <div class="setting-row">
-              <label>Offset</label>
-              <span class="setting-hint">Adjust reading by fixed amount</span>
-              <input type="number" class="setting-input" value="0" step="1" /> lux
-            </div>
+          <div class="setting-row">
+            <label>Target count</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
           </div>
-          <div class="setting-group">
-            <h4>Humidity (SHTC3)</h4>
-            <div class="setting-row">
-              <label>Offset</label>
-              <input type="number" class="setting-input" value="0" step="0.1" /> %
-            </div>
+        </div>
+        <div class="setting-group">
+          <h4>Zone level</h4>
+          <div class="setting-row">
+            <label>Presence</label>
+            <label class="toggle-switch"><input type="checkbox" checked /><span class="toggle-slider"></span></label>
           </div>
-          <div class="setting-group">
-            <h4>Temperature (SHTC3)</h4>
-            <div class="setting-row">
-              <label>Offset</label>
-              <input type="number" class="setting-input" value="0" step="0.1" /> °C
-            </div>
+          <div class="setting-row">
+            <label>Target count</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
           </div>
-        `;
-      case "entities":
-        return html`
-          <div class="setting-group">
-            <h4>Tracked entities</h4>
-            <p class="setting-hint" style="margin: 0 0 12px;">Choose which data the sensor reports to Home Assistant</p>
-            <div class="setting-row">
-              <label>Zone occupancy</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>Zone target counts</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>Target XY positions</label>
-              <input type="checkbox" class="setting-toggle" />
-            </div>
-            <div class="setting-row">
-              <label>PIR motion</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>Static presence</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>Illuminance</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>Temperature</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>Humidity</label>
-              <input type="checkbox" class="setting-toggle" checked />
-            </div>
-            <div class="setting-row">
-              <label>CO₂</label>
-              <input type="checkbox" class="setting-toggle" />
-            </div>
+        </div>
+        <div class="setting-group">
+          <h4>Target level</h4>
+          <div class="setting-row">
+            <label>XY position, relative to sensor</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
           </div>
-        `;
-      case "setup":
-        return html`
-          <div class="setting-group">
-            <h4>Room calibration</h4>
-            <div class="setting-row">
-              <label>Room dimensions</label>
-              <span class="setting-value">${this._roomWidth > 0
-                ? `${(this._roomWidth / 1000).toFixed(1)}m × ${(this._roomDepth / 1000).toFixed(1)}m`
-                : "Not calibrated"}</span>
-            </div>
-            <div class="setting-row">
-              <button class="wizard-btn wizard-btn-back" style="width: auto;"
-                @click=${this._changePlacement}
-              >
-                <ha-icon icon="mdi:target"></ha-icon>
-                Re-run room calibration
-              </button>
-            </div>
+          <div class="setting-row">
+            <label>XY position, relative to grid</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
           </div>
-        `;
-      default:
-        return nothing;
-    }
+          <div class="setting-row">
+            <label>Active</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <label>Distance</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <label>Angle</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <label>Speed</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <label>Resolution</label>
+            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   private _renderEditor() {
