@@ -750,7 +750,7 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
             </div>
           </div>
         `;default:return V}}_renderEditor(){const t=this._frozenBounds??this._getRoomBounds(),e=t.minCol>t.maxCol,i=e?0:t.minCol,r=e?19:t.maxCol,o=e?0:t.minRow,s=e?19:t.maxRow,n=r-i+1,a=s-o+1,l=Math.min(32,Math.floor(520/Math.max(n,a)));return L`
-      <div class="main-area">
+      <div class="main-area" @click=${t=>{const e=t.target;e.closest(".cell")||e.closest(".zone-item")||e.closest(".zone-scroll-area")||e.closest(".overlay-item")||(this._activeZone=null)}}>
         ${this._renderHeader()}
 
         <div class="editor-layout">

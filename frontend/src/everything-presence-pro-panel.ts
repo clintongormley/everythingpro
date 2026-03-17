@@ -3443,7 +3443,12 @@ export class EverythingPresenceProPanel extends LitElement {
     const cellPx = Math.min(32, Math.floor(520 / Math.max(visCols, visRows)));
 
     return html`
-      <div class="main-area">
+      <div class="main-area" @click=${(e: Event) => {
+        const el = e.target as HTMLElement;
+        if (!el.closest(".cell") && !el.closest(".zone-item") && !el.closest(".zone-scroll-area") && !el.closest(".overlay-item")) {
+          this._activeZone = null;
+        }
+      }}>
         ${this._renderHeader()}
 
         <div class="editor-layout">
