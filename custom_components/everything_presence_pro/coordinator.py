@@ -26,6 +26,8 @@ from .const import (
     DEFAULT_PORT,
     DOMAIN,
     GRID_CELL_SIZE_MM,
+    GRID_COLS,
+    GRID_ROWS,
     MAX_TARGETS,
     SMOOTH_WINDOW_S,
 )
@@ -238,14 +240,14 @@ class EverythingPresenceProCoordinator:
             self._load_frontend_grid(grid_bytes)
 
     def _load_frontend_grid(self, grid_bytes: list[int]) -> None:
-        """Create a 20x16 grid matching the frontend layout and load cell bytes.
+        """Create a grid matching the frontend layout and load cell bytes.
 
-        The frontend uses a fixed 20x16 grid (300mm cells) with the room
+        The frontend uses a fixed grid (300mm cells) with the room
         centered horizontally. We compute the grid origin so that room
         coordinate (0, 0) maps to the correct cell.
         """
-        cols = 20
-        rows = 16
+        cols = GRID_COLS
+        rows = GRID_ROWS
         cell_size = GRID_CELL_SIZE_MM
         # Room is centered horizontally in the 20-col grid
         t = self._sensor_transform

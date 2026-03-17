@@ -3,6 +3,8 @@
 DOMAIN = "everything_presence_pro"
 
 # Grid
+GRID_COLS = 20
+GRID_ROWS = 20
 GRID_CELL_SIZE_MM = 300  # Fixed 300mm × 300mm cells
 
 # LD2450 sensor limits
