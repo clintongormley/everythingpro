@@ -794,6 +794,7 @@ export class EverythingPresenceProPanel extends LitElement {
         })),
       });
       this._dirty = false;
+      this._view = "live";
 
       // Show rename dialog if backend detected entity_id mismatches
       const renames = result?.entity_id_renames || [];
