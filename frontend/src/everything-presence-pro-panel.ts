@@ -944,6 +944,22 @@ export class EverythingPresenceProPanel extends LitElement {
     };
   }
 
+  /** Get raw room bounds without padding (only actual inside cells) */
+  private _getRawRoomBounds(): { minCol: number; maxCol: number; minRow: number; maxRow: number } {
+    let minCol = GRID_COLS, maxCol = 0, minRow = GRID_ROWS, maxRow = 0;
+    for (let i = 0; i < GRID_CELL_COUNT; i++) {
+      if (cellIsInside(this._grid[i])) {
+        const col = i % GRID_COLS;
+        const row = Math.floor(i / GRID_COLS);
+        if (col < minCol) minCol = col;
+        if (col > maxCol) maxCol = col;
+        if (row < minRow) minRow = row;
+        if (row > maxRow) maxRow = row;
+      }
+    }
+    return { minCol, maxCol, minRow, maxRow };
+  }
+
   /** Map a target to a fractional grid cell position (col, row) */
   private _mapTargetToGridCell(
     target: Target,
@@ -954,11 +970,11 @@ export class EverythingPresenceProPanel extends LitElement {
     const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
     const startCol = Math.floor((GRID_COLS - roomCols) / 2);
 
-    // Use actual grid room bounds for clamping (respects user-expanded boundary)
-    const bounds = this._getRoomBounds();
-    const minMmX = (bounds.minCol - startCol) * GRID_CELL_MM;
-    const maxMmX = (bounds.maxCol - startCol + 1) * GRID_CELL_MM;
-    const maxMmY = (bounds.maxRow + 1) * GRID_CELL_MM;
+    // Use actual inside-cell bounds for clamping (no padding)
+    const raw = this._getRawRoomBounds();
+    const minMmX = (raw.minCol - startCol) * GRID_CELL_MM;
+    const maxMmX = (raw.maxCol - startCol + 1) * GRID_CELL_MM;
+    const maxMmY = (raw.maxRow + 1) * GRID_CELL_MM;
 
     // target.x/y are room-space mm (perspective applied server-side)
     const rx = Math.max(minMmX, Math.min(target.x, maxMmX));
