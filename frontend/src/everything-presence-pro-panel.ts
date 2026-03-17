@@ -228,7 +228,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   // View mode: live (default), editor (grid/zones), or settings (configuration)
   @state() private _view: "live" | "editor" | "settings" = "live";
-  @state() private _openAccordions: Set<string> = new Set(["detection"]);
+  @state() private _openAccordions: Set<string> = new Set();
 
 
   // Perspective transform state (client-side, set after corner marking)
@@ -2585,9 +2585,9 @@ export class EverythingPresenceProPanel extends LitElement {
       display: inline-block;
       width: 40px;
       min-width: 40px;
+      max-width: 40px;
       height: 22px;
-      flex-shrink: 0;
-      flex-grow: 0;
+      flex: 0 0 40px;
     }
 
     .toggle-switch input {
