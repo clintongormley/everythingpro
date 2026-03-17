@@ -950,13 +950,19 @@ export class EverythingPresenceProPanel extends LitElement {
   ): { col: number; row: number } | null {
     if (this._roomWidth <= 0 || this._roomDepth <= 0) return null;
 
-    // target.x/y are room-space mm (perspective applied server-side)
-    const rx = Math.max(0, Math.min(target.x, this._roomWidth));
-    const ry = Math.max(0, Math.min(target.y, this._roomDepth));
-
     // Room is centered horizontally in the grid
     const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
     const startCol = Math.floor((GRID_COLS - roomCols) / 2);
+
+    // Use actual grid room bounds for clamping (respects user-expanded boundary)
+    const bounds = this._getRoomBounds();
+    const minMmX = (bounds.minCol - startCol) * GRID_CELL_MM;
+    const maxMmX = (bounds.maxCol - startCol + 1) * GRID_CELL_MM;
+    const maxMmY = (bounds.maxRow + 1) * GRID_CELL_MM;
+
+    // target.x/y are room-space mm (perspective applied server-side)
+    const rx = Math.max(minMmX, Math.min(target.x, maxMmX));
+    const ry = Math.max(0, Math.min(target.y, maxMmY));
 
     const col = startCol + (rx / GRID_CELL_MM);
     const row = ry / GRID_CELL_MM;
