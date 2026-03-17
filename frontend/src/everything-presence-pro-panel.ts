@@ -918,49 +918,8 @@ export class EverythingPresenceProPanel extends LitElement {
 
   // -- Coordinate mapping (perspective transform) --
 
-  private _applyPerspective(
-    sx: number,
-    sy: number,
-    perspective: number[],
-  ): { rx: number; ry: number } {
-    const [a, b, c, d, e, f, g, h] = perspective;
-    const denom = g * sx + h * sy + 1;
-    if (Math.abs(denom) < 1e-10) return { rx: sx, ry: sy };
-    return {
-      rx: (a * sx + b * sy + c) / denom,
-      ry: (d * sx + e * sy + f) / denom,
-    };
-  }
-
-  private _sensorToRoom(
-    sx: number,
-    sy: number,
-  ): { rx: number; ry: number } {
-    if (!this._perspective) return { rx: sx, ry: sy };
-    const { rx, ry } = this._applyPerspective(sx, sy, this._perspective);
-    return {
-      rx: Math.max(0, Math.min(rx, this._roomWidth)),
-      ry: Math.max(0, Math.min(ry, this._roomDepth)),
-    };
-  }
-
   /**
-   * Map a target to percentage coordinates for the wizard preview.
-   * Applies the client-side perspective to raw sensor coords.
    */
-  private _mapTargetToPreviewPercent(
-    target: Target,
-  ): { x: number; y: number } {
-    if (this._perspective && this._roomWidth > 0 && this._roomDepth > 0) {
-      const { rx, ry } = this._sensorToRoom(target.raw_x, target.raw_y);
-      return {
-        x: (rx / this._roomWidth) * 100,
-        y: (ry / this._roomDepth) * 100,
-      };
-    }
-    return { x: 50, y: 50 };
-  }
-
   /**
    * Map a target to percentage coordinates for the editor grid.
    * Uses the backend's already-transformed x/y (perspective applied server-side).
@@ -1084,11 +1043,11 @@ export class EverythingPresenceProPanel extends LitElement {
       this._wizardCornerIndex = idx + 1;
     }
 
-    // If all 4 corners marked, compute dimensions and go to preview
+    // If all 4 corners marked, compute dimensions and save immediately
     if (this._wizardCorners.every((c) => c !== null)) {
       this._autoComputeRoomDimensions();
       this._computeWizardPerspective();
-      this._setupStep = "preview";
+      this._wizardFinish();
     }
   }
 
@@ -1181,6 +1140,7 @@ export class EverythingPresenceProPanel extends LitElement {
       this._roomDepth = this._wizardRoomDepth;
       this._initGridFromRoom();
       this._setupStep = null;
+      this._view = "live";
     } finally {
       this._wizardSaving = false;
     }
@@ -2484,9 +2444,6 @@ export class EverythingPresenceProPanel extends LitElement {
       case "corners":
         stepContent = this._renderWizardCorners();
         break;
-      case "preview":
-        stepContent = this._renderWizardPreview();
-        break;
     }
     return html`
       <div class="wizard-container">
@@ -2753,108 +2710,6 @@ export class EverythingPresenceProPanel extends LitElement {
                 `}
             </div>
           `}
-      </div>
-    `;
-  }
-
-  private _renderWizardPreview() {
-    const widthM = (this._wizardRoomWidth / 1000).toFixed(1);
-    const depthM = (this._wizardRoomDepth / 1000).toFixed(1);
-
-    // 300mm grid cells
-    const cellMm = 300;
-    const cols = Math.ceil(this._wizardRoomWidth / cellMm);
-    const rows = Math.ceil(this._wizardRoomDepth / cellMm);
-    const cellCount = cols * rows;
-
-    // Size each cell so the grid fits nicely — max 480px wide
-    const maxPx = 480;
-    const cellPx = Math.min(Math.floor(maxPx / cols), Math.floor(maxPx / rows), 32);
-    const gridWidthPx = cols * (cellPx + 1) - 1;
-    const gridHeightPx = rows * (cellPx + 1) - 1;
-
-    return html`
-      <div class="wizard-card">
-        <h2>Room preview</h2>
-        <p>
-          Room size: approximately ${widthM}m wide x ${depthM}m deep. Walk
-          around the room to verify the target dot tracks your position correctly.
-        </p>
-
-        <div class="dimension-inputs">
-          <label>
-            Width (m)
-            <input
-              type="number"
-              step="0.1"
-              min="0.5"
-              .value=${widthM}
-              @change=${(e: Event) => {
-                this._wizardRoomWidth = 1000 * parseFloat((e.target as HTMLInputElement).value);
-                this._computeWizardPerspective();
-              }}
-            />
-          </label>
-          <label>
-            Depth (m)
-            <input
-              type="number"
-              step="0.1"
-              min="0.5"
-              .value=${depthM}
-              @change=${(e: Event) => {
-                this._wizardRoomDepth = 1000 * parseFloat((e.target as HTMLInputElement).value);
-                this._computeWizardPerspective();
-              }}
-            />
-          </label>
-        </div>
-
-        <div class="preview-grid-container">
-          <div
-            class="preview-grid-wrapper"
-            style="width: ${gridWidthPx}px; height: ${gridHeightPx}px;"
-          >
-            <div
-              class="preview-grid"
-              style="
-                grid-template-columns: repeat(${cols}, ${cellPx}px);
-                grid-template-rows: repeat(${rows}, ${cellPx}px);
-              "
-            >
-              ${Array.from({ length: cellCount }, () => html`
-                <div class="preview-cell"></div>
-              `)}
-            </div>
-            ${this._targets
-              .filter((t) => t.active)
-              .map((t) => {
-                const { x, y } = this._mapTargetToPreviewPercent(t);
-                return html`
-                  <div
-                    class="target-dot"
-                    style="left: ${x}%; top: ${y}%;"
-                  ></div>
-                `;
-              })}
-          </div>
-        </div>
-
-        <div class="wizard-actions">
-          <button
-            class="wizard-btn wizard-btn-back"
-            @click=${() => { this._setupStep = null; }}
-          >
-            Cancel
-          </button>
-          <button
-            class="wizard-btn wizard-btn-primary"
-            ?disabled=${this._wizardSaving || !this._perspective}
-            @click=${this._wizardFinish}
-          >
-            ${this._wizardSaving ? "Saving..." : "Finish"}
-          </button>
-        </div>
       </div>
     `;
   }
