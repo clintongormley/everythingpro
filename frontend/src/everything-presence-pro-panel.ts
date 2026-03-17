@@ -2791,27 +2791,13 @@ export class EverythingPresenceProPanel extends LitElement {
                 class="wizard-btn wizard-btn-back"
                 @click=${() => { this._setupStep = null; }}
               >Cancel</button>
-              ${this._wizardCapturing
-                ? html`
-                  <div class="capture-progress">
-                    <div class="capture-bar">
-                      <div
-                        class="capture-fill"
-                        style="width: ${this._wizardCaptureProgress * 100}%"
-                      ></div>
-                    </div>
-                    <span>Recording... ${Math.round(this._wizardCaptureProgress * CAPTURE_DURATION_S)}s / ${CAPTURE_DURATION_S}s</span>
-                  </div>
-                `
-                : html`
-                  <button
-                    class="wizard-btn wizard-btn-primary"
-                    ?disabled=${!hasTarget || tooManyTargets}
-                    @click=${() => this._wizardStartCapture()}
-                  >
-                    Mark ${label}
-                  </button>
-                `}
+              <button
+                class="wizard-btn wizard-btn-primary"
+                ?disabled=${!hasTarget || tooManyTargets || this._wizardCapturing}
+                @click=${() => this._wizardStartCapture()}
+              >
+                Mark ${label}
+              </button>
             </div>
           `}
       </div>

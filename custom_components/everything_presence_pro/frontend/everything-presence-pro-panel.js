@@ -286,25 +286,13 @@ class mt extends ft{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
                 class="wizard-btn wizard-btn-back"
                 @click=${()=>{this._setupStep=null}}
               >Cancel</button>
-              ${this._wizardCapturing?L`
-                  <div class="capture-progress">
-                    <div class="capture-bar">
-                      <div
-                        class="capture-fill"
-                        style="width: ${100*this._wizardCaptureProgress}%"
-                      ></div>
-                    </div>
-                    <span>Recording... ${Math.round(5*this._wizardCaptureProgress)}s / ${5}s</span>
-                  </div>
-                `:L`
-                  <button
-                    class="wizard-btn wizard-btn-primary"
-                    ?disabled=${!i||r}
-                    @click=${()=>this._wizardStartCapture()}
-                  >
-                    Mark ${s}
-                  </button>
-                `}
+              <button
+                class="wizard-btn wizard-btn-primary"
+                ?disabled=${!i||r||this._wizardCapturing}
+                @click=${()=>this._wizardStartCapture()}
+              >
+                Mark ${s}
+              </button>
             </div>
           `}
       </div>
