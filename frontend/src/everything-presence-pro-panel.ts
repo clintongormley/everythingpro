@@ -4220,7 +4220,7 @@ export class EverythingPresenceProPanel extends LitElement {
           }
           if (occupancy[zoneId]) {
             // Zone is occupied — show coloured border
-            border = `box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);`;
+            border = `box-shadow: inset 0 0 0 1px rgba(255,0,0,0.5);`;
           }
         }
         cells.push(html`
