@@ -598,3 +598,5 @@ def websocket_set_reporting(
                             ent,
                             disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
                         )
+
+    connection.send_result(msg["id"])
