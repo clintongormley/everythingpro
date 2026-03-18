@@ -836,6 +836,8 @@ export class EverythingPresenceProPanel extends LitElement {
         offsets,
       });
 
+      (this as any)._reportingConfig = reporting;
+      (this as any)._offsetsConfig = offsets;
       this._dirty = false;
       this._view = "live";
     } finally {

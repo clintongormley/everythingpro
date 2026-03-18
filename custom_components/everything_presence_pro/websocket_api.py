@@ -312,10 +312,11 @@ async def websocket_set_room_layout(
             entry, options={**entry.options, "config": config}
         )
 
-    # Enable/disable zone entities and update names based on slot occupancy
+    # Enable/disable zone entities based on slot occupancy AND reporting toggles
     registry = entity_registry.async_get(hass)
     entry_id = msg["entry_id"]
     entity_id_renames: list[dict[str, str]] = []
+    reporting = config.get("reporting", {})
 
     for slot in range(1, MAX_ZONES + 1):
         zone_cfg = zone_slots[slot - 1]
@@ -323,10 +324,10 @@ async def websocket_set_room_layout(
         zone_name = zone_cfg["name"] if zone_cfg else None
 
         suffixes = [
-            (f"_zone_{slot}", "binary_sensor", "occupancy"),
-            (f"_zone_{slot}_count", "sensor", "target_count"),
+            (f"_zone_{slot}", "binary_sensor", "occupancy", "zone_presence"),
+            (f"_zone_{slot}_count", "sensor", "target_count", "zone_target_count"),
         ]
-        for uid_suffix, platform, entity_suffix in suffixes:
+        for uid_suffix, platform, entity_suffix, report_key in suffixes:
             unique_id = f"{entry_id}{uid_suffix}"
             ent = registry.async_get_entity_id(platform, DOMAIN, unique_id)
             if ent is None:
@@ -335,7 +336,11 @@ async def websocket_set_room_layout(
             if ent_entry is None:
                 continue
 
-            if occupied:
+            # Only enable if slot is occupied AND reporting toggle is on
+            report_enabled = reporting.get(report_key, report_key == "zone_presence")
+            should_enable = occupied and report_enabled
+
+            if should_enable:
                 # Enable and update friendly name
                 friendly = f"{zone_name} {entity_suffix.replace('_', ' ')}"
                 updates: dict[str, Any] = {}
@@ -368,7 +373,7 @@ async def websocket_set_room_layout(
                             "new_entity_id": desired_id,
                         })
             else:
-                # Disable empty slot
+                # Disable: slot empty or reporting toggle off
                 if ent_entry.disabled_by is None:
                     registry.async_update_entity(
                         ent,
