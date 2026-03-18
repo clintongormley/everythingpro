@@ -27,12 +27,11 @@ const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; sustain: number; tim
   rest: { trigger: 3, sustain: 9, timeout: 30 },
 };
 
-const RAW_FPS = 33;
-
-/** Convert hit count (0-33) to equivalent sensitivity level (0-9). */
-const hitCountToSensitivity = (hits: number): number => {
+/** Convert hit count to equivalent sensitivity level (0-9) given actual frame count. */
+const hitCountToSensitivity = (hits: number, frames: number): number => {
+  const f = Math.max(frames, 1);
   for (let s = 9; s >= 0; s--) {
-    const threshold = Math.round((RAW_FPS * (10 - s) + 5) / 10);
+    const threshold = Math.round((f * (10 - s) + 5) / 10);
     if (hits >= threshold) return s;
   }
   return 0;
@@ -213,7 +212,7 @@ export class EverythingPresenceProPanel extends LitElement {
     humidity: number | null;
     co2: number | null;
   } = { occupancy: false, static_presence: false, pir_motion: false, illuminance: null, temperature: null, humidity: null, co2: null };
-  @state() private _zoneState: { occupancy: Record<number, boolean>; target_counts: Record<number, number> } = { occupancy: {}, target_counts: {} };
+  @state() private _zoneState: { occupancy: Record<number, boolean>; target_counts: Record<number, number>; frame_count: number } = { occupancy: {}, target_counts: {}, frame_count: 0 };
   @state() private _showHitCounts = false;
   @state() private _isPainting = false;
   @state() private _paintAction: "set" | "clear" = "set";
@@ -462,6 +461,7 @@ export class EverythingPresenceProPanel extends LitElement {
             this._zoneState = {
               occupancy: event.zones.occupancy ?? {},
               target_counts: event.zones.target_counts ?? {},
+              frame_count: event.zones.frame_count ?? 0,
             };
           }
         },
@@ -3414,7 +3414,7 @@ export class EverythingPresenceProPanel extends LitElement {
     for (const [zoneId, centre] of zoneCentre) {
       const hitCount = zs.target_counts[zoneId] ?? 0;
       if (hitCount === 0) continue;
-      const sensitivity = hitCountToSensitivity(hitCount);
+      const sensitivity = hitCountToSensitivity(hitCount, zs.frame_count);
       const xPct = ((centre.sumCol / centre.count - minCol + 0.5) / visCols) * 100;
       const yPct = ((centre.sumRow / centre.count - minRow + 0.5) / visRows) * 100;
       labels.push(html`
@@ -4250,7 +4250,8 @@ export class EverythingPresenceProPanel extends LitElement {
     for (const [zoneIdStr, hitCount] of Object.entries(zs.target_counts)) {
       const zoneId = Number(zoneIdStr);
       if (hitCount <= 0) continue;
-      const opacity = Math.min(0.6, hitCount / RAW_FPS * 0.7);
+      const frames = Math.max(zs.frame_count, 1);
+      const opacity = Math.min(0.6, hitCount / frames * 0.7);
       let r = 100, g = 180, b = 255; // zone 0 default blue
       if (zoneId > 0 && zoneId <= MAX_ZONES) {
         const config = this._zoneConfigs[zoneId - 1];

@@ -98,6 +98,7 @@ class EverythingPresenceProCoordinator:
         # Processing result
         self._last_result: ProcessingResult = ProcessingResult()
         self._rebuild_scheduled: bool = False
+        self._window_timer: object | None = None
 
         # ESPHome entity key mapping (populated during subscription)
         self._sensor_key_map: dict[int, str] = {}
@@ -509,15 +510,7 @@ class EverythingPresenceProCoordinator:
     def _schedule_rebuild(self) -> None:
         """Feed raw target data to the zone engine on each state update."""
         now = time.monotonic()
-        calibrated: list[tuple[float, float, bool]] = []
-        for i in range(MAX_TARGETS):
-            if self._target_active[i]:
-                cx, cy = self._sensor_transform.apply(
-                    self._target_x[i], self._target_y[i]
-                )
-                calibrated.append((cx, cy, True))
-            else:
-                calibrated.append((self._target_x[i], self._target_y[i], False))
+        calibrated = self._build_calibrated_targets()
 
         result = self._zone_engine.feed_raw(calibrated, now)
 
@@ -533,9 +526,30 @@ class EverythingPresenceProCoordinator:
             self._rebuild_scheduled = True
             self.hass.loop.call_later(0.2, self._do_display_update)
 
-    def _do_display_update(self) -> None:
-        """Dispatch a display update for live target positions (between window ticks)."""
-        self._rebuild_scheduled = False
+        # Reset idle timer — if no data arrives for 1.5s, tick an empty window
+        self._reset_idle_timer()
+
+    def _reset_idle_timer(self) -> None:
+        """Reset the idle timer that ensures the window ticks even without data."""
+        if self._window_timer is not None:
+            self._window_timer.cancel()
+        self._window_timer = self.hass.loop.call_later(1.5, self._idle_tick)
+
+    def _idle_tick(self) -> None:
+        """Feed empty targets to flush the window when no ESPHome data arrives."""
+        self._window_timer = None
+        now = time.monotonic()
+        empty = [(0.0, 0.0, False)] * MAX_TARGETS
+        result = self._zone_engine.feed_raw(empty, now)
+        if result is not None:
+            self._last_result = result
+            self._targets = empty
+            async_dispatcher_send(
+                self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
+            )
+
+    def _build_calibrated_targets(self) -> list[tuple[float, float, bool]]:
+        """Build calibrated target list from current raw state."""
         calibrated: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
             if self._target_active[i]:
@@ -545,7 +559,12 @@ class EverythingPresenceProCoordinator:
                 calibrated.append((cx, cy, True))
             else:
                 calibrated.append((self._target_x[i], self._target_y[i], False))
-        self._targets = calibrated
+        return calibrated
+
+    def _do_display_update(self) -> None:
+        """Dispatch a display update for live target positions (between window ticks)."""
+        self._rebuild_scheduled = False
+        self._targets = self._build_calibrated_targets()
         async_dispatcher_send(
             self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
         )

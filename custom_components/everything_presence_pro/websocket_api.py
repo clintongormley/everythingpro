@@ -454,6 +454,7 @@ async def websocket_subscribe_targets(
                         "co2": coordinator.co2,
                     },
                     "zones": {
+                        "frame_count": result.frame_count,
                         "occupancy": result.zone_occupancy,
                         "target_counts": result.zone_target_counts,
                     },

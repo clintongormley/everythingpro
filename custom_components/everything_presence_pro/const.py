@@ -40,8 +40,8 @@ ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
     ZONE_TYPE_REST: {"trigger": 3, "sustain": 9, "timeout": 30.0},
 }
 
-# LD2450 raw frame rate (~33Hz) used for sensitivity threshold calculation
-RAW_FPS = 33
+# LD2450 raw frame rate (10Hz per datasheet)
+RAW_FPS = 10
 
 
 def sensitivity_to_threshold(sensitivity: int, raw_fps: int = RAW_FPS) -> int:

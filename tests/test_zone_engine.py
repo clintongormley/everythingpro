@@ -72,9 +72,12 @@ def test_grid_base64_roundtrip():
 
 def test_sensitivity_to_threshold():
     """Test 0-9 sensitivity maps to correct hit-count thresholds."""
-    assert sensitivity_to_threshold(0) == 33  # (33*10 + 5) // 10 = 33
-    assert sensitivity_to_threshold(5) == 17  # (33*5 + 5) // 10 = 17
-    assert sensitivity_to_threshold(9) == 3   # (33*1 + 5) // 10 = 3
+    # Default RAW_FPS=10
+    assert sensitivity_to_threshold(0) == 10  # (10*10 + 5) // 10 = 10
+    assert sensitivity_to_threshold(5) == 5   # (10*5 + 5) // 10 = 5
+    assert sensitivity_to_threshold(9) == 1   # (10*1 + 5) // 10 = 1
+    # Custom frame count
+    assert sensitivity_to_threshold(5, 20) == 10  # (20*5 + 5) // 10 = 10
 
 
 # --- Tumbling window ---

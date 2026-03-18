@@ -59,6 +59,7 @@ class ProcessingResult:
     device_tracking_present: bool = False
     zone_occupancy: dict[int, bool] = field(default_factory=dict)
     zone_target_counts: dict[int, int] = field(default_factory=dict)
+    frame_count: int = 0
 
 
 @dataclass
@@ -66,6 +67,7 @@ class WindowOutput:
     """Output from one tumbling window tick."""
 
     zone_hit_counts: dict[int, int] = field(default_factory=dict)
+    frame_count: int = 0
     device_tracking_present: bool = False
     smoothed_targets: list[tuple[float, float, bool]] = field(default_factory=list)
 
@@ -180,6 +182,7 @@ class TumblingWindow:
         self._interval_s = interval_s
         self._window_start: float | None = None
         self._zone_hit_counts: dict[int, int] = {}
+        self._frame_count = 0
         self._device_hit = False
         self._target_xs: list[list[float]] = [[] for _ in range(MAX_TARGETS)]
         self._target_ys: list[list[float]] = [[] for _ in range(MAX_TARGETS)]
@@ -200,6 +203,7 @@ class TumblingWindow:
         """Reset the window state."""
         self._window_start = None
         self._zone_hit_counts.clear()
+        self._frame_count = 0
         self._device_hit = False
         for i in range(MAX_TARGETS):
             self._target_xs[i].clear()
@@ -225,6 +229,7 @@ class TumblingWindow:
 
     def _accumulate(self, targets: list[tuple[float, float, bool]]) -> None:
         """Accumulate one frame of target data."""
+        self._frame_count += 1
         for i, (x, y, active) in enumerate(targets):
             if i >= MAX_TARGETS:
                 break
@@ -250,13 +255,9 @@ class TumblingWindow:
 
     def _emit(self) -> WindowOutput:
         """Emit the completed window and reset accumulators."""
-        total_frames = max(
-            (self._target_active_count[i] for i in range(MAX_TARGETS)),
-            default=0,
-        )
         _LOGGER.debug(
             "Window emit: %d frames collected, zone hit counts: %s",
-            total_frames,
+            self._frame_count,
             dict(self._zone_hit_counts),
         )
         # Compute smoothed (median) target positions
@@ -271,12 +272,14 @@ class TumblingWindow:
 
         output = WindowOutput(
             zone_hit_counts=dict(self._zone_hit_counts),
+            frame_count=self._frame_count,
             device_tracking_present=self._device_hit,
             smoothed_targets=smoothed,
         )
 
         # Reset accumulators for next window
         self._zone_hit_counts.clear()
+        self._frame_count = 0
         self._device_hit = False
         for i in range(MAX_TARGETS):
             self._target_xs[i].clear()
@@ -293,13 +296,6 @@ class _ZoneRuntime:
     zone: Zone
     state: ZoneState = ZoneState.CLEAR
     pending_since: float | None = None
-    trigger_threshold: int = 0
-    sustain_threshold: int = 0
-
-    def __post_init__(self) -> None:
-        """Compute thresholds from zone sensitivity."""
-        self.trigger_threshold = sensitivity_to_threshold(self.zone.trigger)
-        self.sustain_threshold = sensitivity_to_threshold(self.zone.sustain)
 
 
 class ZoneEngine:
@@ -354,25 +350,30 @@ class ZoneEngine:
         self, window: WindowOutput, timestamp: float,
     ) -> ProcessingResult:
         """Run one tick of the state machine for all zones."""
-        result = ProcessingResult()
+        frames = max(window.frame_count, 1)
+        result = ProcessingResult(frame_count=frames)
 
         for zone_id, rt in self._zone_runtimes.items():
             hit_count = window.zone_hit_counts.get(zone_id, 0)
             result.zone_target_counts[zone_id] = hit_count
 
+            # Dynamic thresholds based on actual frame count
+            trigger_thresh = sensitivity_to_threshold(rt.zone.trigger, frames)
+            sustain_thresh = sensitivity_to_threshold(rt.zone.sustain, frames)
+
             match rt.state:
                 case ZoneState.CLEAR:
-                    if hit_count >= rt.trigger_threshold:
+                    if hit_count >= trigger_thresh:
                         rt.state = ZoneState.OCCUPIED
                         rt.pending_since = None
 
                 case ZoneState.OCCUPIED:
-                    if hit_count < rt.sustain_threshold:
+                    if hit_count < sustain_thresh:
                         rt.state = ZoneState.PENDING
                         rt.pending_since = timestamp
 
                 case ZoneState.PENDING:
-                    if hit_count >= rt.sustain_threshold:
+                    if hit_count >= sustain_thresh:
                         rt.state = ZoneState.OCCUPIED
                         rt.pending_since = None
                     elif (
@@ -388,9 +389,9 @@ class ZoneEngine:
         result.device_tracking_present = any(result.zone_occupancy.values())
 
         _LOGGER.debug(
-            "Tick: zone_hits=%s, sensitivity=%s, occupancy=%s",
+            "Tick: frames=%d, zone_hits=%s, occupancy=%s",
+            frames,
             {z: window.zone_hit_counts.get(z, 0) for z in self._zone_runtimes},
-            {z: sensitivity_to_threshold(rt.zone.trigger) for z, rt in self._zone_runtimes.items()},
             dict(result.zone_occupancy),
         )
 
