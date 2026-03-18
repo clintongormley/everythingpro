@@ -45,8 +45,11 @@ RAW_FPS = 10
 
 
 def sensitivity_to_threshold(sensitivity: int, raw_fps: int = RAW_FPS) -> int:
-    """Convert 0-9 sensitivity to minimum hit-count threshold."""
-    return (raw_fps * (10 - sensitivity) + 5) // 10
+    """Convert 0-9 sensitivity to minimum hit-count threshold.
+
+    Always returns at least 1 so that 0 hits never meets the threshold.
+    """
+    return max(1, (raw_fps * (10 - sensitivity) + 5) // 10)
 
 # ESPHome entity name patterns for EP Pro
 TARGET_X_PATTERN = "target_{n}_x"
