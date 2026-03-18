@@ -526,8 +526,12 @@ class EverythingPresenceProCoordinator:
             self._rebuild_scheduled = True
             self.hass.loop.call_later(0.2, self._do_display_update)
 
-        # Reset idle timer — if no data arrives for 1.5s, tick an empty window
-        self._reset_idle_timer()
+        # Only start idle timer if any zone is occupied (needs timeout expiry)
+        if any(self._last_result.zone_occupancy.values()):
+            self._reset_idle_timer()
+        elif self._window_timer is not None:
+            self._window_timer.cancel()
+            self._window_timer = None
 
     def _reset_idle_timer(self) -> None:
         """Reset the idle timer that ensures the window ticks even without data."""
