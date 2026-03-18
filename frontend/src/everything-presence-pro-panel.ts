@@ -397,6 +397,9 @@ export class EverythingPresenceProPanel extends LitElement {
         sensitivity: z.sensitivity ?? 1,
       };
     });
+
+    // Load reporting config
+    (this as any)._reportingConfig = config.reporting || {};
   }
 
   private _subscribeTargets(entryId: string): void {
@@ -804,6 +807,30 @@ export class EverythingPresenceProPanel extends LitElement {
         this._pendingRenames = renames;
         this._showRenameDialog = true;
       }
+    } finally {
+      this._saving = false;
+    }
+  }
+
+  private async _saveSettings(): Promise<void> {
+    this._saving = true;
+    try {
+      // Collect reporting toggle states
+      const container = this.shadowRoot!.querySelector(".settings-container");
+      if (!container) return;
+      const reporting: Record<string, boolean> = {};
+      container.querySelectorAll<HTMLInputElement>("[data-report-key]").forEach((el) => {
+        reporting[el.dataset.reportKey!] = el.checked;
+      });
+
+      await this.hass.callWS({
+        type: "everything_presence_pro/set_reporting",
+        entry_id: this._selectedEntryId,
+        reporting,
+      });
+
+      this._dirty = false;
+      this._view = "live";
     } finally {
       this._saving = false;
     }
@@ -2481,7 +2508,6 @@ export class EverythingPresenceProPanel extends LitElement {
       border: 1px solid var(--divider-color, #e0e0e0);
       border-radius: 12px;
       margin-bottom: 12px;
-      overflow: hidden;
       background: var(--card-background-color, #fff);
     }
 
@@ -2494,11 +2520,16 @@ export class EverythingPresenceProPanel extends LitElement {
       user-select: none;
       background: var(--card-background-color, #fff);
       border: none;
+      border-radius: 12px;
       width: 100%;
       text-align: left;
       font-size: 15px;
       font-weight: 500;
       color: var(--primary-text-color, #212121);
+    }
+
+    .accordion-header[data-open] {
+      border-radius: 12px 12px 0 0;
     }
 
     .accordion-header:hover {
@@ -3207,6 +3238,7 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderSaveCancelButtons() {
+    const saveHandler = this._view === "settings" ? this._saveSettings : this._applyLayout;
     return html`
       <div class="save-cancel-bar">
         <button class="wizard-btn wizard-btn-back"
@@ -3218,7 +3250,7 @@ export class EverythingPresenceProPanel extends LitElement {
         >Cancel</button>
         <button class="wizard-btn wizard-btn-primary"
           ?disabled=${this._saving || !this._dirty}
-          @click=${this._applyLayout}
+          @click=${saveHandler}
         >${this._saving ? "Saving..." : "Save"}</button>
       </div>
     `;
@@ -3593,7 +3625,7 @@ export class EverythingPresenceProPanel extends LitElement {
             const open = this._openAccordions.has(s.id);
             return html`
               <div class="accordion">
-                <button class="accordion-header" @click=${() => this._toggleAccordion(s.id)}>
+                <button class="accordion-header" ?data-open=${open} @click=${() => this._toggleAccordion(s.id)}>
                   <ha-icon icon=${s.icon}></ha-icon>
                   <span class="accordion-title">${s.label}</span>
                   <ha-icon class="accordion-chevron" icon="mdi:chevron-down" ?data-open=${open}></ha-icon>
@@ -3749,33 +3781,37 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderReporting() {
+    // Load saved reporting state from config
+    const saved: Record<string, boolean> = (this as any)._reportingConfig || {};
+    const isOn = (key: string, fallback: boolean) => saved[key] ?? fallback;
+
     return html`
       <div class="settings-section">
         <div class="setting-group">
           <h4>Room level</h4>
           <div class="setting-row">
             <label>Occupancy</label>
-            <label class="toggle-switch"><input type="checkbox" checked /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="room_occupancy" ?checked=${isOn("room_occupancy", true)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Combined room occupancy from all sensors.")}
           </div>
           <div class="setting-row">
             <label>Static presence</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="room_static_presence" ?checked=${isOn("room_static_presence", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("mmWave static presence detection.")}
           </div>
           <div class="setting-row">
             <label>Motion presence</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="room_motion_presence" ?checked=${isOn("room_motion_presence", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("PIR motion detection.")}
           </div>
           <div class="setting-row">
             <label>Target presence</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="room_target_presence" ?checked=${isOn("room_target_presence", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Whether any target is actively tracked.")}
           </div>
           <div class="setting-row">
             <label>Target count</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="room_target_count" ?checked=${isOn("room_target_count", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Number of targets detected in the room.")}
           </div>
         </div>
@@ -3783,12 +3819,12 @@ export class EverythingPresenceProPanel extends LitElement {
           <h4>Zone level</h4>
           <div class="setting-row">
             <label>Presence</label>
-            <label class="toggle-switch"><input type="checkbox" checked /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="zone_presence" ?checked=${isOn("zone_presence", true)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Per-zone occupancy based on target tracking.")}
           </div>
           <div class="setting-row">
             <label>Target count</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="zone_target_count" ?checked=${isOn("zone_target_count", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Number of targets in each zone.")}
           </div>
         </div>
@@ -3796,37 +3832,37 @@ export class EverythingPresenceProPanel extends LitElement {
           <h4>Target level</h4>
           <div class="setting-row">
             <label>XY position, relative to sensor</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="target_xy_sensor" ?checked=${isOn("target_xy_sensor", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Raw XY coordinates from the sensor.")}
           </div>
           <div class="setting-row">
             <label>XY position, relative to grid</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="target_xy_grid" ?checked=${isOn("target_xy_grid", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("XY coordinates mapped to the room grid.")}
           </div>
           <div class="setting-row">
             <label>Active</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="target_active" ?checked=${isOn("target_active", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Whether each target slot is actively tracking.")}
           </div>
           <div class="setting-row">
             <label>Distance</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="target_distance" ?checked=${isOn("target_distance", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Distance from sensor to each target.")}
           </div>
           <div class="setting-row">
             <label>Angle</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="target_angle" ?checked=${isOn("target_angle", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Angle from sensor to each target.")}
           </div>
           <div class="setting-row">
             <label>Speed</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="target_speed" ?checked=${isOn("target_speed", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Movement speed of each target.")}
           </div>
           <div class="setting-row">
             <label>Resolution</label>
-            <label class="toggle-switch"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="target_resolution" ?checked=${isOn("target_resolution", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Detection resolution for each target.")}
           </div>
         </div>

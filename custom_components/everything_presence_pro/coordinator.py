@@ -192,6 +192,33 @@ class EverythingPresenceProCoordinator:
         )
 
     @property
+    def target_present(self) -> bool:
+        """Return whether any target is actively tracked."""
+        return any(t[2] for t in self._targets)
+
+    @property
+    def target_count(self) -> int:
+        """Return the number of active targets."""
+        return sum(1 for t in self._targets if t[2])
+
+    def target_distance(self, index: int) -> float | None:
+        """Return the distance from sensor to a target in mm."""
+        if index >= len(self._targets) or not self._targets[index][2]:
+            return None
+        x, y, _ = self._targets[index]
+        return (x * x + y * y) ** 0.5
+
+    def target_angle(self, index: int) -> float | None:
+        """Return the angle from sensor to a target in degrees."""
+        if index >= len(self._targets) or not self._targets[index][2]:
+            return None
+        import math
+        x, y, _ = self._targets[index]
+        if x == 0 and y == 0:
+            return None
+        return math.degrees(math.atan2(x, y))
+
+    @property
     def connected(self) -> bool:
         """Return whether the device is connected."""
         return self._connected
@@ -540,6 +567,7 @@ class EverythingPresenceProCoordinator:
             "grid_cols": grid.cols,
             "grid_rows": grid.rows,
             "room_layout": self._room_layout,
+            "reporting": self.entry.options.get("config", {}).get("reporting", {}),
         }
 
     def load_config_data(self, data: dict[str, Any]) -> None:

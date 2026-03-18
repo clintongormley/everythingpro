@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry
 
 from .calibration import SensorTransform
-from .const import DOMAIN, MAX_ZONES
+from .const import DOMAIN, MAX_TARGETS, MAX_ZONES
 from .coordinator import EverythingPresenceProCoordinator, SIGNAL_SENSORS_UPDATED, SIGNAL_TARGETS_UPDATED
 from .zone_engine import Zone
 
@@ -43,6 +43,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_set_setup)
     websocket_api.async_register_command(hass, websocket_subscribe_targets)
     websocket_api.async_register_command(hass, websocket_rename_zone_entities)
+    websocket_api.async_register_command(hass, websocket_set_reporting)
 
 
 @websocket_api.websocket_command(
@@ -479,3 +480,115 @@ async def websocket_rename_zone_entities(
         registry.async_update_entity(old_id, new_entity_id=new_id)
 
     connection.send_result(msg["id"], {"errors": errors})
+
+
+# Reporting entity unique_id suffixes and their platforms
+_REPORTING_ENTITIES: dict[str, list[tuple[str, str]]] = {
+    # Room level
+    "room_occupancy": [("_occupancy", "binary_sensor")],
+    "room_static_presence": [("_static_presence", "binary_sensor")],
+    "room_motion_presence": [("_motion", "binary_sensor")],
+    "room_target_presence": [("_target_presence", "binary_sensor")],
+    "room_target_count": [("_target_count", "sensor")],
+    # Zone level (handled separately per slot)
+    # Target level (expanded per target index)
+    "target_xy_sensor": [
+        (f"_target_{i + 1}_xy_sensor", "sensor") for i in range(MAX_TARGETS)
+    ],
+    "target_xy_grid": [
+        (f"_target_{i + 1}_xy_grid", "sensor") for i in range(MAX_TARGETS)
+    ],
+    "target_active": [
+        (f"_target_{i + 1}_active", "binary_sensor") for i in range(MAX_TARGETS)
+    ],
+    "target_distance": [
+        (f"_target_{i + 1}_distance", "sensor") for i in range(MAX_TARGETS)
+    ],
+    "target_angle": [
+        (f"_target_{i + 1}_angle", "sensor") for i in range(MAX_TARGETS)
+    ],
+    "target_speed": [
+        (f"_target_{i + 1}_speed", "sensor") for i in range(MAX_TARGETS)
+    ],
+    "target_resolution": [
+        (f"_target_{i + 1}_resolution", "sensor") for i in range(MAX_TARGETS)
+    ],
+}
+
+# Zone-level reporting keys
+_ZONE_REPORTING: dict[str, list[tuple[str, str]]] = {
+    "zone_presence": [("_zone_{slot}", "binary_sensor")],
+    "zone_target_count": [("_zone_{slot}_count", "sensor")],
+}
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "everything_presence_pro/set_reporting",
+        vol.Required("entry_id"): str,
+        vol.Required("reporting"): dict,
+    }
+)
+@callback
+def websocket_set_reporting(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Enable/disable reporting entities based on toggle states."""
+    entry = hass.config_entries.async_get_entry(msg["entry_id"])
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "Entry not found")
+        return
+
+    registry = entity_registry.async_get(hass)
+    entry_id = msg["entry_id"]
+    reporting: dict[str, bool] = msg["reporting"]
+
+    # Save reporting settings to config entry options
+    config = dict(entry.options.get("config", {}))
+    config["reporting"] = reporting
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "config": config}
+    )
+
+    # Enable/disable room and target-level entities
+    for key, enabled in reporting.items():
+        if key in _REPORTING_ENTITIES:
+            for uid_suffix, platform in _REPORTING_ENTITIES[key]:
+                unique_id = f"{entry_id}{uid_suffix}"
+                ent = registry.async_get_entity_id(platform, DOMAIN, unique_id)
+                if ent is None:
+                    continue
+                ent_entry = registry.async_get(ent)
+                if ent_entry is None:
+                    continue
+                if enabled and ent_entry.disabled_by is not None:
+                    registry.async_update_entity(ent, disabled_by=None)
+                elif not enabled and ent_entry.disabled_by is None:
+                    registry.async_update_entity(
+                        ent,
+                        disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
+                    )
+
+        # Zone-level entities: apply to all 7 slots
+        if key in _ZONE_REPORTING:
+            for slot in range(1, MAX_ZONES + 1):
+                for uid_template, platform in _ZONE_REPORTING[key]:
+                    uid_suffix = uid_template.format(slot=slot)
+                    unique_id = f"{entry_id}{uid_suffix}"
+                    ent = registry.async_get_entity_id(
+                        platform, DOMAIN, unique_id
+                    )
+                    if ent is None:
+                        continue
+                    ent_entry = registry.async_get(ent)
+                    if ent_entry is None:
+                        continue
+                    if enabled and ent_entry.disabled_by is not None:
+                        registry.async_update_entity(ent, disabled_by=None)
+                    elif not enabled and ent_entry.disabled_by is None:
+                        registry.async_update_entity(
+                            ent,
+                            disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
+                        )

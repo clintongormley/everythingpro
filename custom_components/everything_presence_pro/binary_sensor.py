@@ -12,7 +12,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EverythingPresenceProConfigEntry
-from .const import DOMAIN, MAX_ZONES
+from .const import DOMAIN, MAX_TARGETS, MAX_ZONES
 from .coordinator import (
     EverythingPresenceProCoordinator,
     SIGNAL_SENSORS_UPDATED,
@@ -32,7 +32,14 @@ async def async_setup_entry(
         EverythingPresenceProOccupancySensor(coordinator),
         EverythingPresenceProMotionSensor(coordinator),
         EverythingPresenceProStaticPresenceSensor(coordinator),
+        EverythingPresenceProTargetPresenceSensor(coordinator),
     ]
+
+    # Pre-create per-target active sensors (disabled by default)
+    for idx in range(MAX_TARGETS):
+        entities.append(
+            EverythingPresenceProTargetActiveSensor(coordinator, idx)
+        )
 
     # Pre-create all 7 zone occupancy entities (disabled by default)
     for slot in range(1, MAX_ZONES + 1):
@@ -155,6 +162,93 @@ class EverythingPresenceProStaticPresenceSensor(BinarySensorEntity):
     @callback
     def _on_update(self) -> None:
         """Handle sensor update."""
+        self.async_write_ha_state()
+
+
+class EverythingPresenceProTargetPresenceSensor(BinarySensorEntity):
+    """Whether any target is actively tracked."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.OCCUPANCY
+    _attr_translation_key = "target_presence"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: EverythingPresenceProCoordinator) -> None:
+        """Initialize the target presence sensor."""
+        self._coordinator = coordinator
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_target_presence"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if any target is active."""
+        return self._coordinator.target_present
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to target updates."""
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{SIGNAL_TARGETS_UPDATED}_{self._coordinator.entry.entry_id}",
+                self._on_update,
+            )
+        )
+
+    @callback
+    def _on_update(self) -> None:
+        """Handle update."""
+        self.async_write_ha_state()
+
+
+class EverythingPresenceProTargetActiveSensor(BinarySensorEntity):
+    """Per-target active binary sensor. Pre-created disabled."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.OCCUPANCY
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self, coordinator: EverythingPresenceProCoordinator, index: int
+    ) -> None:
+        """Initialize the per-target active sensor."""
+        self._coordinator = coordinator
+        self._index = index
+        self._attr_unique_id = (
+            f"{coordinator.entry.entry_id}_target_{index + 1}_active"
+        )
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+        )
+        self._attr_translation_key = f"target_{index + 1}_active"
+
+    @property
+    def name(self) -> str:
+        """Return the sensor name."""
+        return f"Target {self._index + 1} active"
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if this target is active."""
+        targets = self._coordinator.targets
+        if self._index >= len(targets):
+            return False
+        return targets[self._index][2]
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to target updates."""
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{SIGNAL_TARGETS_UPDATED}_{self._coordinator.entry.entry_id}",
+                self._on_update,
+            )
+        )
+
+    @callback
+    def _on_update(self) -> None:
+        """Handle update."""
         self.async_write_ha_state()
 
 
