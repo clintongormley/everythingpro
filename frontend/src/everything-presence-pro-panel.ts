@@ -4204,13 +4204,13 @@ export class EverythingPresenceProPanel extends LitElement {
     const trigger = isCustom ? this._roomTrigger : defaults.trigger;
     const sustain = isCustom ? this._roomSustain : defaults.sustain;
     const timeout = isCustom ? this._roomTimeout : defaults.timeout;
-    const rowStyle = `width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
+    const rowStyle = `width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
     return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
-        <div style="width: 100%; display: flex; align-items: center; gap: 6px;">
-          <label style="min-width: 50px; font-size: 12px;">Type</label>
+        <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
+          <label style="width: 50px; flex-shrink: 0; font-size: 12px;">Type</label>
           <select
-            class="sensitivity-select" style="flex: 1;"
+            class="sensitivity-select" style="flex: 1; min-width: 0;"
             .value=${this._roomType}
             @change=${(e: Event) => {
               const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
@@ -4229,29 +4229,28 @@ export class EverythingPresenceProPanel extends LitElement {
             <option value="rest">Rest area</option>
             <option value="custom">Custom</option>
           </select>
-          <span style="min-width: 16px;"></span>
         </div>
         <div style="${rowStyle}">
-          <label style="min-width: 50px;">Trigger</label>
-          <input type="range" min="0" max="9" style="flex: 1;" .value=${String(trigger)} ?disabled=${!isCustom}
+          <label style="width: 50px; flex-shrink: 0;">Trigger</label>
+          <input type="range" min="0" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => { this._roomTrigger = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 16px; text-align: right;">${trigger}</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="min-width: 50px;">Sustain</label>
-          <input type="range" min="0" max="9" style="flex: 1;" .value=${String(sustain)} ?disabled=${!isCustom}
+          <label style="width: 50px; flex-shrink: 0;">Sustain</label>
+          <input type="range" min="0" max="9" style="flex: 1; min-width: 0;" .value=${String(sustain)} ?disabled=${!isCustom}
             @input=${(e: Event) => { this._roomSustain = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 16px; text-align: right;">${sustain}</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0;">${sustain}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="min-width: 50px;">Timeout</label>
+          <label style="width: 50px; flex-shrink: 0;">Timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(timeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { this._roomTimeout = v; this._dirty = true; } }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 16px; text-align: right; font-size: 12px;">s</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
       </div>
     `;
@@ -4263,13 +4262,13 @@ export class EverythingPresenceProPanel extends LitElement {
     const trigger = zone.trigger ?? defaults.trigger;
     const sustain = zone.sustain ?? defaults.sustain;
     const timeout = zone.timeout ?? defaults.timeout;
-    const rowStyle = `width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
+    const rowStyle = `width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
     return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
-        <div style="width: 100%; display: flex; align-items: center; gap: 6px;">
-          <label style="min-width: 50px; font-size: 12px;">Type</label>
+        <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
+          <label style="width: 50px; flex-shrink: 0; font-size: 12px;">Type</label>
           <select
-            class="sensitivity-select" style="flex: 1;"
+            class="sensitivity-select" style="flex: 1; min-width: 0;"
             .value=${zone.type}
             @change=${(e: Event) => {
               const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
@@ -4287,29 +4286,28 @@ export class EverythingPresenceProPanel extends LitElement {
             <option value="rest">Rest area</option>
             <option value="custom">Custom</option>
           </select>
-          <span style="min-width: 16px;"></span>
         </div>
         <div style="${rowStyle}">
-          <label style="min-width: 50px;">Trigger</label>
-          <input type="range" min="0" max="9" style="flex: 1;" .value=${String(trigger)} ?disabled=${!isCustom}
+          <label style="width: 50px; flex-shrink: 0;">Trigger</label>
+          <input type="range" min="0" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, trigger: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 16px; text-align: right;">${trigger}</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="min-width: 50px;">Sustain</label>
-          <input type="range" min="0" max="9" style="flex: 1;" .value=${String(sustain)} ?disabled=${!isCustom}
+          <label style="width: 50px; flex-shrink: 0;">Sustain</label>
+          <input type="range" min="0" max="9" style="flex: 1; min-width: 0;" .value=${String(sustain)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, sustain: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 16px; text-align: right;">${sustain}</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0;">${sustain}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="min-width: 50px;">Timeout</label>
+          <label style="width: 50px; flex-shrink: 0;">Timeout</label>
           <span style="flex: 1;"></span>
-          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(timeout)} ?disabled=${!isCustom}
+          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(timeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, timeout: v }; this._zoneConfigs = configs; this._dirty = true; } }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 16px; text-align: right; font-size: 12px;">s</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
       </div>
     `;
