@@ -27,6 +27,17 @@ const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; sustain: number; tim
   rest: { trigger: 3, sustain: 9, timeout: 30 },
 };
 
+const RAW_FPS = 33;
+
+/** Convert hit count (0-33) to equivalent sensitivity level (0-9). */
+const hitCountToSensitivity = (hits: number): number => {
+  for (let s = 9; s >= 0; s--) {
+    const threshold = Math.round((RAW_FPS * (10 - s) + 5) / 10);
+    if (hits >= threshold) return s;
+  }
+  return 0;
+};
+
 interface EntryInfo {
   entry_id: string;
   title: string;
@@ -203,6 +214,7 @@ export class EverythingPresenceProPanel extends LitElement {
     co2: number | null;
   } = { occupancy: false, static_presence: false, pir_motion: false, illuminance: null, temperature: null, humidity: null, co2: null };
   @state() private _zoneState: { occupancy: Record<number, boolean>; target_counts: Record<number, number> } = { occupancy: {}, target_counts: {} };
+  @state() private _showHitCounts = false;
   @state() private _isPainting = false;
   @state() private _paintAction: "set" | "clear" = "set";
   private _frozenBounds: { minCol: number; maxCol: number; minRow: number; maxRow: number } | null = null;
@@ -3283,6 +3295,14 @@ export class EverythingPresenceProPanel extends LitElement {
           <div class="zone-sidebar">
             <div class="sidebar-header">
               <span class="sidebar-title">Live overview</span>
+              <button
+                class="sidebar-menu-btn"
+                title="Show signal strength"
+                style="margin-right: auto; opacity: ${this._showHitCounts ? 1 : 0.4};"
+                @click=${() => { this._showHitCounts = !this._showHitCounts; }}
+              >
+                <ha-icon icon="mdi:signal-cellular-3" style="--mdc-icon-size: 18px;"></ha-icon>
+              </button>
               <div class="sidebar-menu-wrapper">
                 <button class="sidebar-menu-btn" @click=${() => { this._showLiveMenu = !this._showLiveMenu; }}>
                   <ha-icon icon="mdi:dots-vertical" style="--mdc-icon-size: 20px;"></ha-icon>
@@ -3350,6 +3370,7 @@ export class EverythingPresenceProPanel extends LitElement {
         ${this._renderVisibleCells(minCol, maxCol, minRow, maxRow, cellPx)}
       </div>
       ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
+      ${this._showHitCounts ? this._renderHitCountOverlay(cellPx, minCol, maxCol, minRow, maxRow, visCols, visRows) : nothing}
       <div class="targets-overlay" style="pointer-events: none;">
         ${this._targets.map((t, i) => {
           if (!t.active) return nothing;
@@ -3367,6 +3388,79 @@ export class EverythingPresenceProPanel extends LitElement {
       </div>
       ${this._renderGridDimensions()}
     `;
+  }
+
+  private _renderHitCountOverlay(
+    cellPx: number,
+    minCol: number, maxCol: number,
+    minRow: number, maxRow: number,
+    visCols: number, visRows: number,
+  ) {
+    const zs = this._zoneState;
+    // Build per-zone cell lists and centres
+    const zoneCells: Map<number, { col: number; row: number }[]> = new Map();
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const idx = r * GRID_COLS + c;
+        const cell = this._grid[idx];
+        if (!cellIsInside(cell)) continue;
+        const zoneId = cellZone(cell);
+        if (!zoneCells.has(zoneId)) zoneCells.set(zoneId, []);
+        zoneCells.get(zoneId)!.push({ col: c, row: r });
+      }
+    }
+
+    const overlayW = visCols * cellPx;
+    const overlayH = visRows * cellPx;
+    const items: any[] = [];
+
+    for (const [zoneId, cells] of zoneCells) {
+      const hitCount = zs.target_counts[zoneId] ?? 0;
+      if (hitCount === 0) continue;
+
+      const sensitivity = hitCountToSensitivity(hitCount);
+      const opacity = Math.min(0.6, hitCount / RAW_FPS * 0.7);
+
+      // Zone colour: named zones use their config colour, zone 0 uses a neutral blue
+      let colour = "rgba(100, 180, 255";
+      if (zoneId > 0 && zoneId <= MAX_ZONES) {
+        const config = this._zoneConfigs[zoneId - 1];
+        if (config) colour = this._hexToRgbPrefix(config.color);
+      }
+
+      // Render intensity on each cell
+      for (const { col, row } of cells) {
+        const left = (col - minCol) * cellPx;
+        const top = (row - minRow) * cellPx;
+        items.push(html`
+          <div style="position: absolute; left: ${left}px; top: ${top}px; width: ${cellPx}px; height: ${cellPx}px; background: ${colour}, ${opacity}); pointer-events: none;"></div>
+        `);
+      }
+
+      // Label at centre of zone
+      let sumCol = 0, sumRow = 0;
+      for (const { col, row } of cells) { sumCol += col; sumRow += row; }
+      const centreX = ((sumCol / cells.length - minCol + 0.5) / visCols) * overlayW;
+      const centreY = ((sumRow / cells.length - minRow + 0.5) / visRows) * overlayH;
+      items.push(html`
+        <div style="position: absolute; left: ${centreX}px; top: ${centreY}px; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
+          ${sensitivity}
+        </div>
+      `);
+    }
+
+    return html`
+      <div style="position: absolute; top: 0; left: 0; width: ${overlayW}px; height: ${overlayH}px; pointer-events: none;">
+        ${items}
+      </div>
+    `;
+  }
+
+  private _hexToRgbPrefix(hex: string): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}`;
   }
 
   private _renderGridDimensions() {
