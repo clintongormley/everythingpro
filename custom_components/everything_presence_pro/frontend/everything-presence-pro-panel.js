@@ -690,13 +690,13 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           </div>
           <div class="setting-row">
             <label>Trigger threshold</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="7" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">7</span><span class="setting-unit"></span></span>
-            ${this._infoTip("How easily static presence is initially detected. Higher = more sensitive.")}
+            <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="3" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">3</span><span class="setting-unit"></span></span>
+            ${this._infoTip("Minimum signal strength needed to initially detect static presence. Higher = harder to trigger.")}
           </div>
           <div class="setting-row">
             <label>Sustain threshold</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="5" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">5</span><span class="setting-unit"></span></span>
-            ${this._infoTip("How easily static presence is sustained after initial detection. Higher = holds longer.")}
+            <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="3" @input=${t=>{const e=t.target;e.nextElementSibling.textContent=e.value}} /><span class="setting-value">3</span><span class="setting-unit"></span></span>
+            ${this._infoTip("Minimum signal strength needed to maintain static presence detection. Higher = harder to sustain.")}
           </div>
         </div>
         <div class="setting-group">
