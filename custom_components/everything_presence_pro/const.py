@@ -43,9 +43,6 @@ ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
 # LD2450 raw frame rate (~33Hz) used for sensitivity threshold calculation
 RAW_FPS = 33
 
-# Tumbling window interval (matches RAW_FPS-based 1-second windows)
-SMOOTH_WINDOW_S = 1.0  # Rolling median window
-
 
 def sensitivity_to_threshold(sensitivity: int, raw_fps: int = RAW_FPS) -> int:
     """Convert 0-9 sensitivity to minimum hit-count threshold."""

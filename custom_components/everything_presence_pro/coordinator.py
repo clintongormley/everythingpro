@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import math
 import time
-from statistics import median
 from typing import Any
 
 from aioesphomeapi import (
@@ -29,7 +28,8 @@ from .const import (
     GRID_COLS,
     GRID_ROWS,
     MAX_TARGETS,
-    SMOOTH_WINDOW_S,
+    ZONE_TYPE_DEFAULTS,
+    ZONE_TYPE_NORMAL,
 )
 from .zone_engine import Grid, ProcessingResult, Zone, ZoneEngine
 
@@ -39,43 +39,6 @@ SIGNAL_ZONES_UPDATED = f"{DOMAIN}_zones_updated"
 SIGNAL_TARGETS_UPDATED = f"{DOMAIN}_targets_updated"
 SIGNAL_SENSORS_UPDATED = f"{DOMAIN}_sensors_updated"
 
-
-class TargetSmoother:
-    """Rolling median filter on raw sensor coordinates.
-
-    Maintains a time-windowed buffer per target and returns the
-    median x and y over the window.
-    """
-
-    def __init__(self, window_s: float = SMOOTH_WINDOW_S) -> None:
-        """Initialize the smoother."""
-        self._window_s = window_s
-        self._buffers: list[list[tuple[float, float, float]]] = [
-            [] for _ in range(MAX_TARGETS)
-        ]
-
-    def update(self, idx: int, x: float, y: float) -> tuple[float, float]:
-        """Add a reading and return the smoothed (median) position."""
-        now = time.monotonic()
-        buf = self._buffers[idx]
-        buf.append((x, y, now))
-        # Prune old entries
-        cutoff = now - self._window_s
-        while buf and buf[0][2] < cutoff:
-            buf.pop(0)
-        # Compute median
-        xs = sorted(s[0] for s in buf)
-        ys = sorted(s[1] for s in buf)
-        return median(xs), median(ys)
-
-    def clear(self, idx: int) -> None:
-        """Clear the buffer for a target."""
-        self._buffers[idx].clear()
-
-    def clear_all(self) -> None:
-        """Clear all buffers."""
-        for buf in self._buffers:
-            buf.clear()
 
 
 class EverythingPresenceProCoordinator:
@@ -104,7 +67,6 @@ class EverythingPresenceProCoordinator:
 
         # Calibration
         self._sensor_transform = SensorTransform()
-        self._smoother = TargetSmoother()
 
         # Room layout
         self._room_layout: dict[str, Any] = {}
@@ -280,9 +242,8 @@ class EverythingPresenceProCoordinator:
         self._zone_engine.set_zones(zones)
 
     def set_sensor_transform(self, transform: SensorTransform) -> None:
-        """Set the sensor transform, rebuild grid, and reset smoothing."""
+        """Set the sensor transform and rebuild grid."""
         self._sensor_transform = transform
-        self._smoother.clear_all()
         self._rebuild_grid()
 
     def set_offsets(self, offsets: dict[str, float]) -> None:
@@ -546,15 +507,48 @@ class EverythingPresenceProCoordinator:
         )
 
     def _schedule_rebuild(self) -> None:
-        """Schedule a target rebuild, throttled to max ~5/sec.
+        """Feed raw target data to the zone engine on each state update."""
+        now = time.monotonic()
+        calibrated: list[tuple[float, float, bool]] = []
+        for i in range(MAX_TARGETS):
+            if self._target_active[i]:
+                cx, cy = self._sensor_transform.apply(
+                    self._target_x[i], self._target_y[i]
+                )
+                calibrated.append((cx, cy, True))
+            else:
+                calibrated.append((self._target_x[i], self._target_y[i], False))
 
-        Batches multiple x/y/active updates and limits how often the
-        full rebuild + dispatch cycle runs to avoid blocking the event loop.
-        """
-        if self._rebuild_scheduled:
-            return
-        self._rebuild_scheduled = True
-        self.hass.loop.call_later(0.2, self._do_rebuild)
+        result = self._zone_engine.feed_raw(calibrated, now)
+
+        if result is not None:
+            # Window ticked — update state and dispatch
+            self._last_result = result
+            self._targets = calibrated
+            async_dispatcher_send(
+                self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
+            )
+        elif not self._rebuild_scheduled:
+            # Dispatch at throttled rate for live display even between window ticks
+            self._rebuild_scheduled = True
+            self.hass.loop.call_later(0.2, self._do_display_update)
+
+    def _do_display_update(self) -> None:
+        """Dispatch a display update for live target positions (between window ticks)."""
+        self._rebuild_scheduled = False
+        calibrated: list[tuple[float, float, bool]] = []
+        for i in range(MAX_TARGETS):
+            if self._target_active[i]:
+                cx, cy = self._sensor_transform.apply(
+                    self._target_x[i], self._target_y[i]
+                )
+                calibrated.append((cx, cy, True))
+            else:
+                calibrated.append((self._target_x[i], self._target_y[i], False))
+        self._targets = calibrated
+        async_dispatcher_send(
+            self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
+        )
 
     def _target_index(self, name: str) -> int | None:
         """Extract the 0-based target index from a name like target_1_x."""
@@ -568,30 +562,6 @@ class EverythingPresenceProCoordinator:
                 pass
         return None
 
-    def _do_rebuild(self) -> None:
-        """Rebuild target list, apply smoothing + calibration, run zone engine, dispatch."""
-        self._rebuild_scheduled = False
-        calibrated: list[tuple[float, float, bool]] = []
-        for i in range(MAX_TARGETS):
-            if self._target_active[i]:
-                # Smooth raw coordinates
-                sx, sy = self._smoother.update(
-                    i, self._target_x[i], self._target_y[i]
-                )
-                # Apply perspective transform + clamp
-                cx, cy = self._sensor_transform.apply(sx, sy)
-                calibrated.append((cx, cy, True))
-            else:
-                self._smoother.clear(i)
-                calibrated.append((self._target_x[i], self._target_y[i], False))
-
-        self._targets = calibrated
-        self._last_result = self._zone_engine.process_targets(calibrated)
-
-        async_dispatcher_send(
-            self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
-        )
-
     # -- Config serialization --
 
     def get_config_data(self) -> dict[str, Any]:
@@ -602,8 +572,11 @@ class EverythingPresenceProCoordinator:
                 {
                     "id": z.id,
                     "name": z.name,
-                    "sensitivity": z.sensitivity,
+                    "type": z.type,
                     "color": z.color,
+                    "trigger": z.trigger,
+                    "sustain": z.sustain,
+                    "timeout": z.timeout,
                 }
                 for z in self._zones
             ],
@@ -662,8 +635,11 @@ class EverythingPresenceProCoordinator:
                 Zone(
                     id=i + 1,
                     name=z["name"],
-                    sensitivity=z.get("sensitivity", 1),
+                    type=z.get("type", ZONE_TYPE_NORMAL),
                     color=z.get("color", ""),
+                    trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["trigger"]),
+                    sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["sustain"]),
+                    timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["timeout"]),
                 )
                 for i, z in enumerate(zone_slots)
                 if z is not None
@@ -674,8 +650,11 @@ class EverythingPresenceProCoordinator:
                 Zone(
                     id=z["id"],
                     name=z["name"],
-                    sensitivity=z.get("sensitivity", "normal"),
+                    type=z.get("type", ZONE_TYPE_NORMAL),
                     color=z.get("color", ""),
+                    trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["trigger"]),
+                    sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["sustain"]),
+                    timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["timeout"]),
                 )
                 for z in zone_list
             ]
