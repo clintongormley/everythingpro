@@ -22,6 +22,12 @@ FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
+
+def _hash_file(path: str) -> str:
+    """Read a file and return its MD5 hash prefix."""
+    with open(path, "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()[:8]
+
 type EverythingPresenceProConfigEntry = ConfigEntry[
     EverythingPresenceProCoordinator
 ]
@@ -45,8 +51,9 @@ async def async_setup_entry(
         # Cache-bust: hash the JS file so browser reloads on rebuild
         js_path = os.path.join(FRONTEND_DIR, "everything-presence-pro-panel.js")
         try:
-            with open(js_path, "rb") as f:
-                js_hash = hashlib.md5(f.read()).hexdigest()[:8]
+            js_hash = await hass.async_add_executor_job(
+                _hash_file, js_path
+            )
         except OSError:
             js_hash = "0"
         await panel_custom.async_register_panel(
