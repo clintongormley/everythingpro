@@ -14,7 +14,6 @@ from homeassistant.const import (
     PERCENTAGE,
     CONCENTRATION_PARTS_PER_MILLION,
     UnitOfLength,
-    UnitOfSpeed,
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant, callback
@@ -302,8 +301,6 @@ class _PerTargetSensor(SensorEntity):
 class EverythingPresenceProTargetXYSensorSensor(_PerTargetSensor):
     """Per-target XY position relative to sensor (mm)."""
 
-    _attr_native_unit_of_measurement = UnitOfLength.MILLIMETERS
-
     def __init__(
         self, coordinator: EverythingPresenceProCoordinator, index: int
     ) -> None:
@@ -324,11 +321,18 @@ class EverythingPresenceProTargetXYSensorSensor(_PerTargetSensor):
         x, y, _ = targets[self._index]
         return f"{x:.0f},{y:.0f}"
 
+    @property
+    def extra_state_attributes(self) -> dict[str, float] | None:
+        """Return x and y as separate attributes."""
+        targets = self._coordinator.raw_targets
+        if self._index >= len(targets) or not targets[self._index][2]:
+            return None
+        x, y, _ = targets[self._index]
+        return {"x_mm": round(x), "y_mm": round(y)}
+
 
 class EverythingPresenceProTargetXYGridSensor(_PerTargetSensor):
     """Per-target XY position relative to grid (mm)."""
-
-    _attr_native_unit_of_measurement = UnitOfLength.MILLIMETERS
 
     def __init__(
         self, coordinator: EverythingPresenceProCoordinator, index: int
@@ -349,6 +353,15 @@ class EverythingPresenceProTargetXYGridSensor(_PerTargetSensor):
             return None
         x, y, _ = targets[self._index]
         return f"{x:.0f},{y:.0f}"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, float] | None:
+        """Return x and y as separate attributes."""
+        targets = self._coordinator.targets
+        if self._index >= len(targets) or not targets[self._index][2]:
+            return None
+        x, y, _ = targets[self._index]
+        return {"x_mm": round(x), "y_mm": round(y)}
 
 
 class EverythingPresenceProTargetDistanceSensor(_PerTargetSensor):
@@ -401,10 +414,12 @@ class EverythingPresenceProTargetAngleSensor(_PerTargetSensor):
 
 
 class EverythingPresenceProTargetSpeedSensor(_PerTargetSensor):
-    """Per-target speed (placeholder, not yet wired to ESPHome)."""
+    """Per-target speed from LD2450."""
 
-    _attr_native_unit_of_measurement = UnitOfSpeed.MILLIMETERS_PER_SECOND
+    _attr_device_class = SensorDeviceClass.SPEED
+    _attr_native_unit_of_measurement = "cm/s"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 0
 
     def __init__(
         self, coordinator: EverythingPresenceProCoordinator, index: int
@@ -419,14 +434,16 @@ class EverythingPresenceProTargetSpeedSensor(_PerTargetSensor):
 
     @property
     def native_value(self) -> float | None:
-        """Return the speed value (not yet wired)."""
-        return None
+        """Return the speed value."""
+        return self._coordinator.target_speed(self._index)
 
 
 class EverythingPresenceProTargetResolutionSensor(_PerTargetSensor):
-    """Per-target resolution (placeholder, not yet wired to ESPHome)."""
+    """Per-target resolution from LD2450."""
 
+    _attr_native_unit_of_measurement = UnitOfLength.MILLIMETERS
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 0
 
     def __init__(
         self, coordinator: EverythingPresenceProCoordinator, index: int
@@ -441,8 +458,8 @@ class EverythingPresenceProTargetResolutionSensor(_PerTargetSensor):
 
     @property
     def native_value(self) -> float | None:
-        """Return the resolution value (not yet wired)."""
-        return None
+        """Return the resolution value."""
+        return self._coordinator.target_resolution(self._index)
 
 
 class EverythingPresenceProZoneTargetCountSensor(SensorEntity):

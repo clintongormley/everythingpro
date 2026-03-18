@@ -115,6 +115,8 @@ class EverythingPresenceProCoordinator:
         ]
         self._target_x: list[float] = [0.0] * MAX_TARGETS
         self._target_y: list[float] = [0.0] * MAX_TARGETS
+        self._target_speed: list[float] = [0.0] * MAX_TARGETS
+        self._target_resolution: list[float] = [0.0] * MAX_TARGETS
         self._target_active: list[bool] = [False] * MAX_TARGETS
 
         # Sensor states
@@ -207,6 +209,18 @@ class EverythingPresenceProCoordinator:
             return None
         x, y, _ = self._targets[index]
         return (x * x + y * y) ** 0.5
+
+    def target_speed(self, index: int) -> float | None:
+        """Return the speed of a target in cm/s."""
+        if index >= MAX_TARGETS or not self._target_active[index]:
+            return None
+        return self._target_speed[index]
+
+    def target_resolution(self, index: int) -> float | None:
+        """Return the resolution of a target in mm."""
+        if index >= MAX_TARGETS or not self._target_active[index]:
+            return None
+        return self._target_resolution[index]
 
     def target_angle(self, index: int) -> float | None:
         """Return the angle from sensor to a target in degrees."""
@@ -416,6 +430,10 @@ class EverythingPresenceProCoordinator:
                 return f"target_{n}_x"
             if lower.endswith(f"target_{n}_y"):
                 return f"target_{n}_y"
+            if lower.endswith(f"target_{n}_speed"):
+                return f"target_{n}_speed"
+            if lower.endswith(f"target_{n}_resolution"):
+                return f"target_{n}_resolution"
             if lower.endswith(f"target_{n}_active"):
                 return f"target_{n}_active"
 
@@ -490,6 +508,16 @@ class EverythingPresenceProCoordinator:
             idx = self._target_index(name)
             if idx is not None:
                 self._target_y[idx] = value
+                self._schedule_rebuild()
+        elif name.startswith("target_") and name.endswith("_speed"):
+            idx = self._target_index(name)
+            if idx is not None:
+                self._target_speed[idx] = value
+                self._schedule_rebuild()
+        elif name.startswith("target_") and name.endswith("_resolution"):
+            idx = self._target_index(name)
+            if idx is not None:
+                self._target_resolution[idx] = value
                 self._schedule_rebuild()
 
     def _dispatch_sensor_update(self) -> None:
