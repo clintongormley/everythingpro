@@ -3669,6 +3669,25 @@ export class EverythingPresenceProPanel extends LitElement {
     }
   }
 
+  private _renderEnvOffset(
+    label: string, reading: number | null, defaultOffset: number,
+    min: number, max: number, step: number, unit: string, precision: number, tip: string,
+  ) {
+    const adjusted = reading != null ? (reading + defaultOffset).toFixed(precision) : "—";
+    return html`
+      <div class="setting-row">
+        <label>${label}</label>
+        <span class="setting-input-unit"><input type="range" class="setting-range" value=${defaultOffset} min=${min} max=${max} step=${step} @input=${(e: Event) => {
+          const el = e.target as HTMLInputElement;
+          const offset = parseFloat(el.value);
+          const val = reading != null ? (reading + offset).toFixed(precision) : "—";
+          el.nextElementSibling!.textContent = val;
+        }} /><span class="setting-value">${adjusted}</span> ${unit}</span>
+        ${this._infoTip(tip)}
+      </div>
+    `;
+  }
+
   private _infoTip(text: string) {
     return html`<span class="setting-info"
       @click=${(e: Event) => {
@@ -3776,24 +3795,9 @@ export class EverythingPresenceProPanel extends LitElement {
         </div>
         <div class="setting-group">
           <h4>Environmental</h4>
-          <div class="setting-row">
-            <label>Illuminance offset</label>
-            <span style="font-size: 12px; color: var(--secondary-text-color, #757575); width: 100%; order: 3;">Current reading: ${this._sensorState.illuminance != null ? `${this._sensorState.illuminance.toFixed(0)} lux` : "—"}</span>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="-500" max="500" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> lux</span>
-            ${this._infoTip("Adjust the illuminance reading by a fixed amount.")}
-          </div>
-          <div class="setting-row">
-            <label>Humidity offset</label>
-            <span style="font-size: 12px; color: var(--secondary-text-color, #757575); width: 100%; order: 3;">Current reading: ${this._sensorState.humidity != null ? `${this._sensorState.humidity.toFixed(1)}%` : "—"}</span>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="-50" max="50" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> %</span>
-            ${this._infoTip("Adjust the humidity reading by a fixed amount.")}
-          </div>
-          <div class="setting-row">
-            <label>Temperature offset</label>
-            <span style="font-size: 12px; color: var(--secondary-text-color, #757575); width: 100%; order: 3;">Current reading: ${this._sensorState.temperature != null ? `${this._sensorState.temperature.toFixed(1)} °C` : "—"}</span>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="-20" max="20" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> °C</span>
-            ${this._infoTip("Adjust the temperature reading by a fixed amount.")}
-          </div>
+          ${this._renderEnvOffset("Illuminance offset", this._sensorState.illuminance, 0, -500, 500, 1, "lux", 0, "Adjust the illuminance reading by a fixed amount.")}
+          ${this._renderEnvOffset("Humidity offset", this._sensorState.humidity, 0, -50, 50, 0.1, "%", 1, "Adjust the humidity reading by a fixed amount.")}
+          ${this._renderEnvOffset("Temperature offset", this._sensorState.temperature, 0, -20, 20, 0.1, "°C", 1, "Adjust the temperature reading by a fixed amount.")}
         </div>
       </div>
     `;
