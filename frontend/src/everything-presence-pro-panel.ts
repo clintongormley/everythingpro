@@ -3587,7 +3587,7 @@ export class EverythingPresenceProPanel extends LitElement {
     return html`
       <div class="panel">
         ${this._renderHeader()}
-        <div class="settings-container">
+        <div class="settings-container" @input=${() => { this._dirty = true; }} @change=${() => { this._dirty = true; }}>
           <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 500;">Settings</h2>
           ${sections.map((s) => {
             const open = this._openAccordions.has(s.id);

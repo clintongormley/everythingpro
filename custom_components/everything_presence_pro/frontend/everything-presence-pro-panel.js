@@ -589,7 +589,7 @@ class xt extends vt{}xt.directiveName="unsafeSVG",xt.resultType=2;const mt=(t=>(
     `}_toggleAccordion(t){const e=new Set(this._openAccordions);e.has(t)?e.delete(t):e.add(t),this._openAccordions=e}_autoDetectionRange(){const t=Math.max(this._roomWidth,this._roomDepth);if(t<=0)return 0;const e=t/1e3;return Math.ceil(2*e)/2}_renderSettings(){return O`
       <div class="panel">
         ${this._renderHeader()}
-        <div class="settings-container">
+        <div class="settings-container" @input=${()=>{this._dirty=!0}} @change=${()=>{this._dirty=!0}}>
           <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 500;">Settings</h2>
           ${[{id:"detection",label:"Detection Ranges",icon:"mdi:signal-distance-variant"},{id:"sensitivity",label:"Sensitivities and Timeout",icon:"mdi:tune-vertical"},{id:"reporting",label:"Reporting",icon:"mdi:format-list-checks"}].map(t=>{const e=this._openAccordions.has(t.id);return O`
               <div class="accordion">
