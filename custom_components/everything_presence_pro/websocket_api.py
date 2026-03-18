@@ -174,6 +174,7 @@ def websocket_get_config(
                 vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
                 vol.Optional("sustain"): vol.All(int, vol.Range(min=0, max=9)),
                 vol.Optional("timeout"): vol.Coerce(float),
+                vol.Optional("is_portal"): bool,
             }
         ],
     }
@@ -202,6 +203,7 @@ async def websocket_set_zones(
             trigger=z.get("trigger", defaults["trigger"]),
             sustain=z.get("sustain", defaults["sustain"]),
             timeout=z.get("timeout", defaults["timeout"]),
+            is_portal=z.get("is_portal", False),
         ))
 
     coordinator.set_zones(zones)
@@ -219,6 +221,7 @@ async def websocket_set_zones(
                 "trigger": z.trigger,
                 "sustain": z.sustain,
                 "timeout": z.timeout,
+                "is_portal": z.is_portal,
             }
             for z in zones
         ]
@@ -245,6 +248,7 @@ async def websocket_set_zones(
                         vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
                         vol.Optional("sustain"): vol.All(int, vol.Range(min=0, max=9)),
                         vol.Optional("timeout"): vol.Coerce(float),
+                        vol.Optional("is_portal"): bool,
                     },
                 )
             ],
@@ -254,6 +258,7 @@ async def websocket_set_zones(
         vol.Optional("room_trigger"): vol.All(int, vol.Range(min=0, max=9)),
         vol.Optional("room_sustain"): vol.All(int, vol.Range(min=0, max=9)),
         vol.Optional("room_timeout"): vol.Coerce(float),
+        vol.Optional("room_portal"): bool,
         vol.Optional("furniture", default=[]): [
             {
                 vol.Optional("type", default="icon"): str,
@@ -297,6 +302,7 @@ async def websocket_set_room_layout(
             trigger=z.get("trigger", defaults["trigger"]),
             sustain=z.get("sustain", defaults["sustain"]),
             timeout=z.get("timeout", defaults["timeout"]),
+            is_portal=z.get("is_portal", False),
         ))
     coordinator.set_zones(zones)
 
@@ -306,6 +312,7 @@ async def websocket_set_room_layout(
         "room_trigger": msg.get("room_trigger"),
         "room_sustain": msg.get("room_sustain"),
         "room_timeout": msg.get("room_timeout"),
+        "room_portal": msg.get("room_portal", False),
         "zone_slots": zone_slots,
         "furniture": msg["furniture"],
     }

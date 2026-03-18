@@ -603,6 +603,7 @@ class EverythingPresenceProCoordinator:
                     "trigger": z.trigger,
                     "sustain": z.sustain,
                     "timeout": z.timeout,
+                    "is_portal": z.is_portal,
                 }
                 for z in self._zones
             ],
@@ -666,6 +667,7 @@ class EverythingPresenceProCoordinator:
                     trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["trigger"]),
                     sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["sustain"]),
                     timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["timeout"]),
+                    is_portal=z.get("is_portal", False),
                 )
                 for i, z in enumerate(zone_slots)
                 if z is not None
@@ -681,6 +683,7 @@ class EverythingPresenceProCoordinator:
                     trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["trigger"]),
                     sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["sustain"]),
                     timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["timeout"]),
+                    is_portal=z.get("is_portal", False),
                 )
                 for z in zone_list
             ]
