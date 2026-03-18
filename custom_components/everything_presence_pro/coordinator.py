@@ -128,7 +128,7 @@ class EverythingPresenceProCoordinator:
         self._co2: float | None = None
 
         # Environmental offsets (loaded from config entry options)
-        offsets = data.get("offsets", {})
+        offsets = entry.options.get("config", {}).get("offsets", {})
         self._illuminance_offset: float = offsets.get("illuminance", 0.0)
         self._temperature_offset: float = offsets.get("temperature", 0.0)
         self._humidity_offset: float = offsets.get("humidity", 0.0)
