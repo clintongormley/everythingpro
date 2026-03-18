@@ -211,10 +211,10 @@ class EverythingPresenceProCoordinator:
         return (x * x + y * y) ** 0.5
 
     def target_speed(self, index: int) -> float | None:
-        """Return the speed of a target in cm/s."""
+        """Return the speed of a target in mm/s."""
         if index >= MAX_TARGETS or not self._target_active[index]:
             return None
-        return self._target_speed[index]
+        return self._target_speed[index] * 10  # ESPHome reports cm/s
 
     def target_resolution(self, index: int) -> float | None:
         """Return the resolution of a target in mm."""

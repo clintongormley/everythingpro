@@ -417,7 +417,7 @@ class EverythingPresenceProTargetSpeedSensor(_PerTargetSensor):
     """Per-target speed from LD2450."""
 
     _attr_device_class = SensorDeviceClass.SPEED
-    _attr_native_unit_of_measurement = "cm/s"
+    _attr_native_unit_of_measurement = "mm/s"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 0
 
