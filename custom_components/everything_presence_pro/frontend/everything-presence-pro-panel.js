@@ -688,10 +688,10 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         </div>
         <div class="setting-group">
           <h4>Target Sensor</h4>
-          ${this._renderZoneTypeProfile("Entrance / Exit",5,1,1,!0)}
-          ${this._renderZoneTypeProfile("Thoroughfare",3,1,1,!1)}
-          ${this._renderZoneTypeProfile("Living area",15,3,3,!1)}
-          ${this._renderZoneTypeProfile("Bed / Sofa",60,5,1,!1)}
+          ${this._renderZoneTypeProfile("Entrance / Exit",yt.entrance.timeout,yt.entrance.trigger,yt.entrance.sustain,!0)}
+          ${this._renderZoneTypeProfile("Thoroughfare",yt.thoroughfare.timeout,yt.thoroughfare.trigger,yt.thoroughfare.sustain,!1)}
+          ${this._renderZoneTypeProfile("Living area",yt.normal.timeout,yt.normal.trigger,yt.normal.sustain,!1)}
+          ${this._renderZoneTypeProfile("Bed / Sofa",yt.rest.timeout,yt.rest.trigger,yt.rest.sustain,!1)}
         </div>
         <div class="setting-group">
           <h4>Environmental</h4>

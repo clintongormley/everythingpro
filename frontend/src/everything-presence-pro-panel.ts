@@ -3792,10 +3792,10 @@ export class EverythingPresenceProPanel extends LitElement {
         </div>
         <div class="setting-group">
           <h4>Target Sensor</h4>
-          ${this._renderZoneTypeProfile("Entrance / Exit", 5, 1, 1, true)}
-          ${this._renderZoneTypeProfile("Thoroughfare", 3, 1, 1, false)}
-          ${this._renderZoneTypeProfile("Living area", 15, 3, 3, false)}
-          ${this._renderZoneTypeProfile("Bed / Sofa", 60, 5, 1, false)}
+          ${this._renderZoneTypeProfile("Entrance / Exit", ZONE_TYPE_DEFAULTS.entrance.timeout, ZONE_TYPE_DEFAULTS.entrance.trigger, ZONE_TYPE_DEFAULTS.entrance.sustain, true)}
+          ${this._renderZoneTypeProfile("Thoroughfare", ZONE_TYPE_DEFAULTS.thoroughfare.timeout, ZONE_TYPE_DEFAULTS.thoroughfare.trigger, ZONE_TYPE_DEFAULTS.thoroughfare.sustain, false)}
+          ${this._renderZoneTypeProfile("Living area", ZONE_TYPE_DEFAULTS.normal.timeout, ZONE_TYPE_DEFAULTS.normal.trigger, ZONE_TYPE_DEFAULTS.normal.sustain, false)}
+          ${this._renderZoneTypeProfile("Bed / Sofa", ZONE_TYPE_DEFAULTS.rest.timeout, ZONE_TYPE_DEFAULTS.rest.trigger, ZONE_TYPE_DEFAULTS.rest.sustain, false)}
         </div>
         <div class="setting-group">
           <h4>Environmental</h4>
