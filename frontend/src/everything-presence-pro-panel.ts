@@ -208,6 +208,9 @@ export class EverythingPresenceProPanel extends LitElement {
   } = { occupancy: false, static_presence: false, pir_motion: false, illuminance: null, temperature: null, humidity: null, co2: null };
   @state() private _zoneState: { occupancy: Record<number, boolean>; target_counts: Record<number, number>; frame_count: number } = { occupancy: {}, target_counts: {}, frame_count: 0 };
   @state() private _showHitCounts = false;
+
+  // Local zone occupancy state machine for live preview (with timeout)
+  private _localZoneState: Map<number, { occupied: boolean; pendingSince: number | null }> = new Map();
   @state() private _isPainting = false;
   @state() private _paintAction: "set" | "clear" = "set";
   private _frozenBounds: { minCol: number; maxCol: number; minRow: number; maxRow: number } | null = null;
@@ -4150,10 +4153,11 @@ export class EverythingPresenceProPanel extends LitElement {
   ) {
     // Pre-compute heatmap colours per zone if enabled
     const heatmap = this._showHitCounts ? this._computeHeatmapColors() : null;
-    // Use backend occupancy state, but also compute local occupancy from
-    // current editor zone configs + target signals for live preview while editing
-    const backendOccupancy = this._zoneState.occupancy;
-    const localOccupancy: Record<number, boolean> = {};
+    // Local zone occupancy with trigger/sustain thresholds and timeout
+    const now = Date.now() / 1000;
+
+    // Determine which zones have a confirmed target this tick
+    const zoneConfirmed: Set<number> = new Set();
     for (const t of this._targets) {
       if (!t.active || t.signal <= 0) continue;
       const pos = this._mapTargetToGridCell(t);
@@ -4165,24 +4169,38 @@ export class EverythingPresenceProPanel extends LitElement {
       const cellVal = this._grid[idx];
       if (!cellIsInside(cellVal)) continue;
       const zid = cellZone(cellVal);
-      // Get threshold from editor config
-      let threshold = 5;
-      if (zid === 0) {
-        const d = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
-        threshold = this._roomType === "custom" ? this._roomTrigger : d.trigger;
-      } else if (zid > 0 && zid <= MAX_ZONES) {
-        const cfg = this._zoneConfigs[zid - 1];
-        if (cfg) {
-          const d = ZONE_TYPE_DEFAULTS[cfg.type] || ZONE_TYPE_DEFAULTS.normal;
-          threshold = cfg.type === "custom" ? (cfg.trigger ?? d.trigger) : d.trigger;
-        }
-      }
-      if (t.signal >= threshold) localOccupancy[zid] = true;
+      const { trigger, sustain } = this._getZoneThresholds(zid);
+      const st = this._localZoneState.get(zid);
+      const isOccupied = st?.occupied ?? false;
+      const thresh = isOccupied ? sustain : trigger;
+      if (t.signal >= thresh) zoneConfirmed.add(zid);
     }
-    // Merge: local OR backend (backend handles timeout/pending correctly)
-    const occupancy: Record<number, boolean> = { ...backendOccupancy };
-    for (const [k, v] of Object.entries(localOccupancy)) {
-      if (v) occupancy[Number(k)] = true;
+
+    // Update per-zone state machine
+    const occupancy: Record<number, boolean> = {};
+    // Ensure all zones with cells are tracked
+    const allZoneIds = new Set<number>();
+    for (let i = 0; i < this._grid.length; i++) {
+      if (cellIsInside(this._grid[i])) allZoneIds.add(cellZone(this._grid[i]));
+    }
+    for (const zid of allZoneIds) {
+      let st = this._localZoneState.get(zid);
+      if (!st) { st = { occupied: false, pendingSince: null }; this._localZoneState.set(zid, st); }
+      const { timeout } = this._getZoneThresholds(zid);
+      const confirmed = zoneConfirmed.has(zid);
+
+      if (!st.occupied) {
+        // CLEAR
+        if (confirmed) { st.occupied = true; st.pendingSince = null; }
+      } else if (st.pendingSince === null) {
+        // OCCUPIED
+        if (!confirmed) { st.pendingSince = now; }
+      } else {
+        // PENDING
+        if (confirmed) { st.pendingSince = null; }
+        else if (now - st.pendingSince >= timeout) { st.occupied = false; st.pendingSince = null; }
+      }
+      occupancy[zid] = st.occupied;
     }
 
     const cells = [];
@@ -4240,6 +4258,26 @@ export class EverythingPresenceProPanel extends LitElement {
       result.set(zoneId, `rgba(${r}, ${g}, ${b}, ${opacity})`);
     }
     return result;
+  }
+
+  /** Get trigger/sustain/timeout for a zone from the current editor state. */
+  private _getZoneThresholds(zid: number): { trigger: number; sustain: number; timeout: number } {
+    if (zid === 0) {
+      const d = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
+      return this._roomType === "custom"
+        ? { trigger: this._roomTrigger, sustain: this._roomSustain, timeout: this._roomTimeout }
+        : { trigger: d.trigger, sustain: d.sustain, timeout: d.timeout };
+    }
+    if (zid > 0 && zid <= MAX_ZONES) {
+      const cfg = this._zoneConfigs[zid - 1];
+      if (cfg) {
+        const d = ZONE_TYPE_DEFAULTS[cfg.type] || ZONE_TYPE_DEFAULTS.normal;
+        return cfg.type === "custom"
+          ? { trigger: cfg.trigger ?? d.trigger, sustain: cfg.sustain ?? d.sustain, timeout: cfg.timeout ?? d.timeout }
+          : { trigger: d.trigger, sustain: d.sustain, timeout: d.timeout };
+      }
+    }
+    return { trigger: 5, sustain: 3, timeout: 10 };
   }
 
   private _renderBoundaryTypeControls() {
