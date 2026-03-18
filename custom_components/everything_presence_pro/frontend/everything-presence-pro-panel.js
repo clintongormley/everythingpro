@@ -835,6 +835,11 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
                       class="target-dot"
                       style="left: ${s}%; top: ${l}%; background: ${Pt[e]||Pt[0]};"
                     ></div>
+                    ${t.signal>0?O`
+                      <div style="position: absolute; left: ${s}%; top: ${l}%; transform: translate(-50%, -280%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
+                        ${t.signal}
+                      </div>
+                    `:V}
                   `})}
             </div>
             ${this._renderGridDimensions()}
