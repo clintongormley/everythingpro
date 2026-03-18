@@ -4150,26 +4150,37 @@ export class EverythingPresenceProPanel extends LitElement {
   ) {
     // Pre-compute heatmap colours per zone if enabled
     const heatmap = this._showHitCounts ? this._computeHeatmapColors() : null;
+    const occupancy = this._zoneState.occupancy;
 
     const cells = [];
     for (let r = minRow; r <= maxRow; r++) {
       for (let c = minCol; c <= maxCol; c++) {
         const idx = r * GRID_COLS + c;
+        const cellVal = this._grid[idx];
         let bg = this._getCellColor(idx);
-        if (heatmap) {
-          const cell = this._grid[idx];
-          if (cellIsInside(cell)) {
-            const zoneId = cellZone(cell);
+        let border = "";
+        if (cellIsInside(cellVal)) {
+          const zoneId = cellZone(cellVal);
+          if (heatmap) {
             const overlay = heatmap.get(zoneId);
             if (overlay) {
               bg = `linear-gradient(${overlay}, ${overlay}), linear-gradient(${bg}, ${bg})`;
             }
           }
+          if (occupancy[zoneId]) {
+            // Zone is occupied — show coloured border
+            let borderColor = "rgba(255,255,255,0.9)";
+            if (zoneId > 0 && zoneId <= MAX_ZONES) {
+              const config = this._zoneConfigs[zoneId - 1];
+              if (config) borderColor = config.color;
+            }
+            border = `box-shadow: inset 0 0 0 2px ${borderColor};`;
+          }
         }
         cells.push(html`
           <div
             class="cell"
-            style="background: ${bg}; width: ${cellPx}px; height: ${cellPx}px;"
+            style="background: ${bg}; width: ${cellPx}px; height: ${cellPx}px; ${border}"
             @mousedown=${() => this._onCellMouseDown(idx)}
             @mouseenter=${() => this._onCellMouseEnter(idx)}
           ></div>

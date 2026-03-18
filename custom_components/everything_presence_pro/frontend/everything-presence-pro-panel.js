@@ -960,14 +960,14 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
           </div>
         </div>
       </div>
-    `}_renderVisibleCells(t,e,i,o,r){const s=this._showHitCounts?this._computeHeatmapColors():null,n=[];for(let a=i;a<=o;a++)for(let i=t;i<=e;i++){const t=a*St+i;let e=this._getCellColor(t);if(s){const i=this._grid[t];if(wt(i)){const t=$t(i),o=s.get(t);o&&(e=`linear-gradient(${o}, ${o}), linear-gradient(${e}, ${e})`)}}n.push(O`
+    `}_renderVisibleCells(t,e,i,o,r){const s=this._showHitCounts?this._computeHeatmapColors():null,n=this._zoneState.occupancy,a=[];for(let l=i;l<=o;l++)for(let i=t;i<=e;i++){const t=l*St+i,e=this._grid[t];let o=this._getCellColor(t),d="";if(wt(e)){const t=$t(e);if(s){const e=s.get(t);e&&(o=`linear-gradient(${e}, ${e}), linear-gradient(${o}, ${o})`)}if(n[t]){let e="rgba(255,255,255,0.9)";if(t>0&&t<=7){const i=this._zoneConfigs[t-1];i&&(e=i.color)}d=`box-shadow: inset 0 0 0 2px ${e};`}}a.push(O`
           <div
             class="cell"
-            style="background: ${e}; width: ${r}px; height: ${r}px;"
+            style="background: ${o}; width: ${r}px; height: ${r}px; ${d}"
             @mousedown=${()=>this._onCellMouseDown(t)}
             @mouseenter=${()=>this._onCellMouseEnter(t)}
           ></div>
-        `)}return n}_computeHeatmapColors(){const t=this._zoneState,e=new Map;for(const[i,o]of Object.entries(t.target_counts)){const t=Number(i);if(o<=0)continue;const r=Math.min(o,9)/9*.6;let s=100,n=180,a=255;if(t>0&&t<=7){const e=this._zoneConfigs[t-1];if(e){const t=e.color;s=parseInt(t.slice(1,3),16),n=parseInt(t.slice(3,5),16),a=parseInt(t.slice(5,7),16)}}e.set(t,`rgba(${s}, ${n}, ${a}, ${r})`)}return e}_renderBoundaryTypeControls(){const t="custom"===this._roomType,e=yt[this._roomType]||yt.normal,i=t?this._roomTrigger:e.trigger,o=t?this._roomSustain:e.sustain,r=t?this._roomTimeout:e.timeout,s=`width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${t?1:.5};`;return O`
+        `)}return a}_computeHeatmapColors(){const t=this._zoneState,e=new Map;for(const[i,o]of Object.entries(t.target_counts)){const t=Number(i);if(o<=0)continue;const r=Math.min(o,9)/9*.6;let s=100,n=180,a=255;if(t>0&&t<=7){const e=this._zoneConfigs[t-1];if(e){const t=e.color;s=parseInt(t.slice(1,3),16),n=parseInt(t.slice(3,5),16),a=parseInt(t.slice(5,7),16)}}e.set(t,`rgba(${s}, ${n}, ${a}, ${r})`)}return e}_renderBoundaryTypeControls(){const t="custom"===this._roomType,e=yt[this._roomType]||yt.normal,i=t?this._roomTrigger:e.trigger,o=t?this._roomSustain:e.sustain,r=t?this._roomTimeout:e.timeout,s=`width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${t?1:.5};`;return O`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
         <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
           <label style="width: 50px; flex-shrink: 0; font-size: 12px;">Type</label>
