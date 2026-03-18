@@ -41,6 +41,12 @@ ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
     ZONE_TYPE_REST: {"trigger": 7, "sustain": 1, "timeout": 30.0},
 }
 
+# Maximum Chebyshev distance (cells) for continuous movement between ticks
+MAX_MOVEMENT_CELLS = 5
+
+# Zone types that are portals (targets can appear from nowhere)
+PORTAL_ZONE_TYPES = {ZONE_TYPE_ENTRANCE, ZONE_TYPE_THOROUGHFARE}
+
 # LD2450 raw frame rate (10Hz per datasheet)
 RAW_FPS = 10
 

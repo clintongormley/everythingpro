@@ -25,7 +25,9 @@ from .const import (
     GRID_CELL_SIZE_MM,
     MAX_RANGE_MM,
     MAX_TARGETS,
+    PORTAL_ZONE_TYPES,
     RAW_FPS,
+    ZONE_TYPE_CUSTOM,
     ZONE_TYPE_DEFAULTS,
     ZONE_TYPE_NORMAL,
     threshold_to_frame_count,
@@ -38,11 +40,17 @@ class Zone:
 
     id: int  # 1-7
     name: str
-    type: str  # "normal" | "entrance" | "thoroughfare" | "rest"
+    type: str  # "normal" | "entrance" | "thoroughfare" | "rest" | "custom"
     color: str = ""
-    trigger: int = 5  # 0-9 threshold, 0=disabled, higher=harder
-    sustain: int = 3  # 0-9 threshold, 0=disabled, higher=harder
+    trigger: int = 5  # 1-9 threshold, higher=harder to trigger
+    sustain: int = 3  # 1-9 threshold, higher=harder
     timeout: float = 10.0  # seconds
+    is_portal: bool = False  # derived from type, explicit for custom
+
+    def __post_init__(self) -> None:
+        """Derive portal flag from type if not custom."""
+        if self.type != ZONE_TYPE_CUSTOM:
+            self.is_portal = self.type in PORTAL_ZONE_TYPES
 
 
 class ZoneState(enum.Enum):
@@ -283,6 +291,7 @@ class _ZoneRuntime:
     zone: Zone
     state: ZoneState = ZoneState.CLEAR
     pending_since: float | None = None
+    confirmed_targets: set[int] = field(default_factory=set)
 
 
 class ZoneEngine:
