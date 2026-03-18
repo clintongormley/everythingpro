@@ -15,34 +15,38 @@ FOV_DEGREES = 120
 # ESPHome API
 DEFAULT_PORT = 6053
 
-# Smoothing
-SMOOTH_WINDOW_S = 1.0  # Rolling median window
-
-# Sensitivity defaults (consecutive frames to confirm presence)
-SENSITIVITY_NORMAL = 3
-SENSITIVITY_HIGH = 1
-SENSITIVITY_LOW = 8
-
 # Grid cell byte format:
-# Bits 0-1: room/overlay (00=outside, 01=inside, 10=entrance, 11=interference)
-# Bits 2-4: zone number (0=room default, 1-7=named zone)
-# Bits 5-7: per-cell training baseline (reserved)
-CELL_ROOM_MASK = 0x03
-CELL_ROOM_OUTSIDE = 0x00
-CELL_ROOM_INSIDE = 0x01
-CELL_ROOM_ENTRANCE = 0x02
-CELL_ROOM_INTERFERENCE = 0x03
-CELL_ZONE_MASK = 0x1C
-CELL_ZONE_SHIFT = 2
-CELL_TRAINING_MASK = 0xE0
-CELL_TRAINING_SHIFT = 5
+# Bit 0: room (0=outside, 1=inside)
+# Bits 1-3: zone number (0=room default, 1-7=named zone)
+# Bits 4-7: per-cell training (reserved, default 0)
+CELL_ROOM_BIT = 0x01
+CELL_ZONE_MASK = 0x0E
+CELL_ZONE_SHIFT = 1
+CELL_TRAINING_MASK = 0xF0
+CELL_TRAINING_SHIFT = 4
 MAX_ZONES = 7
 
-# Zone sensitivity types
-ZONE_NORMAL = "normal"
-ZONE_HIGH = "high"
-ZONE_LOW = "low"
-ZONE_EXCLUSION = "exclusion"
+# Zone types and their default sensitivities (0-9 scale, higher = more sensitive)
+# Sensitivity maps to hit-count threshold: threshold = (raw_fps * (10 - sensitivity) + 5) // 10
+ZONE_TYPE_NORMAL = "normal"
+ZONE_TYPE_ENTRANCE = "entrance"
+ZONE_TYPE_THOROUGHFARE = "thoroughfare"
+ZONE_TYPE_REST = "rest"
+
+ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
+    ZONE_TYPE_NORMAL: {"trigger": 5, "sustain": 7, "timeout": 10.0},
+    ZONE_TYPE_ENTRANCE: {"trigger": 7, "sustain": 8, "timeout": 5.0},
+    ZONE_TYPE_THOROUGHFARE: {"trigger": 7, "sustain": 8, "timeout": 3.0},
+    ZONE_TYPE_REST: {"trigger": 3, "sustain": 9, "timeout": 30.0},
+}
+
+# LD2450 raw frame rate (~33Hz) used for sensitivity threshold calculation
+RAW_FPS = 33
+
+
+def sensitivity_to_threshold(sensitivity: int, raw_fps: int = RAW_FPS) -> int:
+    """Convert 0-9 sensitivity to minimum hit-count threshold."""
+    return (raw_fps * (10 - sensitivity) + 5) // 10
 
 # ESPHome entity name patterns for EP Pro
 TARGET_X_PATTERN = "target_{n}_x"
