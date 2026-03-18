@@ -256,10 +256,17 @@ export class EverythingPresenceProPanel extends LitElement {
     return true;
   };
 
+  private _dismissTooltips = () => {
+    this.shadowRoot!.querySelectorAll('.setting-info-tooltip').forEach((t) => {
+      (t as HTMLElement).style.display = 'none';
+    });
+  };
+
   connectedCallback(): void {
     super.connectedCallback();
     this._initialize();
     window.addEventListener("beforeunload", this._beforeUnloadHandler);
+    window.addEventListener("click", this._dismissTooltips);
 
     // Intercept HA's client-side routing (pushState/replaceState)
     this._originalPushState = history.pushState.bind(history);
@@ -291,6 +298,7 @@ export class EverythingPresenceProPanel extends LitElement {
     super.disconnectedCallback();
     this._unsubscribeTargets();
     window.removeEventListener("beforeunload", this._beforeUnloadHandler);
+    window.removeEventListener("click", this._dismissTooltips);
 
     // Restore original history methods
     if (this._originalPushState) history.pushState = this._originalPushState;
@@ -2618,9 +2626,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
     .setting-info .setting-info-tooltip {
       display: none;
-      position: absolute;
-      right: 0;
-      top: 28px;
+      position: fixed;
       background: var(--card-background-color, #fff);
       border: 1px solid var(--divider-color, #e0e0e0);
       border-radius: 8px;
@@ -2630,12 +2636,9 @@ export class EverythingPresenceProPanel extends LitElement {
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       white-space: normal;
       width: 240px;
-      z-index: 100;
+      z-index: 9999;
       line-height: 1.4;
-    }
-
-    .setting-info:hover .setting-info-tooltip {
-      display: block;
+      pointer-events: none;
     }
 
     .setting-value {
@@ -2645,6 +2648,14 @@ export class EverythingPresenceProPanel extends LitElement {
       display: inline-block;
       width: 36px;
       text-align: right;
+      flex-shrink: 0;
+    }
+
+    .setting-unit {
+      display: inline-block;
+      width: 24px;
+      font-size: 13px;
+      color: var(--secondary-text-color, #757575);
       flex-shrink: 0;
     }
 
@@ -2671,6 +2682,7 @@ export class EverythingPresenceProPanel extends LitElement {
     }
 
     select.setting-input {
+      flex: 1;
       width: auto;
       text-align: left;
     }
@@ -3613,7 +3625,7 @@ export class EverythingPresenceProPanel extends LitElement {
     const sections: { id: string; label: string; icon: string }[] = [
       { id: "detection", label: "Detection Ranges", icon: "mdi:signal-distance-variant" },
       { id: "sensitivity", label: "Sensitivities and Timeout", icon: "mdi:tune-vertical" },
-      { id: "reporting", label: "Reporting", icon: "mdi:format-list-checks" },
+      { id: "reporting", label: "Entities", icon: "mdi:format-list-checks" },
     ];
 
     return html`
@@ -3658,7 +3670,24 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _infoTip(text: string) {
-    return html`<span class="setting-info"><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${text}</span></span>`;
+    return html`<span class="setting-info"
+      @click=${(e: Event) => {
+        e.stopPropagation();
+        const icon = e.currentTarget as HTMLElement;
+        const tip = icon.querySelector('.setting-info-tooltip') as HTMLElement;
+        if (!tip) return;
+        const wasOpen = tip.style.display === 'block';
+        // Close any other open tooltips
+        this.shadowRoot!.querySelectorAll('.setting-info-tooltip').forEach((t) => {
+          (t as HTMLElement).style.display = 'none';
+        });
+        if (wasOpen) return;
+        const rect = icon.getBoundingClientRect();
+        tip.style.display = 'block';
+        tip.style.left = `${Math.max(8, Math.min(rect.right - 240, window.innerWidth - 256))}px`;
+        tip.style.top = `${rect.bottom + 6}px`;
+      }}
+    ><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${text}</span></span>`;
   }
 
   private _renderDetectionRanges() {
@@ -3671,16 +3700,19 @@ export class EverythingPresenceProPanel extends LitElement {
           <h4>Target Sensor</h4>
           <div class="setting-row">
             <label>Detection range</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="6" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> m</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="6" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Maximum detection distance for the target sensor. Auto-set from room dimensions.")}
           </div>
           <div class="setting-row">
             <label>Update rate</label>
-            <select class="setting-input">
-              <option value="5" selected>5 Hz (default)</option>
-              <option value="10">10 Hz (fast)</option>
-              <option value="2">2 Hz (low power)</option>
-            </select>
+            <span class="setting-input-unit">
+              <select class="setting-input">
+                <option value="5" selected>5 Hz (default)</option>
+                <option value="10">10 Hz (fast)</option>
+                <option value="2">2 Hz (low power)</option>
+              </select>
+              <span class="setting-value"></span><span class="setting-unit"></span>
+            </span>
             ${this._infoTip("How often the sensor reports target data.")}
           </div>
         </div>
@@ -3688,17 +3720,17 @@ export class EverythingPresenceProPanel extends LitElement {
           <h4>Static Sensor</h4>
           <div class="setting-row">
             <label>Min distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> m</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Minimum detection distance for the static sensor.")}
           </div>
           <div class="setting-row">
             <label>Max distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> m</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Maximum detection distance for the static sensor. Auto-set from room dimensions.")}
           </div>
           <div class="setting-row">
             <label>Trigger distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span> m</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Distance at which the static sensor triggers presence.")}
           </div>
         </div>
@@ -3713,7 +3745,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <h4>Motion Sensor</h4>
           <div class="setting-row">
             <label>Presence timeout</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="5" min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">5</span> sec</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" value="5" min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">5</span><span class="setting-unit">s</span></span>
             ${this._infoTip("Time after last motion before the motion sensor clears.")}
           </div>
         </div>
@@ -3721,17 +3753,17 @@ export class EverythingPresenceProPanel extends LitElement {
           <h4>Static Sensor</h4>
           <div class="setting-row">
             <label>Presence timeout</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="30" min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">30</span> sec</span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" value="30" min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">30</span><span class="setting-unit">s</span></span>
             ${this._infoTip("Time after last static detection before the sensor clears.")}
           </div>
           <div class="setting-row">
             <label>Trigger sensitivity</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="7" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">7</span></span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="7" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">7</span><span class="setting-unit"></span></span>
             ${this._infoTip("How easily static presence is initially detected. Higher = more sensitive.")}
           </div>
           <div class="setting-row">
             <label>Sustain sensitivity</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="5" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">5</span></span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="5" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">5</span><span class="setting-unit"></span></span>
             ${this._infoTip("How easily static presence is sustained after initial detection. Higher = holds longer.")}
           </div>
         </div>
@@ -3758,22 +3790,22 @@ export class EverythingPresenceProPanel extends LitElement {
         <h5>${label}</h5>
         <div class="setting-row">
           <label>Presence timeout</label>
-          <span class="setting-input-unit"><input type="range" class="setting-range" value=${timeout} min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${timeout}</span> sec</span>
+          <span class="setting-input-unit"><input type="range" class="setting-range" value=${timeout} min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${timeout}</span><span class="setting-unit">s</span></span>
           ${this._infoTip("Time after last target detection in this zone type before presence clears.")}
         </div>
         <div class="setting-row">
           <label>Trigger sensitivity</label>
-          <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${trigger} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${trigger}</span></span>
+          <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${trigger} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${trigger}</span><span class="setting-unit"></span></span>
           ${this._infoTip("Consecutive frames needed to confirm target presence. Lower = more sensitive.")}
         </div>
         <div class="setting-row">
           <label>Sustain sensitivity</label>
-          <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${sustain} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${sustain}</span></span>
+          <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${sustain} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${sustain}</span><span class="setting-unit"></span></span>
           ${this._infoTip("Consecutive empty frames needed before target is considered gone. Lower = clears faster.")}
         </div>
         <div class="setting-row">
-          <label>Expect appear/vanish</label>
-          <input type="checkbox" class="setting-toggle" ?checked=${expectAppearVanish} />
+          <label>Is portal</label>
+          <span class="setting-input-unit"><span style="flex:1"></span><label class="toggle-switch"><input type="checkbox" ?checked=${expectAppearVanish} /><span class="toggle-slider"></span></label><span class="setting-value"></span><span class="setting-unit"></span></span>
           ${this._infoTip("Enable if targets typically enter/leave through this zone (e.g. doorways).")}
         </div>
       </div>
