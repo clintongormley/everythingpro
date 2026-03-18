@@ -1054,7 +1054,7 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
         @click=${()=>{this._activeZone=0}}
       >
         <div class="zone-item-row">
-          <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;${this._localZoneState.get(0)?.occupied?" box-shadow: 0 0 6px 2px #4CAF50;":""}"></div>
+          <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;${this._localZoneState.get(0)?.occupied?" box-shadow: 0 0 6px 2px #999;":""}"></div>
           <span class="zone-name">Boundary</span>
         </div>
         ${0===this._activeZone?O`
@@ -1075,13 +1075,13 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
                 <input
                   type="color"
                   class="zone-color-picker"
-                  style="width: 16px; height: 16px; border-radius: 50%;${this._localZoneState.get(i)?.occupied?" box-shadow: 0 0 6px 2px #4CAF50;":""}"
+                  style="width: 16px; height: 16px; border-radius: 50%;${this._localZoneState.get(i)?.occupied?` box-shadow: 0 0 6px 2px ${t.color};`:""}"
                   .value=${t.color}
                   @input=${i=>{const o=i.target.value,r=[...this._zoneConfigs];r[e]={...t,color:o},this._zoneConfigs=r,this._dirty=!0}}
                   @click=${t=>t.stopPropagation()}
                 />
               `:O`
-                <div class="zone-color-dot" style="background: ${t.color};${this._localZoneState.get(i)?.occupied?" box-shadow: 0 0 6px 2px #4CAF50;":""}"></div>
+                <div class="zone-color-dot" style="background: ${t.color};${this._localZoneState.get(i)?.occupied?` box-shadow: 0 0 6px 2px ${t.color};`:""}"></div>
               `}
               <input
                 class="zone-name-input"
