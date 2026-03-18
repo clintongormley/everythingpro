@@ -19,6 +19,7 @@ interface ZoneConfig {
   trigger?: number;  // 0-9 threshold, 0=disabled, higher=harder
   sustain?: number;  // 0-9 threshold, 0=disabled, higher=harder
   timeout?: number;  // seconds, if undefined use type default
+  is_portal?: boolean;
 }
 
 const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; sustain: number; timeout: number }> = {
@@ -171,6 +172,7 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _roomTrigger: number = ZONE_TYPE_DEFAULTS.normal.trigger;
   @state() private _roomSustain: number = ZONE_TYPE_DEFAULTS.normal.sustain;
   @state() private _roomTimeout: number = ZONE_TYPE_DEFAULTS.normal.timeout;
+  @state() private _roomPortal = false;
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
   @state() private _showLiveMenu = false;
@@ -416,6 +418,7 @@ export class EverythingPresenceProPanel extends LitElement {
         trigger: z.trigger,
         sustain: z.sustain,
         timeout: z.timeout,
+        is_portal: z.is_portal ?? false,
       };
     });
 
@@ -423,6 +426,7 @@ export class EverythingPresenceProPanel extends LitElement {
     this._roomTrigger = layout.room_trigger ?? ZONE_TYPE_DEFAULTS[this._roomType]?.trigger ?? 5;
     this._roomSustain = layout.room_sustain ?? ZONE_TYPE_DEFAULTS[this._roomType]?.sustain ?? 3;
     this._roomTimeout = layout.room_timeout ?? ZONE_TYPE_DEFAULTS[this._roomType]?.timeout ?? 10;
+    this._roomPortal = layout.room_portal ?? false;
 
     // Load reporting config and offsets
     (this as any)._reportingConfig = config.reporting || {};
@@ -805,8 +809,9 @@ export class EverythingPresenceProPanel extends LitElement {
         room_trigger: this._roomTrigger,
         room_sustain: this._roomSustain,
         room_timeout: this._roomTimeout,
+        room_portal: this._roomPortal,
         zone_slots: this._zoneConfigs.map((z) =>
-          z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, sustain: z.sustain, timeout: z.timeout } : null
+          z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, sustain: z.sustain, timeout: z.timeout, is_portal: z.is_portal } : null
         ),
         furniture: this._furniture.map((f) => ({
           type: f.type, icon: f.icon, label: f.label,
@@ -2834,6 +2839,7 @@ export class EverythingPresenceProPanel extends LitElement {
     this._roomTrigger = ZONE_TYPE_DEFAULTS.normal.trigger;
     this._roomSustain = ZONE_TYPE_DEFAULTS.normal.sustain;
     this._roomTimeout = ZONE_TYPE_DEFAULTS.normal.timeout;
+    this._roomPortal = false;
     this._furniture = [];
     // Clear calibration and layout on the backend
     try {
@@ -4334,6 +4340,23 @@ export class EverythingPresenceProPanel extends LitElement {
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
+        ${isCustom ? html`
+          <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px;">
+            <label style="width: 50px; flex-shrink: 0;">Portal</label>
+            <span style="flex: 1;"></span>
+            <label class="toggle-switch">
+              <input type="checkbox" ?checked=${this._roomPortal}
+                @change=${(e: Event) => {
+                  this._roomPortal = (e.target as HTMLInputElement).checked;
+                  this._dirty = true;
+                }}
+                @click=${(e: Event) => e.stopPropagation()}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="width: 10px;"></span>
+          </div>
+        ` : nothing}
       </div>
     `;
   }
@@ -4391,6 +4414,25 @@ export class EverythingPresenceProPanel extends LitElement {
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
+        ${isCustom ? html`
+          <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px;">
+            <label style="width: 50px; flex-shrink: 0;">Portal</label>
+            <span style="flex: 1;"></span>
+            <label class="toggle-switch">
+              <input type="checkbox" ?checked=${zone.is_portal ?? false}
+                @change=${(e: Event) => {
+                  const configs = [...this._zoneConfigs];
+                  configs[index] = { ...zone, is_portal: (e.target as HTMLInputElement).checked };
+                  this._zoneConfigs = configs;
+                  this._dirty = true;
+                }}
+                @click=${(e: Event) => e.stopPropagation()}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="width: 10px;"></span>
+          </div>
+        ` : nothing}
       </div>
     `;
   }
