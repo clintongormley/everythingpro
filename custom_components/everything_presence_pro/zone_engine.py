@@ -28,7 +28,7 @@ from .const import (
     RAW_FPS,
     ZONE_TYPE_DEFAULTS,
     ZONE_TYPE_NORMAL,
-    sensitivity_to_threshold,
+    threshold_to_frame_count,
 )
 
 
@@ -40,8 +40,8 @@ class Zone:
     name: str
     type: str  # "normal" | "entrance" | "thoroughfare" | "rest"
     color: str = ""
-    trigger: int = 5  # 0-9
-    sustain: int = 7  # 0-9
+    trigger: int = 5  # 0-9 threshold, 0=disabled, higher=harder
+    sustain: int = 3  # 0-9 threshold, 0=disabled, higher=harder
     timeout: float = 10.0  # seconds
 
 
@@ -358,9 +358,8 @@ class ZoneEngine:
             hit_count = window.zone_hit_counts.get(zone_id, 0)
             result.zone_target_counts[zone_id] = hit_count
 
-            # Dynamic thresholds based on actual frame count
-            trigger_thresh = sensitivity_to_threshold(rt.zone.trigger, frames)
-            sustain_thresh = sensitivity_to_threshold(rt.zone.sustain, frames)
+            trigger_thresh = threshold_to_frame_count(rt.zone.trigger)
+            sustain_thresh = threshold_to_frame_count(rt.zone.sustain)
 
             match rt.state:
                 case ZoneState.CLEAR:

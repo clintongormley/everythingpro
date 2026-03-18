@@ -15,16 +15,16 @@ interface ZoneConfig {
   name: string;
   color: string;
   type: "normal" | "entrance" | "thoroughfare" | "rest";
-  trigger?: number;  // 0-9, if undefined use type default
-  sustain?: number;  // 0-9, if undefined use type default
+  trigger?: number;  // 0-9 threshold, 0=disabled, higher=harder
+  sustain?: number;  // 0-9 threshold, 0=disabled, higher=harder
   timeout?: number;  // seconds, if undefined use type default
 }
 
 const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; sustain: number; timeout: number }> = {
-  normal: { trigger: 5, sustain: 7, timeout: 10 },
-  entrance: { trigger: 7, sustain: 8, timeout: 5 },
-  thoroughfare: { trigger: 7, sustain: 8, timeout: 3 },
-  rest: { trigger: 3, sustain: 9, timeout: 30 },
+  normal: { trigger: 5, sustain: 3, timeout: 10 },
+  entrance: { trigger: 3, sustain: 2, timeout: 5 },
+  thoroughfare: { trigger: 3, sustain: 2, timeout: 3 },
+  rest: { trigger: 7, sustain: 1, timeout: 30 },
 };
 
 interface EntryInfo {
@@ -3404,13 +3404,12 @@ export class EverythingPresenceProPanel extends LitElement {
     for (const [zoneId, centre] of zoneCentre) {
       const hitCount = zs.target_counts[zoneId] ?? 0;
       if (hitCount === 0) continue;
-      const frames = Math.max(zs.frame_count, 1);
-      const pct = Math.round(hitCount / frames * 100);
+      const signal = Math.min(hitCount, 9);
       const xPct = ((centre.sumCol / centre.count - minCol + 0.5) / visCols) * 100;
       const yPct = ((centre.sumRow / centre.count - minRow + 0.5) / visRows) * 100;
       labels.push(html`
         <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
-          ${pct}%
+          ${signal}
         </div>
       `);
     }
@@ -3828,12 +3827,12 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._infoTip("Time after last static detection before the sensor clears.")}
           </div>
           <div class="setting-row">
-            <label>Trigger sensitivity</label>
+            <label>Trigger threshold</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="7" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">7</span><span class="setting-unit"></span></span>
             ${this._infoTip("How easily static presence is initially detected. Higher = more sensitive.")}
           </div>
           <div class="setting-row">
-            <label>Sustain sensitivity</label>
+            <label>Sustain threshold</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="5" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">5</span><span class="setting-unit"></span></span>
             ${this._infoTip("How easily static presence is sustained after initial detection. Higher = holds longer.")}
           </div>
@@ -3871,12 +3870,12 @@ export class EverythingPresenceProPanel extends LitElement {
           ${this._infoTip("Time after last target detection in this zone type before presence clears.")}
         </div>
         <div class="setting-row">
-          <label>Trigger sensitivity</label>
+          <label>Trigger threshold</label>
           <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${trigger} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${trigger}</span><span class="setting-unit"></span></span>
           ${this._infoTip("Consecutive frames needed to confirm target presence. Lower = more sensitive.")}
         </div>
         <div class="setting-row">
-          <label>Sustain sensitivity</label>
+          <label>Sustain threshold</label>
           <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${sustain} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${sustain}</span><span class="setting-unit"></span></span>
           ${this._infoTip("Consecutive empty frames needed before target is considered gone. Lower = clears faster.")}
         </div>
@@ -4241,8 +4240,8 @@ export class EverythingPresenceProPanel extends LitElement {
     for (const [zoneIdStr, hitCount] of Object.entries(zs.target_counts)) {
       const zoneId = Number(zoneIdStr);
       if (hitCount <= 0) continue;
-      const frames = Math.max(zs.frame_count, 1);
-      const opacity = Math.min(0.6, hitCount / frames * 0.7);
+      const signal = Math.min(hitCount, 9);
+      const opacity = signal / 9 * 0.6;
       let r = 100, g = 180, b = 255; // zone 0 default blue
       if (zoneId > 0 && zoneId <= MAX_ZONES) {
         const config = this._zoneConfigs[zoneId - 1];

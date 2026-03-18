@@ -11,7 +11,7 @@ from custom_components.everything_presence_pro.const import (
     ZONE_TYPE_ENTRANCE,
     ZONE_TYPE_NORMAL,
     ZONE_TYPE_REST,
-    sensitivity_to_threshold,
+    threshold_to_frame_count,
 )
 from custom_components.everything_presence_pro.zone_engine import (
     Grid,
@@ -70,14 +70,12 @@ def test_grid_base64_roundtrip():
 # --- Sensitivity conversion ---
 
 
-def test_sensitivity_to_threshold():
-    """Test 0-9 sensitivity maps to correct hit-count thresholds."""
-    # Default RAW_FPS=10
-    assert sensitivity_to_threshold(0) == 10  # (10*10 + 5) // 10 = 10
-    assert sensitivity_to_threshold(5) == 5   # (10*5 + 5) // 10 = 5
-    assert sensitivity_to_threshold(9) == 1   # (10*1 + 5) // 10 = 1
-    # Custom frame count
-    assert sensitivity_to_threshold(5, 20) == 10  # (20*5 + 5) // 10 = 10
+def test_threshold_to_frame_count():
+    """Test threshold maps to frame count needed."""
+    assert threshold_to_frame_count(0) == 11  # disabled (> RAW_FPS)
+    assert threshold_to_frame_count(1) == 1
+    assert threshold_to_frame_count(5) == 5
+    assert threshold_to_frame_count(9) == 9
 
 
 # --- Tumbling window ---

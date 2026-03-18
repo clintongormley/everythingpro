@@ -26,30 +26,33 @@ CELL_TRAINING_MASK = 0xF0
 CELL_TRAINING_SHIFT = 4
 MAX_ZONES = 7
 
-# Zone types and their default sensitivities (0-9 scale, higher = more sensitive)
-# Sensitivity maps to hit-count threshold: threshold = (raw_fps * (10 - sensitivity) + 5) // 10
+# Zone types and their default thresholds (0-9 scale, 0=disabled, higher=harder to trigger)
+# Threshold N means "need N out of 10 expected frames to count as detected"
 ZONE_TYPE_NORMAL = "normal"
 ZONE_TYPE_ENTRANCE = "entrance"
 ZONE_TYPE_THOROUGHFARE = "thoroughfare"
 ZONE_TYPE_REST = "rest"
 
 ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
-    ZONE_TYPE_NORMAL: {"trigger": 5, "sustain": 7, "timeout": 10.0},
-    ZONE_TYPE_ENTRANCE: {"trigger": 7, "sustain": 8, "timeout": 5.0},
-    ZONE_TYPE_THOROUGHFARE: {"trigger": 7, "sustain": 8, "timeout": 3.0},
-    ZONE_TYPE_REST: {"trigger": 3, "sustain": 9, "timeout": 30.0},
+    ZONE_TYPE_NORMAL: {"trigger": 5, "sustain": 3, "timeout": 10.0},
+    ZONE_TYPE_ENTRANCE: {"trigger": 3, "sustain": 2, "timeout": 5.0},
+    ZONE_TYPE_THOROUGHFARE: {"trigger": 3, "sustain": 2, "timeout": 3.0},
+    ZONE_TYPE_REST: {"trigger": 7, "sustain": 1, "timeout": 30.0},
 }
 
 # LD2450 raw frame rate (10Hz per datasheet)
 RAW_FPS = 10
 
 
-def sensitivity_to_threshold(sensitivity: int, raw_fps: int = RAW_FPS) -> int:
-    """Convert 0-9 sensitivity to minimum hit-count threshold.
+def threshold_to_frame_count(threshold: int, raw_fps: int = RAW_FPS) -> int:
+    """Convert 0-9 threshold to minimum hit-count needed.
 
-    Always returns at least 1 so that 0 hits never meets the threshold.
+    Threshold 0 = disabled (returns a value higher than any possible frame count).
+    Threshold N = need N frames out of raw_fps expected.
     """
-    return max(1, (raw_fps * (10 - sensitivity) + 5) // 10)
+    if threshold == 0:
+        return raw_fps + 1  # impossible to reach = disabled
+    return threshold
 
 # ESPHome entity name patterns for EP Pro
 TARGET_X_PATTERN = "target_{n}_x"
