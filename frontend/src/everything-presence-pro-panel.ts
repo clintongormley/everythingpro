@@ -3387,7 +3387,7 @@ export class EverythingPresenceProPanel extends LitElement {
               style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]};"
             ></div>
             ${this._showHitCounts && t.signal > 0 ? html`
-              <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -140%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
+              <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -280%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
                 ${t.signal}
               </div>
             ` : nothing}
