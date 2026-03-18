@@ -4249,49 +4249,6 @@ export class EverythingPresenceProPanel extends LitElement {
                   @click=${(e: Event) => e.stopPropagation()}
                 />
               </div>
-              <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 4px;">
-                <label class="zone-setting-label" style="width: 100%;">Trigger <span style="float:right;">${zone.trigger ?? ZONE_TYPE_DEFAULTS[zone.type].trigger}</span></label>
-                <input
-                  type="range" min="0" max="9" style="width: 100%;"
-                  .value=${String(zone.trigger ?? ZONE_TYPE_DEFAULTS[zone.type].trigger)}
-                  @input=${(e: Event) => {
-                    const val = parseInt((e.target as HTMLInputElement).value);
-                    const configs = [...this._zoneConfigs];
-                    configs[i] = { ...zone, trigger: val };
-                    this._zoneConfigs = configs;
-                    this._dirty = true;
-                  }}
-                  @click=${(e: Event) => e.stopPropagation()}
-                />
-                <label class="zone-setting-label" style="width: 100%;">Sustain <span style="float:right;">${zone.sustain ?? ZONE_TYPE_DEFAULTS[zone.type].sustain}</span></label>
-                <input
-                  type="range" min="0" max="9" style="width: 100%;"
-                  .value=${String(zone.sustain ?? ZONE_TYPE_DEFAULTS[zone.type].sustain)}
-                  @input=${(e: Event) => {
-                    const val = parseInt((e.target as HTMLInputElement).value);
-                    const configs = [...this._zoneConfigs];
-                    configs[i] = { ...zone, sustain: val };
-                    this._zoneConfigs = configs;
-                    this._dirty = true;
-                  }}
-                  @click=${(e: Event) => e.stopPropagation()}
-                />
-                <label class="zone-setting-label" style="width: 100%;">Timeout <span style="float:right;">${zone.timeout ?? ZONE_TYPE_DEFAULTS[zone.type].timeout}s</span></label>
-                <input
-                  type="number" min="1" max="300" style="width: 60px;"
-                  .value=${String(zone.timeout ?? ZONE_TYPE_DEFAULTS[zone.type].timeout)}
-                  @input=${(e: Event) => {
-                    const val = parseInt((e.target as HTMLInputElement).value);
-                    if (!isNaN(val) && val > 0) {
-                      const configs = [...this._zoneConfigs];
-                      configs[i] = { ...zone, timeout: val };
-                      this._zoneConfigs = configs;
-                      this._dirty = true;
-                    }
-                  }}
-                  @click=${(e: Event) => e.stopPropagation()}
-                /> <span style="font-size: 12px;">seconds</span>
-              </div>
             ` : nothing}
           </div>
         `;
