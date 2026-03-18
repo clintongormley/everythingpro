@@ -1,30 +1,30 @@
 """Zone engine for grid-based presence detection.
 
 Grid uses fixed 300mm cells in room coordinate space. Cell data is stored
-as a byte array where each byte encodes room/exit/zone flags.
+as a byte array where each byte encodes room/zone flags. A 1-second
+tumbling window converts raw frames into per-zone hit counts, which feed
+a three-state occupancy machine (CLEAR/OCCUPIED/PENDING).
 """
 
 from __future__ import annotations
 
 import base64
+import enum
 import math
 from dataclasses import dataclass, field
+from statistics import median
 
 from .const import (
-    CELL_ROOM_MASK,
-    CELL_ROOM_OUTSIDE,
+    CELL_ROOM_BIT,
     CELL_ZONE_MASK,
     CELL_ZONE_SHIFT,
     FOV_DEGREES,
     GRID_CELL_SIZE_MM,
     MAX_RANGE_MM,
-    SENSITIVITY_HIGH,
-    SENSITIVITY_LOW,
-    SENSITIVITY_NORMAL,
-    ZONE_EXCLUSION,
-    ZONE_HIGH,
-    ZONE_LOW,
-    ZONE_NORMAL,
+    MAX_TARGETS,
+    ZONE_TYPE_DEFAULTS,
+    ZONE_TYPE_NORMAL,
+    sensitivity_to_threshold,
 )
 
 
@@ -34,25 +34,41 @@ class Zone:
 
     id: int  # 1-7
     name: str
-    sensitivity: str
+    type: str  # "normal" | "entrance" | "thoroughfare" | "rest"
     color: str = ""
+    trigger: int = 5  # 0-9
+    sustain: int = 7  # 0-9
+    timeout: float = 10.0  # seconds
+
+
+class ZoneState(enum.Enum):
+    """Zone occupancy state."""
+
+    CLEAR = "clear"
+    OCCUPIED = "occupied"
+    PENDING = "pending"
 
 
 @dataclass
 class ProcessingResult:
-    """Result of processing target positions."""
+    """Result of processing a tumbling window."""
 
     device_tracking_present: bool = False
     zone_occupancy: dict[int, bool] = field(default_factory=dict)
     zone_target_counts: dict[int, int] = field(default_factory=dict)
 
 
-class Grid:
-    """Room-space grid with fixed cell size.
+@dataclass
+class WindowOutput:
+    """Output from one tumbling window tick."""
 
-    Grid origin and dimensions are computed from the sensor FOV
-    projected through the perspective transform into room coordinates.
-    """
+    zone_hit_counts: dict[int, int] = field(default_factory=dict)
+    device_tracking_present: bool = False
+    smoothed_targets: list[tuple[float, float, bool]] = field(default_factory=list)
+
+
+class Grid:
+    """Room-space grid with fixed cell size."""
 
     def __init__(
         self,
@@ -69,14 +85,10 @@ class Grid:
         self.rows = rows
         self.cell_size = cell_size
         self.cell_count = cols * rows
-        # Byte array: one byte per cell
         self.cells = bytearray(self.cell_count)
 
     def xy_to_cell(self, x: float, y: float) -> int | None:
-        """Map room coordinates to a grid cell index.
-
-        Returns None if the point is outside the grid.
-        """
+        """Map room coordinates to a grid cell index."""
         col = int((x - self.origin_x) / self.cell_size)
         row = int((y - self.origin_y) / self.cell_size)
         if col < 0 or col >= self.cols or row < 0 or row >= self.rows:
@@ -89,7 +101,7 @@ class Grid:
 
     def cell_is_room(self, cell_index: int) -> bool:
         """Check if a cell is inside the room."""
-        return (self.cells[cell_index] & CELL_ROOM_MASK) != CELL_ROOM_OUTSIDE
+        return bool(self.cells[cell_index] & CELL_ROOM_BIT)
 
     def load_from_bytes(self, data: bytes) -> None:
         """Load cell data from bytes."""
@@ -102,11 +114,7 @@ class Grid:
 
     @staticmethod
     def from_base64(
-        data: str,
-        cols: int,
-        rows: int,
-        origin_x: float,
-        origin_y: float,
+        data: str, cols: int, rows: int, origin_x: float, origin_y: float,
     ) -> Grid:
         """Deserialize grid from base64 cell data."""
         grid = Grid(origin_x=origin_x, origin_y=origin_y, cols=cols, rows=rows)
@@ -121,30 +129,20 @@ class Grid:
         room_depth: float,
         cell_size: int = GRID_CELL_SIZE_MM,
     ) -> tuple[float, float, int, int]:
-        """Compute grid origin and dimensions from FOV projected through perspective.
-
-        Samples the 120 degree FOV boundary at 6m range, transforms through
-        the perspective matrix, and computes the bounding box.
-
-        Returns (origin_x, origin_y, cols, rows).
-        """
+        """Compute grid origin and dimensions from FOV projected through perspective."""
         if not perspective or len(perspective) != 8:
-            # No perspective — default to room size
             cols = max(1, int(math.ceil(room_width / cell_size)))
             rows = max(1, int(math.ceil(room_depth / cell_size)))
             return 0.0, 0.0, cols, rows
 
         a, b, c, d, e, f, g, h = perspective
-
-        # Sample FOV boundary: every 2 degrees along the arc at max range, plus origin
-        points: list[tuple[float, float]] = [(0.0, 0.0)]  # sensor origin
+        points: list[tuple[float, float]] = [(0.0, 0.0)]
         for deg in range(-FOV_DEGREES // 2, FOV_DEGREES // 2 + 1, 2):
             angle = math.radians(deg)
             sx = MAX_RANGE_MM * math.sin(angle)
             sy = MAX_RANGE_MM * math.cos(angle)
             points.append((sx, sy))
 
-        # Transform all points
         min_x = float("inf")
         min_y = float("inf")
         max_x = float("-inf")
@@ -160,7 +158,6 @@ class Grid:
             max_x = max(max_x, rx)
             max_y = max(max_y, ry)
 
-        # Snap to cell boundaries
         origin_x = math.floor(min_x / cell_size) * cell_size
         origin_y = math.floor(min_y / cell_size) * cell_size
         end_x = math.ceil(max_x / cell_size) * cell_size
@@ -168,88 +165,215 @@ class Grid:
 
         cols = max(1, int((end_x - origin_x) / cell_size))
         rows = max(1, int((end_y - origin_y) / cell_size))
-
         return origin_x, origin_y, cols, rows
 
 
-class ZoneEngine:
-    """Computes zone occupancy from transformed target positions."""
+class TumblingWindow:
+    """1-second tumbling window that collects raw frames and emits hit counts."""
 
-    def __init__(self) -> None:
-        """Initialize the zone engine."""
-        self.grid = Grid()
-        self._zones: list[Zone] = []
-        self._zone_frame_counts: dict[int, int] = {}
-        self._sensitivity_thresholds: dict[str, int] = {
-            ZONE_NORMAL: SENSITIVITY_NORMAL,
-            ZONE_HIGH: SENSITIVITY_HIGH,
-            ZONE_LOW: SENSITIVITY_LOW,
-        }
+    def __init__(self, grid: Grid, interval_s: float = 1.0) -> None:
+        """Initialize the tumbling window."""
+        self._grid = grid
+        self._interval_s = interval_s
+        self._window_start: float | None = None
+        self._zone_hit_counts: dict[int, int] = {}
+        self._device_hit = False
+        self._target_xs: list[list[float]] = [[] for _ in range(MAX_TARGETS)]
+        self._target_ys: list[list[float]] = [[] for _ in range(MAX_TARGETS)]
+        self._target_active_count: list[int] = [0] * MAX_TARGETS
 
-    def set_grid(self, grid: Grid) -> None:
-        """Set the grid."""
-        self.grid = grid
+    @property
+    def grid(self) -> Grid:
+        """Return the grid."""
+        return self._grid
 
-    def set_zones(self, zones: list[Zone]) -> None:
-        """Set the zone configuration."""
-        self._zones = zones
-        self._zone_frame_counts.clear()
-        for zone in zones:
-            if zone.sensitivity != ZONE_EXCLUSION:
-                self._zone_frame_counts[zone.id] = 0
+    @grid.setter
+    def grid(self, grid: Grid) -> None:
+        """Set the grid and reset the window."""
+        self._grid = grid
+        self.reset()
 
-    def process_targets(
-        self, targets: list[tuple[float, float, bool]]
-    ) -> ProcessingResult:
-        """Process target positions and return zone occupancy.
+    def reset(self) -> None:
+        """Reset the window state."""
+        self._window_start = None
+        self._zone_hit_counts.clear()
+        self._device_hit = False
+        for i in range(MAX_TARGETS):
+            self._target_xs[i].clear()
+            self._target_ys[i].clear()
+            self._target_active_count[i] = 0
 
-        Args:
-            targets: List of (room_x_mm, room_y_mm, active) tuples.
+    def feed(
+        self, targets: list[tuple[float, float, bool]], timestamp: float,
+    ) -> WindowOutput | None:
+        """Feed a raw frame. Returns WindowOutput when the window completes."""
+        if self._window_start is None:
+            self._window_start = timestamp
 
-        Returns:
-            ProcessingResult with device and zone occupancy states.
-        """
-        result = ProcessingResult()
-        zone_counts: dict[int, int] = {
-            z.id: 0 for z in self._zones if z.sensitivity != ZONE_EXCLUSION
-        }
+        # Check if this frame starts a new window
+        if timestamp - self._window_start >= self._interval_s:
+            output = self._emit()
+            self._window_start = timestamp
+            self._accumulate(targets)
+            return output
 
-        for x, y, active in targets:
+        self._accumulate(targets)
+        return None
+
+    def _accumulate(self, targets: list[tuple[float, float, bool]]) -> None:
+        """Accumulate one frame of target data."""
+        for i, (x, y, active) in enumerate(targets):
+            if i >= MAX_TARGETS:
+                break
             if not active:
                 continue
 
-            cell = self.grid.xy_to_cell(x, y)
+            self._target_xs[i].append(x)
+            self._target_ys[i].append(y)
+            self._target_active_count[i] += 1
+
+            cell = self._grid.xy_to_cell(x, y)
             if cell is None:
                 continue
-
-            if not self.grid.cell_is_room(cell):
+            if not self._grid.cell_is_room(cell):
                 continue
 
-            zone_id = self.grid.cell_zone(cell)
-
-            result.device_tracking_present = True
-
-            if zone_id > 0 and zone_id in zone_counts:
-                zone_counts[zone_id] += 1
-
-        for zone in self._zones:
-            if zone.sensitivity == ZONE_EXCLUSION:
-                continue
-
-            count = zone_counts.get(zone.id, 0)
-            threshold = self._sensitivity_thresholds.get(
-                zone.sensitivity, SENSITIVITY_NORMAL
-            )
-
-            if count > 0:
-                self._zone_frame_counts[zone.id] = (
-                    self._zone_frame_counts.get(zone.id, 0) + 1
+            self._device_hit = True
+            zone_id = self._grid.cell_zone(cell)
+            # Count hits for both the specific zone and zone 0 (room-level)
+            self._zone_hit_counts[0] = self._zone_hit_counts.get(0, 0) + 1
+            if zone_id > 0:
+                self._zone_hit_counts[zone_id] = (
+                    self._zone_hit_counts.get(zone_id, 0) + 1
                 )
-            else:
-                self._zone_frame_counts[zone.id] = 0
 
-            occupied = self._zone_frame_counts[zone.id] >= threshold
-            result.zone_occupancy[zone.id] = occupied
-            result.zone_target_counts[zone.id] = count
+    def _emit(self) -> WindowOutput:
+        """Emit the completed window and reset accumulators."""
+        # Compute smoothed (median) target positions
+        smoothed: list[tuple[float, float, bool]] = []
+        for i in range(MAX_TARGETS):
+            if self._target_active_count[i] > 0:
+                mx = median(self._target_xs[i])
+                my = median(self._target_ys[i])
+                smoothed.append((mx, my, True))
+            else:
+                smoothed.append((0.0, 0.0, False))
+
+        output = WindowOutput(
+            zone_hit_counts=dict(self._zone_hit_counts),
+            device_tracking_present=self._device_hit,
+            smoothed_targets=smoothed,
+        )
+
+        # Reset accumulators for next window
+        self._zone_hit_counts.clear()
+        self._device_hit = False
+        for i in range(MAX_TARGETS):
+            self._target_xs[i].clear()
+            self._target_ys[i].clear()
+            self._target_active_count[i] = 0
+
+        return output
+
+
+@dataclass
+class _ZoneRuntime:
+    """Runtime state for a single zone's state machine."""
+
+    zone: Zone
+    state: ZoneState = ZoneState.CLEAR
+    pending_since: float | None = None
+    trigger_threshold: int = 0
+    sustain_threshold: int = 0
+
+    def __post_init__(self) -> None:
+        """Compute thresholds from zone sensitivity."""
+        self.trigger_threshold = sensitivity_to_threshold(self.zone.trigger)
+        self.sustain_threshold = sensitivity_to_threshold(self.zone.sustain)
+
+
+class ZoneEngine:
+    """Computes zone occupancy from raw target positions via tumbling window."""
+
+    def __init__(
+        self,
+        grid: Grid | None = None,
+        zones: list[Zone] | None = None,
+    ) -> None:
+        """Initialize the zone engine."""
+        self._window = TumblingWindow(grid=grid or Grid())
+        self._zone_runtimes: dict[int, _ZoneRuntime] = {}
+        if zones:
+            self.set_zones(zones)
+
+    @property
+    def grid(self) -> Grid:
+        """Return the grid."""
+        return self._window.grid
+
+    def set_grid(self, grid: Grid) -> None:
+        """Set the grid."""
+        self._window.grid = grid
+
+    def set_zones(self, zones: list[Zone]) -> None:
+        """Set the zone configuration and reset state machines.
+
+        Always includes zone 0 (room-level) with normal type defaults.
+        """
+        defaults = ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]
+        room_zone = Zone(
+            id=0, name="Room", type=ZONE_TYPE_NORMAL,
+            trigger=defaults["trigger"],
+            sustain=defaults["sustain"],
+            timeout=defaults["timeout"],
+        )
+        self._zone_runtimes = {0: _ZoneRuntime(zone=room_zone)}
+        for z in zones:
+            self._zone_runtimes[z.id] = _ZoneRuntime(zone=z)
+
+    def feed_raw(
+        self, targets: list[tuple[float, float, bool]], timestamp: float,
+    ) -> ProcessingResult | None:
+        """Feed a raw frame. Returns ProcessingResult when the window ticks."""
+        window_output = self._window.feed(targets, timestamp)
+        if window_output is None:
+            return None
+        return self._tick(window_output, timestamp)
+
+    def _tick(
+        self, window: WindowOutput, timestamp: float,
+    ) -> ProcessingResult:
+        """Run one tick of the state machine for all zones."""
+        result = ProcessingResult(
+            device_tracking_present=window.device_tracking_present,
+        )
+
+        for zone_id, rt in self._zone_runtimes.items():
+            hit_count = window.zone_hit_counts.get(zone_id, 0)
+            result.zone_target_counts[zone_id] = hit_count
+
+            match rt.state:
+                case ZoneState.CLEAR:
+                    if hit_count >= rt.trigger_threshold:
+                        rt.state = ZoneState.OCCUPIED
+                        rt.pending_since = None
+
+                case ZoneState.OCCUPIED:
+                    if hit_count < rt.sustain_threshold:
+                        rt.state = ZoneState.PENDING
+                        rt.pending_since = timestamp
+
+                case ZoneState.PENDING:
+                    if hit_count >= rt.sustain_threshold:
+                        rt.state = ZoneState.OCCUPIED
+                        rt.pending_since = None
+                    elif (
+                        rt.pending_since is not None
+                        and timestamp - rt.pending_since >= rt.zone.timeout
+                    ):
+                        rt.state = ZoneState.CLEAR
+                        rt.pending_since = None
+
+            result.zone_occupancy[zone_id] = rt.state != ZoneState.CLEAR
 
         return result

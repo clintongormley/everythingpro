@@ -22,7 +22,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .calibration import SensorTransform
 from .const import (
-    CELL_ROOM_INSIDE,
+    CELL_ROOM_BIT,
     DEFAULT_PORT,
     DOMAIN,
     GRID_CELL_SIZE_MM,
@@ -344,7 +344,7 @@ class EverythingPresenceProCoordinator:
                 cx = origin_x + (c + 0.5) * grid.cell_size
                 cy = origin_y + (r + 0.5) * grid.cell_size
                 if 0 <= cx < t.room_width and 0 <= cy < t.room_depth:
-                    grid.cells[r * cols + c] = CELL_ROOM_INSIDE
+                    grid.cells[r * cols + c] = CELL_ROOM_BIT
         self._zone_engine.set_grid(grid)
 
     # -- Connection management --
