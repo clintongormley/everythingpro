@@ -571,9 +571,13 @@ def websocket_set_reporting(
                         disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
                     )
 
-        # Zone-level entities: apply to all 7 slots
+        # Zone-level entities: only apply to slots that have a zone configured
         if key in _ZONE_REPORTING:
+            room_layout = config.get("room_layout", {})
+            zone_slots = room_layout.get("zone_slots", [])
             for slot in range(1, MAX_ZONES + 1):
+                slot_cfg = zone_slots[slot - 1] if slot - 1 < len(zone_slots) else None
+                slot_occupied = slot_cfg is not None
                 for uid_template, platform in _ZONE_REPORTING[key]:
                     uid_suffix = uid_template.format(slot=slot)
                     unique_id = f"{entry_id}{uid_suffix}"
@@ -585,9 +589,11 @@ def websocket_set_reporting(
                     ent_entry = registry.async_get(ent)
                     if ent_entry is None:
                         continue
-                    if enabled and ent_entry.disabled_by is not None:
+                    # Only enable if both the toggle is on AND the slot has a zone
+                    should_enable = enabled and slot_occupied
+                    if should_enable and ent_entry.disabled_by is not None:
                         registry.async_update_entity(ent, disabled_by=None)
-                    elif not enabled and ent_entry.disabled_by is None:
+                    elif not should_enable and ent_entry.disabled_by is None:
                         registry.async_update_entity(
                             ent,
                             disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
