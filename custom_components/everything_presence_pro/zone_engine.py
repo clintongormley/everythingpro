@@ -240,12 +240,10 @@ class TumblingWindow:
 
             self._device_hit = True
             zone_id = self._grid.cell_zone(cell)
-            # Count hits for both the specific zone and zone 0 (room-level)
-            self._zone_hit_counts[0] = self._zone_hit_counts.get(0, 0) + 1
-            if zone_id > 0:
-                self._zone_hit_counts[zone_id] = (
-                    self._zone_hit_counts.get(zone_id, 0) + 1
-                )
+            # Zone 0 = cells not covered by any named zone
+            self._zone_hit_counts[zone_id] = (
+                self._zone_hit_counts.get(zone_id, 0) + 1
+            )
 
     def _emit(self) -> WindowOutput:
         """Emit the completed window and reset accumulators."""
@@ -344,9 +342,7 @@ class ZoneEngine:
         self, window: WindowOutput, timestamp: float,
     ) -> ProcessingResult:
         """Run one tick of the state machine for all zones."""
-        result = ProcessingResult(
-            device_tracking_present=window.device_tracking_present,
-        )
+        result = ProcessingResult()
 
         for zone_id, rt in self._zone_runtimes.items():
             hit_count = window.zone_hit_counts.get(zone_id, 0)
@@ -375,5 +371,8 @@ class ZoneEngine:
                         rt.pending_since = None
 
             result.zone_occupancy[zone_id] = rt.state != ZoneState.CLEAR
+
+        # Room is occupied if any zone (including zone 0) is occupied
+        result.device_tracking_present = any(result.zone_occupancy.values())
 
         return result

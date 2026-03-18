@@ -318,6 +318,27 @@ async def websocket_set_room_layout(
     entity_id_renames: list[dict[str, str]] = []
     reporting = config.get("reporting", {})
 
+    # Zone 0 "rest of room" — enable if zone_presence/zone_target_count reporting is on
+    zone0_entities = [
+        (f"{entry_id}_rest_of_room", "binary_sensor", "zone_presence"),
+        (f"{entry_id}_rest_of_room_count", "sensor", "zone_target_count"),
+    ]
+    for unique_id, platform, report_key in zone0_entities:
+        ent = registry.async_get_entity_id(platform, DOMAIN, unique_id)
+        if ent is None:
+            continue
+        ent_entry = registry.async_get(ent)
+        if ent_entry is None:
+            continue
+        should_enable = reporting.get(report_key, report_key == "zone_presence")
+        if should_enable and ent_entry.disabled_by is not None:
+            registry.async_update_entity(ent, disabled_by=None)
+        elif not should_enable and ent_entry.disabled_by is None:
+            registry.async_update_entity(
+                ent,
+                disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
+            )
+
     for slot in range(1, MAX_ZONES + 1):
         zone_cfg = zone_slots[slot - 1]
         occupied = zone_cfg is not None
@@ -609,8 +630,26 @@ def websocket_set_reporting(
                         disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
                     )
 
-        # Zone-level entities: only apply to slots that have a zone configured
+        # Zone-level entities: zone 0 (rest of room) + slots 1-7
         if key in _ZONE_REPORTING:
+            # Zone 0 "rest of room"
+            zone0_map = {"zone_presence": ("_rest_of_room", "binary_sensor"), "zone_target_count": ("_rest_of_room_count", "sensor")}
+            if key in zone0_map:
+                uid_suffix, platform = zone0_map[key]
+                unique_id = f"{entry_id}{uid_suffix}"
+                ent = registry.async_get_entity_id(platform, DOMAIN, unique_id)
+                if ent is not None:
+                    ent_entry = registry.async_get(ent)
+                    if ent_entry is not None:
+                        if enabled and ent_entry.disabled_by is not None:
+                            registry.async_update_entity(ent, disabled_by=None)
+                        elif not enabled and ent_entry.disabled_by is None:
+                            registry.async_update_entity(
+                                ent,
+                                disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
+                            )
+
+            # Named zones 1-7
             room_layout = config.get("room_layout", {})
             zone_slots = room_layout.get("zone_slots", [])
             for slot in range(1, MAX_ZONES + 1):

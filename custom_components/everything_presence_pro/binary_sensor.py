@@ -41,6 +41,11 @@ async def async_setup_entry(
             EverythingPresenceProTargetActiveSensor(coordinator, idx)
         )
 
+    # Zone 0 = "rest of room" occupancy (disabled by default)
+    entities.append(
+        EverythingPresenceProZoneOccupancySensor(coordinator, 0)
+    )
+
     # Pre-create all 7 zone occupancy entities (disabled by default)
     for slot in range(1, MAX_ZONES + 1):
         entities.append(
@@ -265,7 +270,8 @@ class EverythingPresenceProZoneOccupancySensor(BinarySensorEntity):
         """Initialize the zone occupancy sensor."""
         self._coordinator = coordinator
         self._slot = slot
-        self._attr_unique_id = f"{coordinator.entry.entry_id}_zone_{slot}"
+        suffix = "rest_of_room" if slot == 0 else f"zone_{slot}"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{suffix}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)}
         )
@@ -273,6 +279,8 @@ class EverythingPresenceProZoneOccupancySensor(BinarySensorEntity):
     @property
     def name(self) -> str:
         """Return the zone name from the coordinator's slot map."""
+        if self._slot == 0:
+            return "Rest of room occupancy"
         zone = self._coordinator.get_zone_by_slot(self._slot)
         if zone is not None:
             return f"{zone.name} occupancy"

@@ -60,6 +60,11 @@ async def async_setup_entry(
         entities.append(EverythingPresenceProTargetSpeedSensor(coordinator, idx))
         entities.append(EverythingPresenceProTargetResolutionSensor(coordinator, idx))
 
+    # Zone 0 = "rest of room" target count (disabled by default)
+    entities.append(
+        EverythingPresenceProZoneTargetCountSensor(coordinator, 0)
+    )
+
     # Pre-create all 7 zone target count entities (disabled by default)
     for slot in range(1, MAX_ZONES + 1):
         entities.append(
@@ -463,7 +468,7 @@ class EverythingPresenceProTargetResolutionSensor(_PerTargetSensor):
 
 
 class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
-    """Per-zone target count sensor. One per slot (1-7), pre-created disabled."""
+    """Per-zone target count sensor. One per slot (0-7), pre-created disabled."""
 
     _attr_has_entity_name = True
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -475,9 +480,8 @@ class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
         """Initialize the zone target count sensor."""
         self._coordinator = coordinator
         self._slot = slot
-        self._attr_unique_id = (
-            f"{coordinator.entry.entry_id}_zone_{slot}_count"
-        )
+        suffix = "rest_of_room_count" if slot == 0 else f"zone_{slot}_count"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{suffix}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)}
         )
@@ -485,6 +489,8 @@ class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the sensor name."""
+        if self._slot == 0:
+            return "Rest of room target count"
         zone = self._coordinator.get_zone_by_slot(self._slot)
         if zone is not None:
             return f"{zone.name} target count"
