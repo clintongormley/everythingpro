@@ -4158,7 +4158,10 @@ export class EverythingPresenceProPanel extends LitElement {
       if (!t.active || t.signal <= 0) continue;
       const pos = this._mapTargetToGridCell(t);
       if (!pos) continue;
-      const idx = pos.row * GRID_COLS + pos.col;
+      const col = Math.floor(pos.col);
+      const row = Math.floor(pos.row);
+      if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) continue;
+      const idx = row * GRID_COLS + col;
       const cellVal = this._grid[idx];
       if (!cellIsInside(cellVal)) continue;
       const zid = cellZone(cellVal);
@@ -4174,7 +4177,7 @@ export class EverythingPresenceProPanel extends LitElement {
           threshold = cfg.type === "custom" ? (cfg.trigger ?? d.trigger) : d.trigger;
         }
       }
-      if (t.signal >= threshold) localOccupancy[zid] = true;
+      if (threshold > 0 && t.signal >= threshold) localOccupancy[zid] = true;
     }
     // Merge: local OR backend (backend handles timeout/pending correctly)
     const occupancy: Record<number, boolean> = { ...backendOccupancy };
@@ -4204,7 +4207,7 @@ export class EverythingPresenceProPanel extends LitElement {
               const config = this._zoneConfigs[zoneId - 1];
               if (config) borderColor = config.color;
             }
-            border = `box-shadow: inset 0 0 0 2px ${borderColor};`;
+            border = `outline: 2px solid ${borderColor}; outline-offset: -2px; z-index: 1;`;
           }
         }
         cells.push(html`
@@ -4278,14 +4281,14 @@ export class EverythingPresenceProPanel extends LitElement {
         </div>
         <div style="${rowStyle}">
           <label style="width: 50px; flex-shrink: 0;">Trigger</label>
-          <input type="range" min="0" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
+          <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => { this._roomTrigger = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
           <label style="width: 50px; flex-shrink: 0;">Sustain</label>
-          <input type="range" min="0" max="9" style="flex: 1; min-width: 0;" .value=${String(sustain)} ?disabled=${!isCustom}
+          <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(sustain)} ?disabled=${!isCustom}
             @input=${(e: Event) => { this._roomSustain = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${sustain}</span>
@@ -4335,14 +4338,14 @@ export class EverythingPresenceProPanel extends LitElement {
         </div>
         <div style="${rowStyle}">
           <label style="width: 50px; flex-shrink: 0;">Trigger</label>
-          <input type="range" min="0" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
+          <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, trigger: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
           <label style="width: 50px; flex-shrink: 0;">Sustain</label>
-          <input type="range" min="0" max="9" style="flex: 1; min-width: 0;" .value=${String(sustain)} ?disabled=${!isCustom}
+          <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(sustain)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, sustain: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${sustain}</span>
