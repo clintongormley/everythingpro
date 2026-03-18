@@ -893,20 +893,21 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
             <div class="template-dialog-card" style="max-width: 520px;">
               <h3>Update entity IDs?</h3>
               <p class="overlay-help">Zone names changed. Would you like to update the entity IDs to match?</p>
-              <div style="max-height: 240px; overflow-y: auto; margin: 12px 0;">
+              <div style="max-height: 300px; overflow-y: auto; margin: 12px 0;">
                 ${this._pendingRenames.map(t=>{const e=t.old_entity_id.split(".")[1]||t.old_entity_id,i=t.new_entity_id.split(".")[1]||t.new_entity_id,o=t.old_entity_id.split(".")[0]||"";return O`
                     <div style="
                       padding: 8px 12px; margin: 4px 0;
                       background: var(--secondary-background-color, #f5f5f5);
-                      border-radius: 8px; font-size: 13px;
+                      border-radius: 8px; font-family: monospace; font-size: 12px;
                     ">
-                      <div style="color: var(--secondary-text-color, #888); font-size: 11px; margin-bottom: 2px;">
+                      <div style="color: var(--secondary-text-color, #888); font-size: 11px; margin-bottom: 4px; font-family: var(--paper-font-body1_-_font-family, sans-serif);">
                         ${o}
                       </div>
-                      <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; font-size: 12px;">
-                        <span style="color: var(--secondary-text-color, #888); text-decoration: line-through;">${e}</span>
-                        <span style="color: var(--secondary-text-color, #888);">→</span>
-                        <span style="font-weight: 500;">${i}</span>
+                      <div style="text-decoration: line-through; color: var(--secondary-text-color, #888); word-break: break-all;">
+                        ${e}
+                      </div>
+                      <div style="font-weight: 500; word-break: break-all; margin-top: 2px;">
+                        → ${i}
                       </div>
                     </div>
                   `})}
