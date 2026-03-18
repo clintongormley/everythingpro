@@ -14,8 +14,18 @@ interface Target {
 interface ZoneConfig {
   name: string;
   color: string;
-  sensitivity: number; // 0-3
+  type: "normal" | "entrance" | "thoroughfare" | "rest";
+  trigger?: number;  // 0-9, if undefined use type default
+  sustain?: number;  // 0-9, if undefined use type default
+  timeout?: number;  // seconds, if undefined use type default
 }
+
+const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; sustain: number; timeout: number }> = {
+  normal: { trigger: 5, sustain: 7, timeout: 10 },
+  entrance: { trigger: 7, sustain: 8, timeout: 5 },
+  thoroughfare: { trigger: 7, sustain: 8, timeout: 3 },
+  rest: { trigger: 3, sustain: 9, timeout: 30 },
+};
 
 interface EntryInfo {
   entry_id: string;
@@ -103,25 +113,18 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
   { type: "icon", icon: "mdi:window-open-variant", label: "Window", defaultWidth: 1000, defaultHeight: 150, lockAspect: false },
 ];
 
-// Byte encoding per cell:
-// Bits 0-1: room/overlay (00=outside, 01=inside, 10=entrance, 11=interference)
-// Bits 2-4: zone number (0=room default, 1-7=named zone)
-// Bits 5-7: per-cell training baseline (reserved)
-const CELL_ROOM_MASK = 0x03;
-const CELL_ROOM_OUTSIDE = 0x00;
-const CELL_ROOM_INSIDE = 0x01;
-const CELL_ROOM_ENTRANCE = 0x02;
-const CELL_ROOM_INTERFERENCE = 0x03;
-const CELL_ZONE_MASK = 0x1C; // bits 2-4
-const CELL_ZONE_SHIFT = 2;
+// Bit 0: room (0=outside, 1=inside)
+// Bits 1-3: zone (0=room default, 1-7=named zone)
+// Bits 4-7: per-cell training (reserved)
+const CELL_ROOM_BIT = 0x01;
+const CELL_ZONE_MASK = 0x0E;  // bits 1-3
+const CELL_ZONE_SHIFT = 1;
 const MAX_ZONES = 7;
 
-const cellIsInside = (v: number): boolean => (v & CELL_ROOM_MASK) !== CELL_ROOM_OUTSIDE;
-const cellOverlay = (v: number): number => v & CELL_ROOM_MASK; // 0=outside, 1=inside, 2=entrance, 3=interference
+const cellIsInside = (v: number): boolean => (v & CELL_ROOM_BIT) !== 0;
 const cellZone = (v: number): number => (v >> CELL_ZONE_SHIFT) & 0x07;
-
-const cellSetRoom = (v: number, room: number): number =>
-  (v & ~CELL_ROOM_MASK) | (room & 0x03);
+const cellSetInside = (v: number, inside: boolean): number =>
+  inside ? (v | CELL_ROOM_BIT) : (v & ~CELL_ROOM_BIT);
 const cellSetZone = (v: number, zone: number): number =>
   (v & ~CELL_ZONE_MASK) | ((zone & 0x07) << CELL_ZONE_SHIFT);
 
@@ -162,7 +165,7 @@ export class EverythingPresenceProPanel extends LitElement {
   // Grid data: byte per cell using the encoding above
   @state() private _grid: Uint8Array = new Uint8Array(GRID_CELL_COUNT);
   @state() private _zoneConfigs: (ZoneConfig | null)[] = new Array(MAX_ZONES).fill(null);
-  @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones, -1/-2 = overlays
+  @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
   @state() private _showLiveMenu = false;
@@ -188,7 +191,6 @@ export class EverythingPresenceProPanel extends LitElement {
   } | null = null;
   @state() private _pendingRenames: { old_entity_id: string; new_entity_id: string }[] = [];
   @state() private _showRenameDialog = false;
-  @state() private _roomSensitivity = 1; // zone 0 sensitivity (0=low, 1=medium, 2=high)
   @state() private _targets: Target[] = [];
   @state() private _sensorState: {
     occupancy: boolean;
@@ -375,7 +377,6 @@ export class EverythingPresenceProPanel extends LitElement {
 
     // Load grid from saved layout bytes, or initialize from room dimensions
     const layout = config.room_layout || {};
-    this._roomSensitivity = layout.room_sensitivity ?? 1;
     this._furniture = (layout.furniture || []).map((f: any, i: number) => ({
       id: f.id || `f_load_${i}`,
       type: f.type || "icon",
@@ -402,7 +403,10 @@ export class EverythingPresenceProPanel extends LitElement {
       return {
         name: z.name || `Zone ${i + 1}`,
         color: z.color || ZONE_COLORS[i % ZONE_COLORS.length],
-        sensitivity: z.sensitivity ?? 1,
+        type: z.type ?? "normal",
+        trigger: z.trigger,
+        sustain: z.sustain,
+        timeout: z.timeout,
       };
     });
 
@@ -479,12 +483,8 @@ export class EverythingPresenceProPanel extends LitElement {
     const cell = this._grid[index];
     if (this._activeZone === 0) {
       // Boundary: toggle inside/outside (only if already plain room)
-      const isPlainRoom = cellIsInside(cell) && cellZone(cell) === 0 && cellOverlay(cell) === CELL_ROOM_INSIDE;
+      const isPlainRoom = cellIsInside(cell) && cellZone(cell) === 0;
       this._paintAction = isPlainRoom ? "clear" : "set";
-    } else if (this._activeZone === -1 || this._activeZone === -2) {
-      // Overlay: -1 = entrance, -2 = interference
-      const overlayType = this._activeZone === -1 ? CELL_ROOM_ENTRANCE : CELL_ROOM_INTERFERENCE;
-      this._paintAction = cellOverlay(cell) === overlayType ? "clear" : "set";
     } else {
       // Named zone
       this._paintAction = cellZone(cell) === this._activeZone ? "clear" : "set";
@@ -512,24 +512,15 @@ export class EverythingPresenceProPanel extends LitElement {
     if (this._activeZone === 0) {
       // Boundary: set = plain inside room, clear = outside
       if (this._paintAction === "set") {
-        this._grid[index] = CELL_ROOM_INSIDE;
+        this._grid[index] = CELL_ROOM_BIT;
       } else {
         this._grid[index] = 0;
-      }
-    } else if (this._activeZone === -1 || this._activeZone === -2) {
-      // Overlay painting — only on inside-room cells
-      if (!cellIsInside(cell)) return;
-      const overlayType = this._activeZone === -1 ? CELL_ROOM_ENTRANCE : CELL_ROOM_INTERFERENCE;
-      if (this._paintAction === "set") {
-        this._grid[index] = cellSetRoom(cell, overlayType);
-      } else {
-        this._grid[index] = cellSetRoom(cell, CELL_ROOM_INSIDE);
       }
     } else {
       // Named zone painting — only on inside-room cells
       if (!cellIsInside(cell)) return;
       if (this._paintAction === "set") {
-        this._grid[index] = cellSetZone(cell, this._activeZone);
+        this._grid[index] = cellSetZone(cell | CELL_ROOM_BIT, this._activeZone);
       } else {
         this._grid[index] = cellSetZone(cell, 0);
       }
@@ -571,7 +562,7 @@ export class EverythingPresenceProPanel extends LitElement {
     configs[firstEmpty] = {
       name: `Zone ${firstEmpty + 1}`,
       color,
-      sensitivity: 1,
+      type: "normal",
     };
     this._zoneConfigs = configs;
     this._activeZone = firstEmpty + 1; // 1-based slot number
@@ -593,18 +584,6 @@ export class EverythingPresenceProPanel extends LitElement {
     this._zoneConfigs = configs;
     if (this._activeZone === slot) {
       this._activeZone = null;
-    }
-    this._dirty = true;
-    this.requestUpdate();
-  }
-
-  /** Clear all cells with a specific overlay type */
-  private _clearOverlay(overlayType: number): void {
-    this._grid = new Uint8Array(this._grid);
-    for (let i = 0; i < GRID_CELL_COUNT; i++) {
-      if (cellOverlay(this._grid[i]) === overlayType) {
-        this._grid[i] = cellSetRoom(this._grid[i], CELL_ROOM_INSIDE);
-      }
     }
     this._dirty = true;
     this.requestUpdate();
@@ -776,14 +755,6 @@ export class EverythingPresenceProPanel extends LitElement {
     return "var(--card-background-color, #fff)"; // zone 0 = white
   }
 
-  private _getCellOverlayColor(index: number): string {
-    const cell = this._grid[index];
-    const overlay = cellOverlay(cell);
-    if (overlay === CELL_ROOM_ENTRANCE) return "#00FFFF"; // bright cyan border
-    if (overlay === CELL_ROOM_INTERFERENCE) return "#FF0000"; // bright red border
-    return "";
-  }
-
   /** Compute the bounding box of inside-room cells (for zoom) */
   private _getRoomBounds(): { minCol: number; maxCol: number; minRow: number; maxRow: number } {
     let minCol = GRID_COLS, maxCol = 0, minRow = GRID_ROWS, maxRow = 0;
@@ -815,9 +786,8 @@ export class EverythingPresenceProPanel extends LitElement {
         entry_id: this._selectedEntryId,
         grid_bytes: Array.from(this._grid),
         zone_slots: this._zoneConfigs.map((z) =>
-          z !== null ? { name: z.name, color: z.color, sensitivity: z.sensitivity } : null
+          z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, sustain: z.sustain, timeout: z.timeout } : null
         ),
-        room_sensitivity: this._roomSensitivity,
         furniture: this._furniture.map((f) => ({
           type: f.type, icon: f.icon, label: f.label,
           x: f.x, y: f.y, width: f.width, height: f.height,
@@ -895,7 +865,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   // -- Template management (localStorage) --
 
-  private _getTemplates(): { name: string; grid: number[]; zones: (ZoneConfig | null)[]; roomWidth: number; roomDepth: number; roomSensitivity?: number; furniture?: FurnitureItem[] }[] {
+  private _getTemplates(): { name: string; grid: number[]; zones: (ZoneConfig | null)[]; roomWidth: number; roomDepth: number; furniture?: FurnitureItem[] }[] {
     try {
       return JSON.parse(localStorage.getItem("epp_layout_templates") || "[]");
     } catch {
@@ -915,7 +885,6 @@ export class EverythingPresenceProPanel extends LitElement {
       zones: this._zoneConfigs.map((z) => z !== null ? { ...z } : null),
       roomWidth: this._roomWidth,
       roomDepth: this._roomDepth,
-      roomSensitivity: this._roomSensitivity,
       furniture: this._furniture.map((f) => ({ ...f })),
     };
     if (existing >= 0) {
@@ -938,7 +907,6 @@ export class EverythingPresenceProPanel extends LitElement {
     this._zoneConfigs = Array.from({ length: MAX_ZONES }, (_, i) => zones[i] ?? null);
     this._roomWidth = tmpl.roomWidth;
     this._roomDepth = tmpl.roomDepth;
-    this._roomSensitivity = tmpl.roomSensitivity ?? 1;
     this._furniture = (tmpl.furniture || []).map((f: any) => ({ ...f }));
     this._showTemplateLoad = false;
   }
@@ -970,7 +938,7 @@ export class EverythingPresenceProPanel extends LitElement {
           r >= startRow && r < startRow + roomRows;
 
         if (inRoom) {
-          grid[idx] = CELL_ROOM_INSIDE; // inside room, zone 0, no overlay
+          grid[idx] = CELL_ROOM_BIT; // inside room, zone 0
         }
         // Otherwise stays 0 (outside room)
       }
@@ -2855,7 +2823,6 @@ export class EverythingPresenceProPanel extends LitElement {
         entry_id: this._selectedEntryId,
         grid_bytes: Array.from(this._grid),
         zone_slots: this._zoneConfigs.map(() => null),
-        room_sensitivity: 1,
         furniture: [],
       });
     } catch (e) {
@@ -4185,14 +4152,10 @@ export class EverythingPresenceProPanel extends LitElement {
       for (let c = minCol; c <= maxCol; c++) {
         const idx = r * GRID_COLS + c;
         const bg = this._getCellColor(idx);
-        const overlay = this._getCellOverlayColor(idx);
-        const borderStyle = overlay
-          ? `background: ${bg}; width: ${cellPx}px; height: ${cellPx}px; outline: 2px solid ${overlay}; z-index: 1;`
-          : `background: ${bg}; width: ${cellPx}px; height: ${cellPx}px;`;
         cells.push(html`
           <div
             class="cell"
-            style=${borderStyle}
+            style="background: ${bg}; width: ${cellPx}px; height: ${cellPx}px;"
             @mousedown=${() => this._onCellMouseDown(idx)}
             @mouseenter=${() => this._onCellMouseEnter(idx)}
           ></div>
@@ -4212,63 +4175,6 @@ export class EverythingPresenceProPanel extends LitElement {
         <div class="zone-item-row">
           <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;"></div>
           <span class="zone-name">Boundary</span>
-        </div>
-        ${this._activeZone === 0 ? html`
-          <div class="zone-item-row zone-settings-row">
-            <label class="zone-setting-label">Sensitivity</label>
-            <select
-              class="sensitivity-select"
-              .value=${String(this._roomSensitivity)}
-              @change=${(e: Event) => {
-                this._roomSensitivity = parseInt((e.target as HTMLSelectElement).value);
-              }}
-              @click=${(e: Event) => e.stopPropagation()}
-            >
-              <option value="0">Low</option>
-              <option value="1">Medium</option>
-              <option value="2">High</option>
-            </select>
-          </div>
-        ` : nothing}
-      </div>
-
-      <!-- Entrance / exit overlay -->
-      <div
-        class="zone-item ${this._activeZone === -1 ? "active" : ""}"
-        @click=${() => { this._activeZone = -1; }}
-      >
-        <div class="zone-item-row">
-          <div class="zone-color-dot" style="background: #0FF;"></div>
-          <span class="zone-name">Entrance / exit</span>
-          <button
-            class="zone-remove-btn"
-            @click=${(e: Event) => {
-              e.stopPropagation();
-              this._clearOverlay(CELL_ROOM_ENTRANCE);
-            }}
-          >
-            <ha-icon icon="mdi:close"></ha-icon>
-          </button>
-        </div>
-      </div>
-
-      <!-- Interference source overlay -->
-      <div
-        class="zone-item ${this._activeZone === -2 ? "active" : ""}"
-        @click=${() => { this._activeZone = -2; }}
-      >
-        <div class="zone-item-row">
-          <div class="zone-color-dot" style="background: #F00;"></div>
-          <span class="zone-name">Interference source</span>
-          <button
-            class="zone-remove-btn"
-            @click=${(e: Event) => {
-              e.stopPropagation();
-              this._clearOverlay(CELL_ROOM_INTERFERENCE);
-            }}
-          >
-            <ha-icon icon="mdi:close"></ha-icon>
-          </button>
         </div>
       </div>
 
@@ -4309,22 +4215,25 @@ export class EverythingPresenceProPanel extends LitElement {
               </button>
             </div>
             ${this._activeZone === slot ? html`
-              <div class="zone-item-row zone-settings-row">
-                <label class="zone-setting-label">Sensitivity</label>
+              <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 6px;">
+                <label class="zone-setting-label">Type</label>
                 <select
                   class="sensitivity-select"
-                  .value=${String(zone.sensitivity)}
+                  .value=${zone.type}
                   @change=${(e: Event) => {
-                    const val = parseInt((e.target as HTMLSelectElement).value);
+                    const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
+                    const defaults = ZONE_TYPE_DEFAULTS[val];
                     const configs = [...this._zoneConfigs];
-                    configs[i] = { ...zone, sensitivity: val };
+                    configs[i] = { ...zone, type: val, trigger: defaults.trigger, sustain: defaults.sustain, timeout: defaults.timeout };
                     this._zoneConfigs = configs;
+                    this._dirty = true;
                   }}
                   @click=${(e: Event) => e.stopPropagation()}
                 >
-                  <option value="0">Low</option>
-                  <option value="1">Medium</option>
-                  <option value="2">High</option>
+                  <option value="normal">Normal</option>
+                  <option value="entrance">Entrance</option>
+                  <option value="thoroughfare">Thoroughfare</option>
+                  <option value="rest">Rest area</option>
                 </select>
                 <input
                   type="color"
@@ -4335,9 +4244,53 @@ export class EverythingPresenceProPanel extends LitElement {
                     const configs = [...this._zoneConfigs];
                     configs[i] = { ...zone, color: val };
                     this._zoneConfigs = configs;
+                    this._dirty = true;
                   }}
                   @click=${(e: Event) => e.stopPropagation()}
                 />
+              </div>
+              <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 4px;">
+                <label class="zone-setting-label" style="width: 100%;">Trigger <span style="float:right;">${zone.trigger ?? ZONE_TYPE_DEFAULTS[zone.type].trigger}</span></label>
+                <input
+                  type="range" min="0" max="9" style="width: 100%;"
+                  .value=${String(zone.trigger ?? ZONE_TYPE_DEFAULTS[zone.type].trigger)}
+                  @input=${(e: Event) => {
+                    const val = parseInt((e.target as HTMLInputElement).value);
+                    const configs = [...this._zoneConfigs];
+                    configs[i] = { ...zone, trigger: val };
+                    this._zoneConfigs = configs;
+                    this._dirty = true;
+                  }}
+                  @click=${(e: Event) => e.stopPropagation()}
+                />
+                <label class="zone-setting-label" style="width: 100%;">Sustain <span style="float:right;">${zone.sustain ?? ZONE_TYPE_DEFAULTS[zone.type].sustain}</span></label>
+                <input
+                  type="range" min="0" max="9" style="width: 100%;"
+                  .value=${String(zone.sustain ?? ZONE_TYPE_DEFAULTS[zone.type].sustain)}
+                  @input=${(e: Event) => {
+                    const val = parseInt((e.target as HTMLInputElement).value);
+                    const configs = [...this._zoneConfigs];
+                    configs[i] = { ...zone, sustain: val };
+                    this._zoneConfigs = configs;
+                    this._dirty = true;
+                  }}
+                  @click=${(e: Event) => e.stopPropagation()}
+                />
+                <label class="zone-setting-label" style="width: 100%;">Timeout <span style="float:right;">${zone.timeout ?? ZONE_TYPE_DEFAULTS[zone.type].timeout}s</span></label>
+                <input
+                  type="number" min="1" max="300" style="width: 60px;"
+                  .value=${String(zone.timeout ?? ZONE_TYPE_DEFAULTS[zone.type].timeout)}
+                  @input=${(e: Event) => {
+                    const val = parseInt((e.target as HTMLInputElement).value);
+                    if (!isNaN(val) && val > 0) {
+                      const configs = [...this._zoneConfigs];
+                      configs[i] = { ...zone, timeout: val };
+                      this._zoneConfigs = configs;
+                      this._dirty = true;
+                    }
+                  }}
+                  @click=${(e: Event) => e.stopPropagation()}
+                /> <span style="font-size: 12px;">seconds</span>
               </div>
             ` : nothing}
           </div>
