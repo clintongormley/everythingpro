@@ -27,16 +27,6 @@ const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; sustain: number; tim
   rest: { trigger: 3, sustain: 9, timeout: 30 },
 };
 
-/** Convert hit count to equivalent sensitivity level (0-9) given actual frame count. */
-const hitCountToSensitivity = (hits: number, frames: number): number => {
-  const f = Math.max(frames, 1);
-  for (let s = 9; s >= 0; s--) {
-    const threshold = Math.round((f * (10 - s) + 5) / 10);
-    if (hits >= threshold) return s;
-  }
-  return 0;
-};
-
 interface EntryInfo {
   entry_id: string;
   title: string;
@@ -3414,12 +3404,13 @@ export class EverythingPresenceProPanel extends LitElement {
     for (const [zoneId, centre] of zoneCentre) {
       const hitCount = zs.target_counts[zoneId] ?? 0;
       if (hitCount === 0) continue;
-      const sensitivity = hitCountToSensitivity(hitCount, zs.frame_count);
+      const frames = Math.max(zs.frame_count, 1);
+      const pct = Math.round(hitCount / frames * 100);
       const xPct = ((centre.sumCol / centre.count - minCol + 0.5) / visCols) * 100;
       const yPct = ((centre.sumRow / centre.count - minRow + 0.5) / visRows) * 100;
       labels.push(html`
         <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
-          ${sensitivity}
+          ${pct}%
         </div>
       `);
     }

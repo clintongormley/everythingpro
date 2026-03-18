@@ -547,6 +547,9 @@ class EverythingPresenceProCoordinator:
             async_dispatcher_send(
                 self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
             )
+        # Keep ticking until all zones are clear (for timeout expiry)
+        if any(self._last_result.zone_occupancy.values()):
+            self._window_timer = self.hass.loop.call_later(1.5, self._idle_tick)
 
     def _build_calibrated_targets(self) -> list[tuple[float, float, bool]]:
         """Build calibrated target list from current raw state."""
