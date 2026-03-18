@@ -166,6 +166,7 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _grid: Uint8Array = new Uint8Array(GRID_CELL_COUNT);
   @state() private _zoneConfigs: (ZoneConfig | null)[] = new Array(MAX_ZONES).fill(null);
   @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones
+  @state() private _roomType: ZoneConfig["type"] = "normal"; // zone 0 type
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
   @state() private _showLiveMenu = false;
@@ -409,6 +410,8 @@ export class EverythingPresenceProPanel extends LitElement {
         timeout: z.timeout,
       };
     });
+
+    this._roomType = layout.room_type ?? "normal";
 
     // Load reporting config and offsets
     (this as any)._reportingConfig = config.reporting || {};
@@ -785,6 +788,7 @@ export class EverythingPresenceProPanel extends LitElement {
         type: "everything_presence_pro/set_room_layout",
         entry_id: this._selectedEntryId,
         grid_bytes: Array.from(this._grid),
+        room_type: this._roomType,
         zone_slots: this._zoneConfigs.map((z) =>
           z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, sustain: z.sustain, timeout: z.timeout } : null
         ),
@@ -2808,6 +2812,7 @@ export class EverythingPresenceProPanel extends LitElement {
     this._roomDepth = 0;
     this._grid = new Uint8Array(GRID_COLS * GRID_ROWS);
     this._zoneConfigs = new Array(MAX_ZONES).fill(null);
+    this._roomType = "normal";
     this._furniture = [];
     // Clear calibration and layout on the backend
     try {
@@ -4176,6 +4181,25 @@ export class EverythingPresenceProPanel extends LitElement {
           <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;"></div>
           <span class="zone-name">Boundary</span>
         </div>
+        ${this._activeZone === 0 ? html`
+          <div class="zone-item-row zone-settings-row" style="gap: 6px;">
+            <label class="zone-setting-label">Type</label>
+            <select
+              class="sensitivity-select"
+              .value=${this._roomType}
+              @change=${(e: Event) => {
+                this._roomType = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
+                this._dirty = true;
+              }}
+              @click=${(e: Event) => e.stopPropagation()}
+            >
+              <option value="normal">Normal</option>
+              <option value="entrance">Entrance</option>
+              <option value="thoroughfare">Thoroughfare</option>
+              <option value="rest">Rest area</option>
+            </select>
+          </div>
+        ` : nothing}
       </div>
 
       <hr class="zone-separator"/>

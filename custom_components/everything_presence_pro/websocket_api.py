@@ -249,6 +249,7 @@ async def websocket_set_zones(
             ],
             vol.Length(min=MAX_ZONES, max=MAX_ZONES),
         ),
+        vol.Optional("room_type", default="normal"): vol.In(["normal", "entrance", "thoroughfare", "rest"]),
         vol.Optional("furniture", default=[]): [
             {
                 vol.Optional("type", default="icon"): str,
@@ -295,6 +296,7 @@ async def websocket_set_room_layout(
 
     layout = {
         "grid_bytes": msg["grid_bytes"],
+        "room_type": msg["room_type"],
         "zone_slots": zone_slots,
         "furniture": msg["furniture"],
     }
