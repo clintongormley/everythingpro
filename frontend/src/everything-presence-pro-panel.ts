@@ -15,7 +15,7 @@ interface Target {
 interface ZoneConfig {
   name: string;
   color: string;
-  type: "normal" | "entrance" | "thoroughfare" | "rest";
+  type: "normal" | "entrance" | "thoroughfare" | "rest" | "custom";
   trigger?: number;  // 0-9 threshold, 0=disabled, higher=harder
   sustain?: number;  // 0-9 threshold, 0=disabled, higher=harder
   timeout?: number;  // seconds, if undefined use type default
@@ -167,7 +167,10 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _grid: Uint8Array = new Uint8Array(GRID_CELL_COUNT);
   @state() private _zoneConfigs: (ZoneConfig | null)[] = new Array(MAX_ZONES).fill(null);
   @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones
-  @state() private _roomType: ZoneConfig["type"] = "normal"; // zone 0 type
+  @state() private _roomType: ZoneConfig["type"] = "normal";
+  @state() private _roomTrigger: number = ZONE_TYPE_DEFAULTS.normal.trigger;
+  @state() private _roomSustain: number = ZONE_TYPE_DEFAULTS.normal.sustain;
+  @state() private _roomTimeout: number = ZONE_TYPE_DEFAULTS.normal.timeout;
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
   @state() private _showLiveMenu = false;
@@ -414,6 +417,9 @@ export class EverythingPresenceProPanel extends LitElement {
     });
 
     this._roomType = layout.room_type ?? "normal";
+    this._roomTrigger = layout.room_trigger ?? ZONE_TYPE_DEFAULTS[this._roomType]?.trigger ?? 5;
+    this._roomSustain = layout.room_sustain ?? ZONE_TYPE_DEFAULTS[this._roomType]?.sustain ?? 3;
+    this._roomTimeout = layout.room_timeout ?? ZONE_TYPE_DEFAULTS[this._roomType]?.timeout ?? 10;
 
     // Load reporting config and offsets
     (this as any)._reportingConfig = config.reporting || {};
@@ -793,6 +799,9 @@ export class EverythingPresenceProPanel extends LitElement {
         entry_id: this._selectedEntryId,
         grid_bytes: Array.from(this._grid),
         room_type: this._roomType,
+        room_trigger: this._roomTrigger,
+        room_sustain: this._roomSustain,
+        room_timeout: this._roomTimeout,
         zone_slots: this._zoneConfigs.map((z) =>
           z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, sustain: z.sustain, timeout: z.timeout } : null
         ),
@@ -2819,6 +2828,9 @@ export class EverythingPresenceProPanel extends LitElement {
     this._grid = new Uint8Array(GRID_COLS * GRID_ROWS);
     this._zoneConfigs = new Array(MAX_ZONES).fill(null);
     this._roomType = "normal";
+    this._roomTrigger = ZONE_TYPE_DEFAULTS.normal.trigger;
+    this._roomSustain = ZONE_TYPE_DEFAULTS.normal.sustain;
+    this._roomTimeout = ZONE_TYPE_DEFAULTS.normal.timeout;
     this._furniture = [];
     // Clear calibration and layout on the backend
     try {
@@ -3808,51 +3820,10 @@ export class EverythingPresenceProPanel extends LitElement {
           </div>
         </div>
         <div class="setting-group">
-          <h4>Target Sensor</h4>
-          ${this._renderZoneTypeProfile("Entrance / Exit", ZONE_TYPE_DEFAULTS.entrance.timeout, ZONE_TYPE_DEFAULTS.entrance.trigger, ZONE_TYPE_DEFAULTS.entrance.sustain, true)}
-          ${this._renderZoneTypeProfile("Thoroughfare", ZONE_TYPE_DEFAULTS.thoroughfare.timeout, ZONE_TYPE_DEFAULTS.thoroughfare.trigger, ZONE_TYPE_DEFAULTS.thoroughfare.sustain, false)}
-          ${this._renderZoneTypeProfile("Living area", ZONE_TYPE_DEFAULTS.normal.timeout, ZONE_TYPE_DEFAULTS.normal.trigger, ZONE_TYPE_DEFAULTS.normal.sustain, false)}
-          ${this._renderZoneTypeProfile("Bed / Sofa", ZONE_TYPE_DEFAULTS.rest.timeout, ZONE_TYPE_DEFAULTS.rest.trigger, ZONE_TYPE_DEFAULTS.rest.sustain, false)}
-        </div>
-        <div class="setting-group">
           <h4>Environmental</h4>
           ${this._renderEnvOffset("Illuminance offset", this._sensorState.illuminance, "illuminance", -500, 500, 1, "lux", 0, "Adjust the illuminance reading by a fixed amount.")}
           ${this._renderEnvOffset("Humidity offset", this._sensorState.humidity, "humidity", -50, 50, 0.1, "%", 1, "Adjust the humidity reading by a fixed amount.")}
           ${this._renderEnvOffset("Temperature offset", this._sensorState.temperature, "temperature", -20, 20, 0.1, "°C", 1, "Adjust the temperature reading by a fixed amount.")}
-        </div>
-      </div>
-    `;
-  }
-
-  private _renderZoneTypeProfile(
-    label: string,
-    timeout: number,
-    trigger: number,
-    sustain: number,
-    expectAppearVanish: boolean,
-  ) {
-    return html`
-      <div class="zone-type-group">
-        <h5>${label}</h5>
-        <div class="setting-row">
-          <label>Presence timeout</label>
-          <span class="setting-input-unit"><input type="range" class="setting-range" value=${timeout} min="0" max="120" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${timeout}</span><span class="setting-unit">s</span></span>
-          ${this._infoTip("Time after last target detection in this zone type before presence clears.")}
-        </div>
-        <div class="setting-row">
-          <label>Trigger threshold</label>
-          <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${trigger} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${trigger}</span><span class="setting-unit"></span></span>
-          ${this._infoTip("Consecutive frames needed to confirm target presence. Lower = more sensitive.")}
-        </div>
-        <div class="setting-row">
-          <label>Sustain threshold</label>
-          <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value=${sustain} @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${sustain}</span><span class="setting-unit"></span></span>
-          ${this._infoTip("Consecutive empty frames needed before target is considered gone. Lower = clears faster.")}
-        </div>
-        <div class="setting-row">
-          <label>Is portal</label>
-          <span class="setting-input-unit"><span style="flex:1"></span><label class="toggle-switch"><input type="checkbox" ?checked=${expectAppearVanish} /><span class="toggle-slider"></span></label><span class="setting-value"></span><span class="setting-unit"></span></span>
-          ${this._infoTip("Enable if targets typically enter/leave through this zone (e.g. doorways).")}
         </div>
       </div>
     `;
@@ -4227,6 +4198,128 @@ export class EverythingPresenceProPanel extends LitElement {
     return result;
   }
 
+  private _renderBoundaryTypeControls() {
+    const isCustom = this._roomType === "custom";
+    const defaults = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
+    const trigger = isCustom ? this._roomTrigger : defaults.trigger;
+    const sustain = isCustom ? this._roomSustain : defaults.sustain;
+    const timeout = isCustom ? this._roomTimeout : defaults.timeout;
+    return html`
+      <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 4px;">
+        <label class="zone-setting-label">Type</label>
+        <select
+          class="sensitivity-select"
+          .value=${this._roomType}
+          @change=${(e: Event) => {
+            const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
+            const d = ZONE_TYPE_DEFAULTS[val] || ZONE_TYPE_DEFAULTS.normal;
+            this._roomType = val;
+            this._roomTrigger = d.trigger;
+            this._roomSustain = d.sustain;
+            this._roomTimeout = d.timeout;
+            this._dirty = true;
+          }}
+          @click=${(e: Event) => e.stopPropagation()}
+        >
+          <option value="normal">Normal</option>
+          <option value="entrance">Entrance</option>
+          <option value="thoroughfare">Thoroughfare</option>
+          <option value="rest">Rest area</option>
+          <option value="custom">Custom</option>
+        </select>
+        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+          <label style="min-width: 50px;">Trigger</label>
+          <input type="range" min="0" max="9" style="flex: 1;" .value=${String(trigger)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { this._roomTrigger = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
+            @click=${(e: Event) => e.stopPropagation()} />
+          <span style="min-width: 12px; text-align: right;">${trigger}</span>
+        </div>
+        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+          <label style="min-width: 50px;">Sustain</label>
+          <input type="range" min="0" max="9" style="flex: 1;" .value=${String(sustain)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { this._roomSustain = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
+            @click=${(e: Event) => e.stopPropagation()} />
+          <span style="min-width: 12px; text-align: right;">${sustain}</span>
+        </div>
+        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+          <label style="min-width: 50px;">Timeout</label>
+          <input type="number" min="1" max="300" style="width: 50px;" .value=${String(timeout)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { this._roomTimeout = v; this._dirty = true; } }}
+            @click=${(e: Event) => e.stopPropagation()} />
+          <span style="font-size: 11px;">s</span>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderZoneTypeControls(zone: ZoneConfig, index: number) {
+    const isCustom = zone.type === "custom";
+    const defaults = ZONE_TYPE_DEFAULTS[zone.type] || ZONE_TYPE_DEFAULTS.normal;
+    const trigger = zone.trigger ?? defaults.trigger;
+    const sustain = zone.sustain ?? defaults.sustain;
+    const timeout = zone.timeout ?? defaults.timeout;
+    return html`
+      <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 4px;">
+        <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
+          <label class="zone-setting-label">Type</label>
+          <select
+            class="sensitivity-select"
+            .value=${zone.type}
+            @change=${(e: Event) => {
+              const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
+              const d = ZONE_TYPE_DEFAULTS[val] || ZONE_TYPE_DEFAULTS.normal;
+              const configs = [...this._zoneConfigs];
+              configs[index] = { ...zone, type: val, trigger: d.trigger, sustain: d.sustain, timeout: d.timeout };
+              this._zoneConfigs = configs;
+              this._dirty = true;
+            }}
+            @click=${(e: Event) => e.stopPropagation()}
+          >
+            <option value="normal">Normal</option>
+            <option value="entrance">Entrance</option>
+            <option value="thoroughfare">Thoroughfare</option>
+            <option value="rest">Rest area</option>
+            <option value="custom">Custom</option>
+          </select>
+          <input
+            type="color"
+            class="zone-color-picker"
+            .value=${zone.color}
+            @input=${(e: Event) => {
+              const val = (e.target as HTMLInputElement).value;
+              const configs = [...this._zoneConfigs];
+              configs[index] = { ...zone, color: val };
+              this._zoneConfigs = configs;
+              this._dirty = true;
+            }}
+            @click=${(e: Event) => e.stopPropagation()}
+          />
+        </div>
+        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+          <label style="min-width: 50px;">Trigger</label>
+          <input type="range" min="0" max="9" style="flex: 1;" .value=${String(trigger)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, trigger: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
+            @click=${(e: Event) => e.stopPropagation()} />
+          <span style="min-width: 12px; text-align: right;">${trigger}</span>
+        </div>
+        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+          <label style="min-width: 50px;">Sustain</label>
+          <input type="range" min="0" max="9" style="flex: 1;" .value=${String(sustain)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, sustain: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
+            @click=${(e: Event) => e.stopPropagation()} />
+          <span style="min-width: 12px; text-align: right;">${sustain}</span>
+        </div>
+        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+          <label style="min-width: 50px;">Timeout</label>
+          <input type="number" min="1" max="300" style="width: 50px;" .value=${String(timeout)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, timeout: v }; this._zoneConfigs = configs; this._dirty = true; } }}
+            @click=${(e: Event) => e.stopPropagation()} />
+          <span style="font-size: 11px;">s</span>
+        </div>
+      </div>
+    `;
+  }
+
   private _renderZoneSidebar() {
     return html`
       <!-- Boundary -->
@@ -4239,23 +4332,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <span class="zone-name">Boundary</span>
         </div>
         ${this._activeZone === 0 ? html`
-          <div class="zone-item-row zone-settings-row" style="gap: 6px;">
-            <label class="zone-setting-label">Type</label>
-            <select
-              class="sensitivity-select"
-              .value=${this._roomType}
-              @change=${(e: Event) => {
-                this._roomType = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
-                this._dirty = true;
-              }}
-              @click=${(e: Event) => e.stopPropagation()}
-            >
-              <option value="normal">Normal</option>
-              <option value="entrance">Entrance</option>
-              <option value="thoroughfare">Thoroughfare</option>
-              <option value="rest">Rest area</option>
-            </select>
-          </div>
+          ${this._renderBoundaryTypeControls()}
         ` : nothing}
       </div>
 
@@ -4296,40 +4373,7 @@ export class EverythingPresenceProPanel extends LitElement {
               </button>
             </div>
             ${this._activeZone === slot ? html`
-              <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 6px;">
-                <label class="zone-setting-label">Type</label>
-                <select
-                  class="sensitivity-select"
-                  .value=${zone.type}
-                  @change=${(e: Event) => {
-                    const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
-                    const defaults = ZONE_TYPE_DEFAULTS[val];
-                    const configs = [...this._zoneConfigs];
-                    configs[i] = { ...zone, type: val, trigger: defaults.trigger, sustain: defaults.sustain, timeout: defaults.timeout };
-                    this._zoneConfigs = configs;
-                    this._dirty = true;
-                  }}
-                  @click=${(e: Event) => e.stopPropagation()}
-                >
-                  <option value="normal">Normal</option>
-                  <option value="entrance">Entrance</option>
-                  <option value="thoroughfare">Thoroughfare</option>
-                  <option value="rest">Rest area</option>
-                </select>
-                <input
-                  type="color"
-                  class="zone-color-picker"
-                  .value=${zone.color}
-                  @input=${(e: Event) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    const configs = [...this._zoneConfigs];
-                    configs[i] = { ...zone, color: val };
-                    this._zoneConfigs = configs;
-                    this._dirty = true;
-                  }}
-                  @click=${(e: Event) => e.stopPropagation()}
-                />
-              </div>
+              ${this._renderZoneTypeControls(zone, i)}
             ` : nothing}
           </div>
         `;

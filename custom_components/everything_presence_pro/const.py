@@ -32,6 +32,7 @@ ZONE_TYPE_NORMAL = "normal"
 ZONE_TYPE_ENTRANCE = "entrance"
 ZONE_TYPE_THOROUGHFARE = "thoroughfare"
 ZONE_TYPE_REST = "rest"
+ZONE_TYPE_CUSTOM = "custom"
 
 ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
     ZONE_TYPE_NORMAL: {"trigger": 5, "sustain": 3, "timeout": 10.0},

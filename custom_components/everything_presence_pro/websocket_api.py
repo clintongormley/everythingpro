@@ -169,7 +169,7 @@ def websocket_get_config(
             {
                 vol.Required("id"): vol.Coerce(int),
                 vol.Required("name"): str,
-                vol.Required("type"): vol.In(["normal", "entrance", "thoroughfare", "rest"]),
+                vol.Required("type"): vol.In(["normal", "entrance", "thoroughfare", "rest", "custom"]),
                 vol.Optional("color", default=""): str,
                 vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
                 vol.Optional("sustain"): vol.All(int, vol.Range(min=0, max=9)),
@@ -240,7 +240,7 @@ async def websocket_set_zones(
                     {
                         vol.Required("name"): str,
                         vol.Required("color"): str,
-                        vol.Required("type"): vol.In(["normal", "entrance", "thoroughfare", "rest"]),
+                        vol.Required("type"): vol.In(["normal", "entrance", "thoroughfare", "rest", "custom"]),
                         vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
                         vol.Optional("sustain"): vol.All(int, vol.Range(min=0, max=9)),
                         vol.Optional("timeout"): vol.Coerce(float),
@@ -249,7 +249,10 @@ async def websocket_set_zones(
             ],
             vol.Length(min=MAX_ZONES, max=MAX_ZONES),
         ),
-        vol.Optional("room_type", default="normal"): vol.In(["normal", "entrance", "thoroughfare", "rest"]),
+        vol.Optional("room_type", default="normal"): vol.In(["normal", "entrance", "thoroughfare", "rest", "custom"]),
+        vol.Optional("room_trigger"): vol.All(int, vol.Range(min=0, max=9)),
+        vol.Optional("room_sustain"): vol.All(int, vol.Range(min=0, max=9)),
+        vol.Optional("room_timeout"): vol.Coerce(float),
         vol.Optional("furniture", default=[]): [
             {
                 vol.Optional("type", default="icon"): str,
@@ -297,6 +300,9 @@ async def websocket_set_room_layout(
     layout = {
         "grid_bytes": msg["grid_bytes"],
         "room_type": msg["room_type"],
+        "room_trigger": msg.get("room_trigger"),
+        "room_sustain": msg.get("room_sustain"),
+        "room_timeout": msg.get("room_timeout"),
         "zone_slots": zone_slots,
         "furniture": msg["furniture"],
     }
