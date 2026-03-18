@@ -82,7 +82,7 @@ def test_threshold_to_frame_count():
 
 
 def test_tumbling_window_emits_after_interval():
-    """Test window collects frames and emits after 1 second."""
+    """Test window collects frames and emits per-target results after 1 second."""
     grid = _make_grid(cols=4, rows=4)
     grid.cells[0] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
     window = TumblingWindow(grid=grid, interval_s=1.0)
@@ -100,43 +100,26 @@ def test_tumbling_window_emits_after_interval():
     # First frame of next window triggers output of previous
     result = window.feed([(150, 150, True)], t + 1.01)
     assert result is not None
-    assert result.zone_hit_counts[1] == 33  # all 33 frames hit zone 1
+    assert result.total_frames == 33
+    assert result.targets[0].active is True
+    assert result.targets[0].frame_count == 33
+    assert result.targets[0].median_x == 150
+    assert result.targets[0].median_y == 150
 
 
-def test_tumbling_window_multiple_targets_in_zone():
-    """Test that multiple targets in same zone count as one hit per frame."""
+def test_tumbling_window_inactive_target():
+    """Test inactive targets produce empty TargetWindow."""
     grid = _make_grid(cols=4, rows=4)
-    # Zone 1 covers cell at (150,150)
-    cell_idx = grid.xy_to_cell(150, 150)
-    grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
     window = TumblingWindow(grid=grid, interval_s=1.0)
 
     t = 100.0
-    # Feed 10 frames with 2 targets both in zone 1
     for i in range(10):
-        window.feed([(150, 150, True), (150, 150, True)], t + i * 0.03)
+        window.feed([(0, 0, False)], t + i * 0.03)
 
-    # Trigger window emit
-    result = window.feed([(150, 150, True)], t + 1.01)
+    result = window.feed([(0, 0, False)], t + 1.01)
     assert result is not None
-    # Deduplicated: 10 frames, each counted once regardless of target count
-    assert result.zone_hit_counts[1] == 10
-
-
-def test_tumbling_window_outside_cells_ignored():
-    """Test targets in outside cells are not counted."""
-    grid = Grid(cols=4, rows=4)  # all outside by default
-    grid.cells[0] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
-    window = TumblingWindow(grid=grid, interval_s=1.0)
-
-    t = 100.0
-    # Target at (450, 450) — outside cell
-    for i in range(33):
-        window.feed([(450, 450, True)], t + i * 0.03)
-
-    result = window.feed([(450, 450, True)], t + 1.01)
-    assert result is not None
-    assert result.zone_hit_counts.get(1, 0) == 0
+    assert result.targets[0].active is False
+    assert result.targets[0].frame_count == 0
 
 
 # --- State machine ---
@@ -168,13 +151,13 @@ def _make_engine_with_zone(
 
 
 def test_state_machine_clear_to_occupied():
-    """Test CLEAR -> OCCUPIED when hit count meets trigger threshold."""
-    engine, _ = _make_engine_with_zone(trigger=9, sustain=9, timeout=5.0)
-    # trigger=9 => threshold = 3
+    """Test CLEAR -> OCCUPIED when target frame count meets trigger threshold."""
+    engine, _ = _make_engine_with_zone(trigger=5, sustain=3, timeout=5.0)
+    # trigger=5 => need 5 frames
 
     t = 100.0
-    # Window with all 33 frames hitting zone 1 — well above threshold of 3
-    for i in range(33):
+    # 10 frames with target active — 10 >= 5 threshold
+    for i in range(10):
         engine.feed_raw([(150, 150, True)], t + i * 0.03)
 
     # Tick the window
@@ -184,16 +167,16 @@ def test_state_machine_clear_to_occupied():
 
 
 def test_state_machine_clear_stays_clear_below_threshold():
-    """Test CLEAR stays CLEAR when hit count below trigger threshold."""
-    engine, _ = _make_engine_with_zone(trigger=0, sustain=9, timeout=5.0)
-    # trigger=0 => threshold = 33, need every frame
+    """Test CLEAR stays CLEAR when target frame count below trigger threshold."""
+    engine, _ = _make_engine_with_zone(trigger=5, sustain=1, timeout=5.0)
+    # trigger=5 => need 5 frames
 
     t = 100.0
-    # Only 10 of 33 frames have target in zone
-    for i in range(10):
+    # Target only active for 3 frames out of 10
+    for i in range(3):
         engine.feed_raw([(150, 150, True)], t + i * 0.03)
-    for i in range(23):
-        engine.feed_raw([(0, 0, False)], t + 0.3 + i * 0.03)
+    for i in range(7):
+        engine.feed_raw([(0, 0, False)], t + 0.09 + i * 0.03)
 
     result = engine.feed_raw([(0, 0, False)], t + 1.01)
     assert result is not None
@@ -201,42 +184,40 @@ def test_state_machine_clear_stays_clear_below_threshold():
 
 
 def test_state_machine_occupied_to_pending():
-    """Test OCCUPIED -> PENDING when zone misses sustain threshold."""
-    engine, _ = _make_engine_with_zone(trigger=9, sustain=9, timeout=5.0)
-    # trigger=9 -> thresh=3, sustain=9 -> thresh=3
+    """Test OCCUPIED -> PENDING when no target confirmed in zone."""
+    engine, _ = _make_engine_with_zone(trigger=3, sustain=3, timeout=5.0)
 
     t = 100.0
-    # Window 1: 33 hits -> triggers OCCUPIED
-    for i in range(33):
+    # Window 1: 10 frames with target -> triggers OCCUPIED
+    for i in range(10):
         engine.feed_raw([(150, 150, True)], t + i * 0.03)
     result = engine.feed_raw([(0, 0, False)], t + 1.01)
     assert result is not None
     assert result.zone_occupancy[1] is True
 
-    # Window 2: 0 hits -> PENDING (but still reports occupied because timeout hasn't expired)
-    for i in range(33):
+    # Window 2: no target -> PENDING (still reports occupied, timeout hasn't expired)
+    for i in range(10):
         engine.feed_raw([(0, 0, False)], t + 1.01 + i * 0.03)
     result = engine.feed_raw([(0, 0, False)], t + 2.02)
     assert result is not None
-    # Zone is PENDING but timeout hasn't expired (5s), so still occupied
     assert result.zone_occupancy[1] is True
 
 
 def test_state_machine_pending_to_clear():
     """Test PENDING -> CLEAR when timeout expires."""
-    engine, _ = _make_engine_with_zone(trigger=9, sustain=9, timeout=2.0)
+    engine, _ = _make_engine_with_zone(trigger=3, sustain=3, timeout=2.0)
 
     t = 100.0
     # Window 1: trigger
-    for i in range(33):
-        engine.feed_raw([(150, 150, True)], t + i * 0.03)
+    for i in range(10):
+        engine.feed_raw([(150, 150, True)], t + i * 0.1)
     engine.feed_raw([(0, 0, False)], t + 1.01)
 
     # Windows 2-4: empty (3 seconds, exceeds 2s timeout)
     for w in range(3):
         wt = t + 1.01 + w * 1.0
-        for i in range(33):
-            engine.feed_raw([(0, 0, False)], wt + i * 0.03)
+        for i in range(10):
+            engine.feed_raw([(0, 0, False)], wt + i * 0.1)
         result = engine.feed_raw([(0, 0, False)], wt + 1.01)
 
     assert result is not None
@@ -245,23 +226,22 @@ def test_state_machine_pending_to_clear():
 
 def test_state_machine_pending_to_occupied():
     """Test PENDING -> OCCUPIED when sustain threshold met during timeout."""
-    engine, _ = _make_engine_with_zone(trigger=9, sustain=9, timeout=10.0)
-    # sustain=9 -> thresh=3
+    engine, _ = _make_engine_with_zone(trigger=3, sustain=3, timeout=10.0)
 
     t = 100.0
     # Window 1: trigger
-    for i in range(33):
-        engine.feed_raw([(150, 150, True)], t + i * 0.03)
+    for i in range(10):
+        engine.feed_raw([(150, 150, True)], t + i * 0.1)
     engine.feed_raw([(0, 0, False)], t + 1.01)
 
     # Window 2: empty -> PENDING
-    for i in range(33):
-        engine.feed_raw([(0, 0, False)], t + 1.01 + i * 0.03)
+    for i in range(10):
+        engine.feed_raw([(0, 0, False)], t + 1.01 + i * 0.1)
     engine.feed_raw([(0, 0, False)], t + 2.02)
 
     # Window 3: target back -> sustain met -> OCCUPIED
-    for i in range(33):
-        engine.feed_raw([(150, 150, True)], t + 2.02 + i * 0.03)
+    for i in range(10):
+        engine.feed_raw([(150, 150, True)], t + 2.02 + i * 0.1)
     result = engine.feed_raw([(150, 150, True)], t + 3.03)
     assert result is not None
     assert result.zone_occupancy[1] is True
@@ -275,13 +255,13 @@ def test_state_machine_sparse_zone_ids():
     cell3 = grid.xy_to_cell(450, 450)
     grid.cells[cell3] = CELL_ROOM_BIT | (3 << CELL_ZONE_SHIFT)
 
-    zone1 = Zone(id=1, name="Desk", type=ZONE_TYPE_NORMAL, color="", trigger=9, sustain=9, timeout=10.0)
-    zone3 = Zone(id=3, name="Bed", type=ZONE_TYPE_NORMAL, color="", trigger=9, sustain=9, timeout=10.0)
+    zone1 = Zone(id=1, name="Desk", type=ZONE_TYPE_NORMAL, color="", trigger=3, sustain=3, timeout=10.0)
+    zone3 = Zone(id=3, name="Bed", type=ZONE_TYPE_NORMAL, color="", trigger=3, sustain=3, timeout=10.0)
     engine = ZoneEngine(grid=grid, zones=[zone1, zone3])
 
     t = 100.0
-    for i in range(33):
-        engine.feed_raw([(150, 150, True)], t + i * 0.03)
+    for i in range(10):
+        engine.feed_raw([(150, 150, True)], t + i * 0.1)
     result = engine.feed_raw([(150, 150, True)], t + 1.01)
 
     assert result is not None
@@ -290,16 +270,16 @@ def test_state_machine_sparse_zone_ids():
 
 
 def test_device_tracking_present():
-    """Test device_tracking_present is set when any target is in any room cell."""
+    """Test device_tracking_present when target is in room but not in named zone."""
     grid = _make_grid(cols=4, rows=4)
-    zone = Zone(id=1, name="Z", type=ZONE_TYPE_NORMAL, color="", trigger=9, sustain=9, timeout=10.0)
-    # Zone only on cell 0 but target in cell 5 (still room)
+    zone = Zone(id=1, name="Z", type=ZONE_TYPE_NORMAL, color="", trigger=3, sustain=3, timeout=10.0)
     grid.cells[0] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
     engine = ZoneEngine(grid=grid, zones=[zone])
 
     t = 100.0
-    for i in range(33):
-        engine.feed_raw([(450, 150, True)], t + i * 0.03)  # in room, not in zone 1
+    # Target in room cell (zone 0), not in zone 1
+    for i in range(10):
+        engine.feed_raw([(450, 150, True)], t + i * 0.1)
     result = engine.feed_raw([(450, 150, True)], t + 1.01)
 
     assert result is not None

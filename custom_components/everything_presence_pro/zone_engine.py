@@ -64,13 +64,21 @@ class ProcessingResult:
 
 
 @dataclass
+class TargetWindow:
+    """Per-target result from one tumbling window."""
+
+    median_x: float = 0.0
+    median_y: float = 0.0
+    frame_count: int = 0  # how many frames this target was active
+    active: bool = False
+
+
+@dataclass
 class WindowOutput:
     """Output from one tumbling window tick."""
 
-    zone_hit_counts: dict[int, int] = field(default_factory=dict)
-    frame_count: int = 0
-    device_tracking_present: bool = False
-    smoothed_targets: list[tuple[float, float, bool]] = field(default_factory=list)
+    targets: list[TargetWindow] = field(default_factory=list)
+    total_frames: int = 0  # total frames in this window
 
 
 class Grid:
@@ -175,19 +183,16 @@ class Grid:
 
 
 class TumblingWindow:
-    """1-second tumbling window that collects raw frames and emits hit counts."""
+    """1-second tumbling window that collects raw target positions."""
 
     def __init__(self, grid: Grid, interval_s: float = 1.0) -> None:
         """Initialize the tumbling window."""
         self._grid = grid
         self._interval_s = interval_s
         self._window_start: float | None = None
-        self._zone_hit_counts: dict[int, int] = {}
         self._frame_count = 0
-        self._device_hit = False
         self._target_xs: list[list[float]] = [[] for _ in range(MAX_TARGETS)]
         self._target_ys: list[list[float]] = [[] for _ in range(MAX_TARGETS)]
-        self._target_active_count: list[int] = [0] * MAX_TARGETS
 
     @property
     def grid(self) -> Grid:
@@ -203,13 +208,10 @@ class TumblingWindow:
     def reset(self) -> None:
         """Reset the window state."""
         self._window_start = None
-        self._zone_hit_counts.clear()
         self._frame_count = 0
-        self._device_hit = False
         for i in range(MAX_TARGETS):
             self._target_xs[i].clear()
             self._target_ys[i].clear()
-            self._target_active_count[i] = 0
 
     def feed(
         self, targets: list[tuple[float, float, bool]], timestamp: float,
@@ -231,64 +233,44 @@ class TumblingWindow:
     def _accumulate(self, targets: list[tuple[float, float, bool]]) -> None:
         """Accumulate one frame of target data."""
         self._frame_count += 1
-        # Track which zones were hit THIS frame (deduplicate multiple targets)
-        zones_hit: set[int] = set()
         for i, (x, y, active) in enumerate(targets):
             if i >= MAX_TARGETS:
                 break
             if not active:
                 continue
-
             self._target_xs[i].append(x)
             self._target_ys[i].append(y)
-            self._target_active_count[i] += 1
-
-            cell = self._grid.xy_to_cell(x, y)
-            if cell is None:
-                continue
-            if not self._grid.cell_is_room(cell):
-                continue
-
-            self._device_hit = True
-            zones_hit.add(self._grid.cell_zone(cell))
-
-        for zone_id in zones_hit:
-            self._zone_hit_counts[zone_id] = (
-                self._zone_hit_counts.get(zone_id, 0) + 1
-            )
 
     def _emit(self) -> WindowOutput:
         """Emit the completed window and reset accumulators."""
-        _LOGGER.debug(
-            "Window emit: %d frames collected, zone hit counts: %s",
-            self._frame_count,
-            dict(self._zone_hit_counts),
-        )
-        # Compute smoothed (median) target positions
-        smoothed: list[tuple[float, float, bool]] = []
+        targets: list[TargetWindow] = []
         for i in range(MAX_TARGETS):
-            if self._target_active_count[i] > 0:
-                mx = median(self._target_xs[i])
-                my = median(self._target_ys[i])
-                smoothed.append((mx, my, True))
+            xs = self._target_xs[i]
+            ys = self._target_ys[i]
+            if xs:
+                targets.append(TargetWindow(
+                    median_x=median(xs),
+                    median_y=median(ys),
+                    frame_count=len(xs),
+                    active=True,
+                ))
             else:
-                smoothed.append((0.0, 0.0, False))
+                targets.append(TargetWindow())
 
-        output = WindowOutput(
-            zone_hit_counts=dict(self._zone_hit_counts),
-            frame_count=self._frame_count,
-            device_tracking_present=self._device_hit,
-            smoothed_targets=smoothed,
+        total = self._frame_count
+        _LOGGER.debug(
+            "Window emit: %d frames, targets: %s",
+            total,
+            [(t.frame_count, t.active) for t in targets],
         )
 
-        # Reset accumulators for next window
-        self._zone_hit_counts.clear()
+        output = WindowOutput(targets=targets, total_frames=total)
+
+        # Reset accumulators
         self._frame_count = 0
-        self._device_hit = False
         for i in range(MAX_TARGETS):
             self._target_xs[i].clear()
             self._target_ys[i].clear()
-            self._target_active_count[i] = 0
 
         return output
 
@@ -353,30 +335,69 @@ class ZoneEngine:
     def _tick(
         self, window: WindowOutput, timestamp: float,
     ) -> ProcessingResult:
-        """Run one tick of the state machine for all zones."""
-        frames = max(window.frame_count, RAW_FPS)
+        """Run one tick of the state machine for all zones.
+
+        Per-target model:
+        1. For each target, compute median position → cell → zone
+        2. Compare target's frame count against zone threshold
+        3. If passes → target is confirmed present in that zone
+        4. Zone has a confirmed target → feed into state machine
+        """
+        frames = max(window.total_frames, RAW_FPS)
         result = ProcessingResult(frame_count=frames)
+        grid = self._window.grid
 
+        # Evaluate each target: is it confirmed present in a zone?
+        zone_confirmed: dict[int, bool] = {}  # zone_id → has confirmed target
+        zone_signal: dict[int, int] = {}  # zone_id → best signal strength
+
+        for tw in window.targets:
+            if not tw.active:
+                continue
+            cell = grid.xy_to_cell(tw.median_x, tw.median_y)
+            if cell is None:
+                continue
+            if not grid.cell_is_room(cell):
+                continue
+
+            zone_id = grid.cell_zone(cell)
+            signal = min(tw.frame_count, 9)
+
+            # Track best signal per zone for display
+            zone_signal[zone_id] = max(zone_signal.get(zone_id, 0), signal)
+
+            # Check against zone threshold
+            if zone_id in self._zone_runtimes:
+                rt = self._zone_runtimes[zone_id]
+                trigger_thresh = threshold_to_frame_count(rt.zone.trigger)
+                sustain_thresh = threshold_to_frame_count(rt.zone.sustain)
+
+                match rt.state:
+                    case ZoneState.CLEAR:
+                        if tw.frame_count >= trigger_thresh:
+                            zone_confirmed[zone_id] = True
+                    case ZoneState.OCCUPIED | ZoneState.PENDING:
+                        if tw.frame_count >= sustain_thresh:
+                            zone_confirmed[zone_id] = True
+
+        # Run state machine per zone
         for zone_id, rt in self._zone_runtimes.items():
-            hit_count = window.zone_hit_counts.get(zone_id, 0)
-            result.zone_target_counts[zone_id] = hit_count
-
-            trigger_thresh = threshold_to_frame_count(rt.zone.trigger)
-            sustain_thresh = threshold_to_frame_count(rt.zone.sustain)
+            confirmed = zone_confirmed.get(zone_id, False)
+            result.zone_target_counts[zone_id] = zone_signal.get(zone_id, 0)
 
             match rt.state:
                 case ZoneState.CLEAR:
-                    if hit_count >= trigger_thresh:
+                    if confirmed:
                         rt.state = ZoneState.OCCUPIED
                         rt.pending_since = None
 
                 case ZoneState.OCCUPIED:
-                    if hit_count < sustain_thresh:
+                    if not confirmed:
                         rt.state = ZoneState.PENDING
                         rt.pending_since = timestamp
 
                 case ZoneState.PENDING:
-                    if hit_count >= sustain_thresh:
+                    if confirmed:
                         rt.state = ZoneState.OCCUPIED
                         rt.pending_since = None
                     elif (
@@ -392,9 +413,10 @@ class ZoneEngine:
         result.device_tracking_present = any(result.zone_occupancy.values())
 
         _LOGGER.debug(
-            "Tick: frames=%d, zone_hits=%s, occupancy=%s",
+            "Tick: frames=%d, confirmed=%s, signal=%s, occupancy=%s",
             frames,
-            {z: window.zone_hit_counts.get(z, 0) for z in self._zone_runtimes},
+            dict(zone_confirmed),
+            dict(zone_signal),
             dict(result.zone_occupancy),
         )
 
