@@ -190,18 +190,19 @@ async def websocket_set_zones(
         connection.send_error(msg["id"], "not_found", "Config entry not found")
         return
 
-    zones = [
-        Zone(
+    zones = []
+    for z in msg["zones"]:
+        ztype = z.get("type", ZONE_TYPE_NORMAL)
+        defaults = ZONE_TYPE_DEFAULTS.get(ztype, ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL])
+        zones.append(Zone(
             id=z["id"],
             name=z["name"],
-            type=z.get("type", ZONE_TYPE_NORMAL),
+            type=ztype,
             color=z.get("color", ""),
-            trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["trigger"]),
-            sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["sustain"]),
-            timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["timeout"]),
-        )
-        for z in msg["zones"]
-    ]
+            trigger=z.get("trigger", defaults["trigger"]),
+            sustain=z.get("sustain", defaults["sustain"]),
+            timeout=z.get("timeout", defaults["timeout"]),
+        ))
 
     coordinator.set_zones(zones)
 
@@ -282,19 +283,21 @@ async def websocket_set_room_layout(
 
     # Build Zone objects from slot map (filter out empty slots)
     zone_slots = msg["zone_slots"]
-    zones = [
-        Zone(
+    zones = []
+    for i, z in enumerate(zone_slots):
+        if z is None:
+            continue
+        ztype = z.get("type", ZONE_TYPE_NORMAL)
+        defaults = ZONE_TYPE_DEFAULTS.get(ztype, ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL])
+        zones.append(Zone(
             id=i + 1,
             name=z["name"],
-            type=z.get("type", ZONE_TYPE_NORMAL),
+            type=ztype,
             color=z.get("color", ""),
-            trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["trigger"]),
-            sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["sustain"]),
-            timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["timeout"]),
-        )
-        for i, z in enumerate(zone_slots)
-        if z is not None
-    ]
+            trigger=z.get("trigger", defaults["trigger"]),
+            sustain=z.get("sustain", defaults["sustain"]),
+            timeout=z.get("timeout", defaults["timeout"]),
+        ))
     coordinator.set_zones(zones)
 
     layout = {

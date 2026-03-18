@@ -4150,7 +4150,37 @@ export class EverythingPresenceProPanel extends LitElement {
   ) {
     // Pre-compute heatmap colours per zone if enabled
     const heatmap = this._showHitCounts ? this._computeHeatmapColors() : null;
-    const occupancy = this._zoneState.occupancy;
+    // Use backend occupancy state, but also compute local occupancy from
+    // current editor zone configs + target signals for live preview while editing
+    const backendOccupancy = this._zoneState.occupancy;
+    const localOccupancy: Record<number, boolean> = {};
+    for (const t of this._targets) {
+      if (!t.active || t.signal <= 0) continue;
+      const pos = this._mapTargetToGridCell(t);
+      if (!pos) continue;
+      const idx = pos.row * GRID_COLS + pos.col;
+      const cellVal = this._grid[idx];
+      if (!cellIsInside(cellVal)) continue;
+      const zid = cellZone(cellVal);
+      // Get threshold from editor config
+      let threshold = 5;
+      if (zid === 0) {
+        const d = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
+        threshold = this._roomType === "custom" ? this._roomTrigger : d.trigger;
+      } else if (zid > 0 && zid <= MAX_ZONES) {
+        const cfg = this._zoneConfigs[zid - 1];
+        if (cfg) {
+          const d = ZONE_TYPE_DEFAULTS[cfg.type] || ZONE_TYPE_DEFAULTS.normal;
+          threshold = cfg.type === "custom" ? (cfg.trigger ?? d.trigger) : d.trigger;
+        }
+      }
+      if (t.signal >= threshold) localOccupancy[zid] = true;
+    }
+    // Merge: local OR backend (backend handles timeout/pending correctly)
+    const occupancy: Record<number, boolean> = { ...backendOccupancy };
+    for (const [k, v] of Object.entries(localOccupancy)) {
+      if (v) occupancy[Number(k)] = true;
+    }
 
     const cells = [];
     for (let r = minRow; r <= maxRow; r++) {
