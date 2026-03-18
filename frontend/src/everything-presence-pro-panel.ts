@@ -3624,7 +3624,7 @@ export class EverythingPresenceProPanel extends LitElement {
   private _renderSettings() {
     const sections: { id: string; label: string; icon: string }[] = [
       { id: "detection", label: "Detection Ranges", icon: "mdi:signal-distance-variant" },
-      { id: "sensitivity", label: "Sensitivities and Timeout", icon: "mdi:tune-vertical" },
+      { id: "sensitivity", label: "Sensor Calibration", icon: "mdi:tune-vertical" },
       { id: "reporting", label: "Entities", icon: "mdi:format-list-checks" },
     ];
 
@@ -3774,6 +3774,24 @@ export class EverythingPresenceProPanel extends LitElement {
           ${this._renderZoneTypeProfile("Living area", 15, 3, 3, false)}
           ${this._renderZoneTypeProfile("Bed / Sofa", 60, 5, 1, false)}
         </div>
+        <div class="setting-group">
+          <h4>Environmental</h4>
+          <div class="setting-row">
+            <label>Illuminance offset</label>
+            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="-100" max="100" step="1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> lux</span>
+            ${this._infoTip("Adjust the illuminance reading by a fixed amount.")}
+          </div>
+          <div class="setting-row">
+            <label>Humidity offset</label>
+            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="-20" max="20" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> %</span>
+            ${this._infoTip("Adjust the humidity reading by a fixed amount.")}
+          </div>
+          <div class="setting-row">
+            <label>Temperature offset</label>
+            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="-10" max="10" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span> °C</span>
+            ${this._infoTip("Adjust the temperature reading by a fixed amount.")}
+          </div>
+        </div>
       </div>
     `;
   }
@@ -3896,6 +3914,29 @@ export class EverythingPresenceProPanel extends LitElement {
             <label>Resolution</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="target_resolution" ?checked=${isOn("target_resolution", false)} /><span class="toggle-slider"></span></label>
             ${this._infoTip("Detection resolution for each target.")}
+          </div>
+        </div>
+        <div class="setting-group">
+          <h4>Environmental</h4>
+          <div class="setting-row">
+            <label>Illuminance</label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="env_illuminance" ?checked=${isOn("env_illuminance", true)} /><span class="toggle-slider"></span></label>
+            ${this._infoTip("BH1750 illuminance sensor.")}
+          </div>
+          <div class="setting-row">
+            <label>Humidity</label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="env_humidity" ?checked=${isOn("env_humidity", true)} /><span class="toggle-slider"></span></label>
+            ${this._infoTip("SHTC3 humidity sensor.")}
+          </div>
+          <div class="setting-row">
+            <label>Temperature</label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="env_temperature" ?checked=${isOn("env_temperature", true)} /><span class="toggle-slider"></span></label>
+            ${this._infoTip("SHTC3 temperature sensor.")}
+          </div>
+          <div class="setting-row">
+            <label>CO₂</label>
+            <label class="toggle-switch"><input type="checkbox" data-report-key="env_co2" ?checked=${isOn("env_co2", true)} /><span class="toggle-slider"></span></label>
+            ${this._infoTip("SCD40 CO₂ sensor (optional module).")}
           </div>
         </div>
       </div>

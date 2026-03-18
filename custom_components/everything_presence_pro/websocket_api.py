@@ -513,6 +513,11 @@ _REPORTING_ENTITIES: dict[str, list[tuple[str, str]]] = {
     "target_resolution": [
         (f"_target_{i + 1}_resolution", "sensor") for i in range(MAX_TARGETS)
     ],
+    # Environmental
+    "env_illuminance": [("_illuminance", "sensor")],
+    "env_humidity": [("_humidity", "sensor")],
+    "env_temperature": [("_temperature", "sensor")],
+    "env_co2": [("_co2", "sensor")],
 }
 
 # Zone-level reporting keys
