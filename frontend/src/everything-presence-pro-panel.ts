@@ -4204,49 +4204,54 @@ export class EverythingPresenceProPanel extends LitElement {
     const trigger = isCustom ? this._roomTrigger : defaults.trigger;
     const sustain = isCustom ? this._roomSustain : defaults.sustain;
     const timeout = isCustom ? this._roomTimeout : defaults.timeout;
+    const rowStyle = `width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
     return html`
-      <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 4px;">
-        <label class="zone-setting-label">Type</label>
-        <select
-          class="sensitivity-select"
-          .value=${this._roomType}
-          @change=${(e: Event) => {
-            const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
-            const d = ZONE_TYPE_DEFAULTS[val] || ZONE_TYPE_DEFAULTS.normal;
-            this._roomType = val;
-            this._roomTrigger = d.trigger;
-            this._roomSustain = d.sustain;
-            this._roomTimeout = d.timeout;
-            this._dirty = true;
-          }}
-          @click=${(e: Event) => e.stopPropagation()}
-        >
-          <option value="normal">Normal</option>
-          <option value="entrance">Entrance</option>
-          <option value="thoroughfare">Thoroughfare</option>
-          <option value="rest">Rest area</option>
-          <option value="custom">Custom</option>
-        </select>
-        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+      <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
+        <div style="width: 100%; display: flex; align-items: center; gap: 6px;">
+          <label style="min-width: 50px; font-size: 12px;">Type</label>
+          <select
+            class="sensitivity-select" style="flex: 1;"
+            .value=${this._roomType}
+            @change=${(e: Event) => {
+              const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
+              const d = ZONE_TYPE_DEFAULTS[val] || ZONE_TYPE_DEFAULTS.normal;
+              this._roomType = val;
+              this._roomTrigger = d.trigger;
+              this._roomSustain = d.sustain;
+              this._roomTimeout = d.timeout;
+              this._dirty = true;
+            }}
+            @click=${(e: Event) => e.stopPropagation()}
+          >
+            <option value="normal">Normal</option>
+            <option value="entrance">Entrance</option>
+            <option value="thoroughfare">Thoroughfare</option>
+            <option value="rest">Rest area</option>
+            <option value="custom">Custom</option>
+          </select>
+          <span style="min-width: 16px;"></span>
+        </div>
+        <div style="${rowStyle}">
           <label style="min-width: 50px;">Trigger</label>
           <input type="range" min="0" max="9" style="flex: 1;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => { this._roomTrigger = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 12px; text-align: right;">${trigger}</span>
+          <span style="min-width: 16px; text-align: right;">${trigger}</span>
         </div>
-        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+        <div style="${rowStyle}">
           <label style="min-width: 50px;">Sustain</label>
           <input type="range" min="0" max="9" style="flex: 1;" .value=${String(sustain)} ?disabled=${!isCustom}
             @input=${(e: Event) => { this._roomSustain = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 12px; text-align: right;">${sustain}</span>
+          <span style="min-width: 16px; text-align: right;">${sustain}</span>
         </div>
-        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+        <div style="${rowStyle}">
           <label style="min-width: 50px;">Timeout</label>
-          <input type="number" min="1" max="300" style="width: 50px;" .value=${String(timeout)} ?disabled=${!isCustom}
+          <span style="flex: 1;"></span>
+          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(timeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { this._roomTimeout = v; this._dirty = true; } }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="font-size: 11px;">s</span>
+          <span style="min-width: 16px; text-align: right; font-size: 12px;">s</span>
         </div>
       </div>
     `;
@@ -4258,12 +4263,13 @@ export class EverythingPresenceProPanel extends LitElement {
     const trigger = zone.trigger ?? defaults.trigger;
     const sustain = zone.sustain ?? defaults.sustain;
     const timeout = zone.timeout ?? defaults.timeout;
+    const rowStyle = `width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
     return html`
-      <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 4px;">
-        <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
-          <label class="zone-setting-label">Type</label>
+      <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
+        <div style="width: 100%; display: flex; align-items: center; gap: 6px;">
+          <label style="min-width: 50px; font-size: 12px;">Type</label>
           <select
-            class="sensitivity-select"
+            class="sensitivity-select" style="flex: 1;"
             .value=${zone.type}
             @change=${(e: Event) => {
               const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
@@ -4281,40 +4287,29 @@ export class EverythingPresenceProPanel extends LitElement {
             <option value="rest">Rest area</option>
             <option value="custom">Custom</option>
           </select>
-          <input
-            type="color"
-            class="zone-color-picker"
-            .value=${zone.color}
-            @input=${(e: Event) => {
-              const val = (e.target as HTMLInputElement).value;
-              const configs = [...this._zoneConfigs];
-              configs[index] = { ...zone, color: val };
-              this._zoneConfigs = configs;
-              this._dirty = true;
-            }}
-            @click=${(e: Event) => e.stopPropagation()}
-          />
+          <span style="min-width: 16px;"></span>
         </div>
-        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+        <div style="${rowStyle}">
           <label style="min-width: 50px;">Trigger</label>
           <input type="range" min="0" max="9" style="flex: 1;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, trigger: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 12px; text-align: right;">${trigger}</span>
+          <span style="min-width: 16px; text-align: right;">${trigger}</span>
         </div>
-        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+        <div style="${rowStyle}">
           <label style="min-width: 50px;">Sustain</label>
           <input type="range" min="0" max="9" style="flex: 1;" .value=${String(sustain)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, sustain: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="min-width: 12px; text-align: right;">${sustain}</span>
+          <span style="min-width: 16px; text-align: right;">${sustain}</span>
         </div>
-        <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+        <div style="${rowStyle}">
           <label style="min-width: 50px;">Timeout</label>
-          <input type="number" min="1" max="300" style="width: 50px;" .value=${String(timeout)} ?disabled=${!isCustom}
+          <span style="flex: 1;"></span>
+          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(timeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, timeout: v }; this._zoneConfigs = configs; this._dirty = true; } }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="font-size: 11px;">s</span>
+          <span style="min-width: 16px; text-align: right; font-size: 12px;">s</span>
         </div>
       </div>
     `;
@@ -4348,7 +4343,24 @@ export class EverythingPresenceProPanel extends LitElement {
             @click=${() => { this._activeZone = slot; }}
           >
             <div class="zone-item-row">
-              <div class="zone-color-dot" style="background: ${zone.color};"></div>
+              ${this._activeZone === slot ? html`
+                <input
+                  type="color"
+                  class="zone-color-picker"
+                  style="width: 16px; height: 16px; border-radius: 50%;"
+                  .value=${zone.color}
+                  @input=${(e: Event) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    const configs = [...this._zoneConfigs];
+                    configs[i] = { ...zone, color: val };
+                    this._zoneConfigs = configs;
+                    this._dirty = true;
+                  }}
+                  @click=${(e: Event) => e.stopPropagation()}
+                />
+              ` : html`
+                <div class="zone-color-dot" style="background: ${zone.color};"></div>
+              `}
               <input
                 class="zone-name-input"
                 type="text"
