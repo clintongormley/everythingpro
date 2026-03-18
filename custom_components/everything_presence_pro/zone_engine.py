@@ -25,6 +25,7 @@ from .const import (
     GRID_CELL_SIZE_MM,
     MAX_RANGE_MM,
     MAX_TARGETS,
+    RAW_FPS,
     ZONE_TYPE_DEFAULTS,
     ZONE_TYPE_NORMAL,
     sensitivity_to_threshold,
@@ -350,7 +351,7 @@ class ZoneEngine:
         self, window: WindowOutput, timestamp: float,
     ) -> ProcessingResult:
         """Run one tick of the state machine for all zones."""
-        frames = max(window.frame_count, 1)
+        frames = max(window.frame_count, RAW_FPS)
         result = ProcessingResult(frame_count=frames)
 
         for zone_id, rt in self._zone_runtimes.items():
