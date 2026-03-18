@@ -4220,7 +4220,7 @@ export class EverythingPresenceProPanel extends LitElement {
           }
           if (occupancy[zoneId]) {
             // Zone is occupied — show coloured border
-            border = `box-shadow: inset 0 0 0 2px #000, inset 0 0 0 3px #fff;`;
+            border = `filter: brightness(1.15);`;
           }
         }
         cells.push(html`
@@ -4403,7 +4403,7 @@ export class EverythingPresenceProPanel extends LitElement {
         @click=${() => { this._activeZone = 0; }}
       >
         <div class="zone-item-row">
-          <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;"></div>
+          <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;${this._localZoneState.get(0)?.occupied ? ' box-shadow: 0 0 6px 2px #4CAF50;' : ''}"></div>
           <span class="zone-name">Boundary</span>
         </div>
         ${this._activeZone === 0 ? html`
@@ -4427,7 +4427,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 <input
                   type="color"
                   class="zone-color-picker"
-                  style="width: 16px; height: 16px; border-radius: 50%;"
+                  style="width: 16px; height: 16px; border-radius: 50%;${this._localZoneState.get(slot)?.occupied ? ' box-shadow: 0 0 6px 2px #4CAF50;' : ''}"
                   .value=${zone.color}
                   @input=${(e: Event) => {
                     const val = (e.target as HTMLInputElement).value;
@@ -4439,7 +4439,7 @@ export class EverythingPresenceProPanel extends LitElement {
                   @click=${(e: Event) => e.stopPropagation()}
                 />
               ` : html`
-                <div class="zone-color-dot" style="background: ${zone.color};"></div>
+                <div class="zone-color-dot" style="background: ${zone.color};${this._localZoneState.get(slot)?.occupied ? ' box-shadow: 0 0 6px 2px #4CAF50;' : ''}"></div>
               `}
               <input
                 class="zone-name-input"

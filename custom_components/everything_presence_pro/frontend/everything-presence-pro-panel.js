@@ -960,7 +960,7 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
           </div>
         </div>
       </div>
-    `}_renderVisibleCells(t,e,i,o,r){const n=this._showHitCounts?this._computeHeatmapColors():null,s=Date.now()/1e3,a=new Set;for(const t of this._targets){if(!t.active||t.signal<=0)continue;const e=this._mapTargetToGridCell(t);if(!e)continue;const i=Math.floor(e.col),o=Math.floor(e.row);if(i<0||i>=St||o<0||o>=At)continue;const r=o*St+i,n=this._grid[r];if(!wt(n))continue;const s=$t(n),{trigger:l,sustain:d}=this._getZoneThresholds(s),c=this._localZoneState.get(s),h=c?.occupied??!1?d:l;t.signal>=h&&a.add(s)}const l={},d=new Set;for(let t=0;t<this._grid.length;t++)wt(this._grid[t])&&d.add($t(this._grid[t]));for(const t of d){let e=this._localZoneState.get(t);e||(e={occupied:!1,pendingSince:null},this._localZoneState.set(t,e));const{timeout:i}=this._getZoneThresholds(t),o=a.has(t);e.occupied?null===e.pendingSince?o||(e.pendingSince=s):o?e.pendingSince=null:s-e.pendingSince>=i&&(e.occupied=!1,e.pendingSince=null):o&&(e.occupied=!0,e.pendingSince=null),l[t]=e.occupied}const c=[];for(let s=i;s<=o;s++)for(let i=t;i<=e;i++){const t=s*St+i,e=this._grid[t];let o=this._getCellColor(t),a="";if(wt(e)){const t=$t(e);if(n){const e=n.get(t);e&&(o=`linear-gradient(${e}, ${e}), linear-gradient(${o}, ${o})`)}l[t]&&(a="box-shadow: inset 0 0 0 2px #000, inset 0 0 0 3px #fff;")}c.push(O`
+    `}_renderVisibleCells(t,e,i,o,r){const n=this._showHitCounts?this._computeHeatmapColors():null,s=Date.now()/1e3,a=new Set;for(const t of this._targets){if(!t.active||t.signal<=0)continue;const e=this._mapTargetToGridCell(t);if(!e)continue;const i=Math.floor(e.col),o=Math.floor(e.row);if(i<0||i>=St||o<0||o>=At)continue;const r=o*St+i,n=this._grid[r];if(!wt(n))continue;const s=$t(n),{trigger:l,sustain:d}=this._getZoneThresholds(s),c=this._localZoneState.get(s),h=c?.occupied??!1?d:l;t.signal>=h&&a.add(s)}const l={},d=new Set;for(let t=0;t<this._grid.length;t++)wt(this._grid[t])&&d.add($t(this._grid[t]));for(const t of d){let e=this._localZoneState.get(t);e||(e={occupied:!1,pendingSince:null},this._localZoneState.set(t,e));const{timeout:i}=this._getZoneThresholds(t),o=a.has(t);e.occupied?null===e.pendingSince?o||(e.pendingSince=s):o?e.pendingSince=null:s-e.pendingSince>=i&&(e.occupied=!1,e.pendingSince=null):o&&(e.occupied=!0,e.pendingSince=null),l[t]=e.occupied}const c=[];for(let s=i;s<=o;s++)for(let i=t;i<=e;i++){const t=s*St+i,e=this._grid[t];let o=this._getCellColor(t),a="";if(wt(e)){const t=$t(e);if(n){const e=n.get(t);e&&(o=`linear-gradient(${e}, ${e}), linear-gradient(${o}, ${o})`)}l[t]&&(a="filter: brightness(1.15);")}c.push(O`
           <div
             class="cell"
             style="background: ${o}; width: ${r}px; height: ${r}px; ${a}"
@@ -1054,7 +1054,7 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
         @click=${()=>{this._activeZone=0}}
       >
         <div class="zone-item-row">
-          <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;"></div>
+          <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;${this._localZoneState.get(0)?.occupied?" box-shadow: 0 0 6px 2px #4CAF50;":""}"></div>
           <span class="zone-name">Boundary</span>
         </div>
         ${0===this._activeZone?O`
@@ -1075,13 +1075,13 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
                 <input
                   type="color"
                   class="zone-color-picker"
-                  style="width: 16px; height: 16px; border-radius: 50%;"
+                  style="width: 16px; height: 16px; border-radius: 50%;${this._localZoneState.get(i)?.occupied?" box-shadow: 0 0 6px 2px #4CAF50;":""}"
                   .value=${t.color}
                   @input=${i=>{const o=i.target.value,r=[...this._zoneConfigs];r[e]={...t,color:o},this._zoneConfigs=r,this._dirty=!0}}
                   @click=${t=>t.stopPropagation()}
                 />
               `:O`
-                <div class="zone-color-dot" style="background: ${t.color};"></div>
+                <div class="zone-color-dot" style="background: ${t.color};${this._localZoneState.get(i)?.occupied?" box-shadow: 0 0 6px 2px #4CAF50;":""}"></div>
               `}
               <input
                 class="zone-name-input"
