@@ -72,10 +72,10 @@ def test_grid_base64_roundtrip():
 
 def test_threshold_to_frame_count():
     """Test threshold maps to frame count needed."""
-    assert threshold_to_frame_count(0) == 11  # disabled (> RAW_FPS)
     assert threshold_to_frame_count(1) == 1
     assert threshold_to_frame_count(5) == 5
     assert threshold_to_frame_count(9) == 9
+    assert threshold_to_frame_count(0) == 1  # floor to 1
 
 
 # --- Tumbling window ---

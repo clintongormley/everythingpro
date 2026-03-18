@@ -4177,7 +4177,7 @@ export class EverythingPresenceProPanel extends LitElement {
           threshold = cfg.type === "custom" ? (cfg.trigger ?? d.trigger) : d.trigger;
         }
       }
-      if (threshold > 0 && t.signal >= threshold) localOccupancy[zid] = true;
+      if (t.signal >= threshold) localOccupancy[zid] = true;
     }
     // Merge: local OR backend (backend handles timeout/pending correctly)
     const occupancy: Record<number, boolean> = { ...backendOccupancy };
@@ -4202,12 +4202,7 @@ export class EverythingPresenceProPanel extends LitElement {
           }
           if (occupancy[zoneId]) {
             // Zone is occupied — show coloured border
-            let borderColor = "rgba(255,255,255,0.9)";
-            if (zoneId > 0 && zoneId <= MAX_ZONES) {
-              const config = this._zoneConfigs[zoneId - 1];
-              if (config) borderColor = config.color;
-            }
-            border = `outline: 2px solid ${borderColor}; outline-offset: -2px; z-index: 1;`;
+            border = `box-shadow: inset 0 0 0 2px #000, inset 0 0 0 3px #fff;`;
           }
         }
         cells.push(html`

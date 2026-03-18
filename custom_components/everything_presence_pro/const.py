@@ -45,15 +45,12 @@ ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
 RAW_FPS = 10
 
 
-def threshold_to_frame_count(threshold: int, raw_fps: int = RAW_FPS) -> int:
-    """Convert 0-9 threshold to minimum hit-count needed.
+def threshold_to_frame_count(threshold: int) -> int:
+    """Convert 1-9 threshold to minimum hit-count needed.
 
-    Threshold 0 = disabled (returns a value higher than any possible frame count).
-    Threshold N = need N frames out of raw_fps expected.
+    Threshold N = need N frames to confirm presence.
     """
-    if threshold == 0:
-        return raw_fps + 1  # impossible to reach = disabled
-    return threshold
+    return max(1, threshold)
 
 # ESPHome entity name patterns for EP Pro
 TARGET_X_PATTERN = "target_{n}_x"
