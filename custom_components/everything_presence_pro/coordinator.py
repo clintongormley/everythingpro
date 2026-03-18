@@ -127,6 +127,12 @@ class EverythingPresenceProCoordinator:
         self._humidity: float | None = None
         self._co2: float | None = None
 
+        # Environmental offsets (loaded from config entry options)
+        offsets = data.get("offsets", {})
+        self._illuminance_offset: float = offsets.get("illuminance", 0.0)
+        self._temperature_offset: float = offsets.get("temperature", 0.0)
+        self._humidity_offset: float = offsets.get("humidity", 0.0)
+
         # Processing result
         self._last_result: ProcessingResult = ProcessingResult()
         self._rebuild_scheduled: bool = False
@@ -166,18 +172,24 @@ class EverythingPresenceProCoordinator:
 
     @property
     def illuminance(self) -> float | None:
-        """Return the illuminance value."""
-        return self._illuminance
+        """Return the illuminance value with offset applied."""
+        if self._illuminance is None:
+            return None
+        return max(0.0, self._illuminance + self._illuminance_offset)
 
     @property
     def temperature(self) -> float | None:
-        """Return the temperature value."""
-        return self._temperature
+        """Return the temperature value with offset applied."""
+        if self._temperature is None:
+            return None
+        return self._temperature + self._temperature_offset
 
     @property
     def humidity(self) -> float | None:
-        """Return the humidity value."""
-        return self._humidity
+        """Return the humidity value with offset applied."""
+        if self._humidity is None:
+            return None
+        return self._humidity + self._humidity_offset
 
     @property
     def co2(self) -> float | None:
@@ -272,6 +284,13 @@ class EverythingPresenceProCoordinator:
         self._sensor_transform = transform
         self._smoother.clear_all()
         self._rebuild_grid()
+
+    def set_offsets(self, offsets: dict[str, float]) -> None:
+        """Update environmental sensor offsets."""
+        self._illuminance_offset = offsets.get("illuminance", 0.0)
+        self._temperature_offset = offsets.get("temperature", 0.0)
+        self._humidity_offset = offsets.get("humidity", 0.0)
+        self._dispatch_sensor_update()
 
     def set_room_layout(self, layout: dict[str, Any]) -> None:
         """Set the room layout configuration and update the zone engine grid."""
@@ -596,6 +615,11 @@ class EverythingPresenceProCoordinator:
             "grid_rows": grid.rows,
             "room_layout": self._room_layout,
             "reporting": self.entry.options.get("config", {}).get("reporting", {}),
+            "offsets": {
+                "illuminance": self._illuminance_offset,
+                "temperature": self._temperature_offset,
+                "humidity": self._humidity_offset,
+            },
         }
 
     def load_config_data(self, data: dict[str, Any]) -> None:

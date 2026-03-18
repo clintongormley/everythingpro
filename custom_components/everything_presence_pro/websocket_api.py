@@ -532,6 +532,11 @@ _ZONE_REPORTING: dict[str, list[tuple[str, str]]] = {
         vol.Required("type"): "everything_presence_pro/set_reporting",
         vol.Required("entry_id"): str,
         vol.Required("reporting"): dict,
+        vol.Optional("offsets"): {
+            vol.Optional("illuminance"): vol.Coerce(float),
+            vol.Optional("temperature"): vol.Coerce(float),
+            vol.Optional("humidity"): vol.Coerce(float),
+        },
     }
 )
 @callback
@@ -540,7 +545,7 @@ def websocket_set_reporting(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Enable/disable reporting entities based on toggle states."""
+    """Enable/disable reporting entities and save offsets."""
     entry = hass.config_entries.async_get_entry(msg["entry_id"])
     if entry is None:
         connection.send_error(msg["id"], "not_found", "Entry not found")
@@ -549,13 +554,21 @@ def websocket_set_reporting(
     registry = entity_registry.async_get(hass)
     entry_id = msg["entry_id"]
     reporting: dict[str, bool] = msg["reporting"]
+    offsets: dict[str, float] = msg.get("offsets", {})
 
-    # Save reporting settings to config entry options
+    # Save reporting settings and offsets to config entry options
     config = dict(entry.options.get("config", {}))
     config["reporting"] = reporting
+    if offsets:
+        config["offsets"] = offsets
     hass.config_entries.async_update_entry(
         entry, options={**entry.options, "config": config}
     )
+
+    # Apply offsets to coordinator immediately
+    coordinator = _get_coordinator(hass, entry_id)
+    if coordinator and offsets:
+        coordinator.set_offsets(offsets)
 
     # Enable/disable room and target-level entities
     for key, enabled in reporting.items():

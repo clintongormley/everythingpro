@@ -406,8 +406,9 @@ export class EverythingPresenceProPanel extends LitElement {
       };
     });
 
-    // Load reporting config
+    // Load reporting config and offsets
     (this as any)._reportingConfig = config.reporting || {};
+    (this as any)._offsetsConfig = config.offsets || {};
   }
 
   private _subscribeTargets(entryId: string): void {
@@ -831,10 +832,17 @@ export class EverythingPresenceProPanel extends LitElement {
         reporting[el.dataset.reportKey!] = el.checked;
       });
 
+      // Collect offset values
+      const offsets: Record<string, number> = {};
+      container.querySelectorAll<HTMLInputElement>("[data-offset-key]").forEach((el) => {
+        offsets[el.dataset.offsetKey!] = parseFloat(el.value);
+      });
+
       await this.hass.callWS({
         type: "everything_presence_pro/set_reporting",
         entry_id: this._selectedEntryId,
         reporting,
+        offsets,
       });
 
       this._dirty = false;
@@ -3670,17 +3678,19 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _renderEnvOffset(
-    label: string, reading: number | null, defaultOffset: number,
+    label: string, reading: number | null, offsetKey: string,
     min: number, max: number, step: number, unit: string, precision: number, tip: string,
   ) {
-    const adjusted = reading != null ? (reading + defaultOffset).toFixed(precision) : "—";
+    const savedOffsets: Record<string, number> = (this as any)._offsetsConfig || {};
+    const offset = savedOffsets[offsetKey] ?? 0;
+    const adjusted = reading != null ? (reading + offset).toFixed(precision) : "—";
     return html`
       <div class="setting-row">
         <label>${label}</label>
-        <span class="setting-input-unit"><input type="range" class="setting-range" value=${defaultOffset} min=${min} max=${max} step=${step} @input=${(e: Event) => {
+        <span class="setting-input-unit"><input type="range" class="setting-range" data-offset-key=${offsetKey} .value=${String(offset)} min=${min} max=${max} step=${step} @input=${(e: Event) => {
           const el = e.target as HTMLInputElement;
-          const offset = parseFloat(el.value);
-          const val = reading != null ? (reading + offset).toFixed(precision) : "—";
+          const off = parseFloat(el.value);
+          const val = reading != null ? (reading + off).toFixed(precision) : "—";
           el.nextElementSibling!.textContent = val;
         }} /><span class="setting-value">${adjusted}</span> ${unit}</span>
         ${this._infoTip(tip)}
@@ -3795,9 +3805,9 @@ export class EverythingPresenceProPanel extends LitElement {
         </div>
         <div class="setting-group">
           <h4>Environmental</h4>
-          ${this._renderEnvOffset("Illuminance offset", this._sensorState.illuminance, 0, -500, 500, 1, "lux", 0, "Adjust the illuminance reading by a fixed amount.")}
-          ${this._renderEnvOffset("Humidity offset", this._sensorState.humidity, 0, -50, 50, 0.1, "%", 1, "Adjust the humidity reading by a fixed amount.")}
-          ${this._renderEnvOffset("Temperature offset", this._sensorState.temperature, 0, -20, 20, 0.1, "°C", 1, "Adjust the temperature reading by a fixed amount.")}
+          ${this._renderEnvOffset("Illuminance offset", this._sensorState.illuminance, "illuminance", -500, 500, 1, "lux", 0, "Adjust the illuminance reading by a fixed amount.")}
+          ${this._renderEnvOffset("Humidity offset", this._sensorState.humidity, "humidity", -50, 50, 0.1, "%", 1, "Adjust the humidity reading by a fixed amount.")}
+          ${this._renderEnvOffset("Temperature offset", this._sensorState.temperature, "temperature", -20, 20, 0.1, "°C", 1, "Adjust the temperature reading by a fixed amount.")}
         </div>
       </div>
     `;
