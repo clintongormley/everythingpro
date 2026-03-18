@@ -3370,8 +3370,8 @@ export class EverythingPresenceProPanel extends LitElement {
         ${this._renderVisibleCells(minCol, maxCol, minRow, maxRow, cellPx)}
       </div>
       ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
-      ${this._showHitCounts ? this._renderHitCountOverlay(cellPx, minCol, maxCol, minRow, maxRow, visCols, visRows) : nothing}
       <div class="targets-overlay" style="pointer-events: none;">
+        ${this._showHitCounts ? this._renderHitCountLabels(minCol, maxCol, minRow, maxRow, visCols, visRows) : nothing}
         ${this._targets.map((t, i) => {
           if (!t.active) return nothing;
           const pos = this._mapTargetToGridCell(t);
@@ -3390,78 +3390,40 @@ export class EverythingPresenceProPanel extends LitElement {
     `;
   }
 
-  private _renderHitCountOverlay(
-    cellPx: number,
+  private _renderHitCountLabels(
     minCol: number, maxCol: number,
     minRow: number, maxRow: number,
     visCols: number, visRows: number,
   ) {
     const zs = this._zoneState;
-    // Build per-zone cell lists and centres
-    const zoneCells: Map<number, { col: number; row: number }[]> = new Map();
+    // Build per-zone cell centres for label placement
+    const zoneCentre: Map<number, { sumCol: number; sumRow: number; count: number }> = new Map();
     for (let r = minRow; r <= maxRow; r++) {
       for (let c = minCol; c <= maxCol; c++) {
         const idx = r * GRID_COLS + c;
         const cell = this._grid[idx];
         if (!cellIsInside(cell)) continue;
         const zoneId = cellZone(cell);
-        // Include zone 0 (rest of room) — it now only tracks uncovered cells
-        if (!zoneCells.has(zoneId)) zoneCells.set(zoneId, []);
-        zoneCells.get(zoneId)!.push({ col: c, row: r });
+        const entry = zoneCentre.get(zoneId);
+        if (entry) { entry.sumCol += c; entry.sumRow += r; entry.count++; }
+        else zoneCentre.set(zoneId, { sumCol: c, sumRow: r, count: 1 });
       }
     }
 
-    const overlayW = visCols * cellPx;
-    const overlayH = visRows * cellPx;
-    const items: any[] = [];
-
-    for (const [zoneId, cells] of zoneCells) {
+    const labels: any[] = [];
+    for (const [zoneId, centre] of zoneCentre) {
       const hitCount = zs.target_counts[zoneId] ?? 0;
       if (hitCount === 0) continue;
-
       const sensitivity = hitCountToSensitivity(hitCount);
-      const opacity = Math.min(0.6, hitCount / RAW_FPS * 0.7);
-
-      // Zone colour: named zones use their config colour, zone 0 uses a neutral blue
-      let colour = "rgba(100, 180, 255";
-      if (zoneId > 0 && zoneId <= MAX_ZONES) {
-        const config = this._zoneConfigs[zoneId - 1];
-        if (config) colour = this._hexToRgbPrefix(config.color);
-      }
-
-      // Render intensity on each cell
-      for (const { col, row } of cells) {
-        const left = (col - minCol) * cellPx;
-        const top = (row - minRow) * cellPx;
-        items.push(html`
-          <div style="position: absolute; left: ${left}px; top: ${top}px; width: ${cellPx}px; height: ${cellPx}px; background: ${colour}, ${opacity}); pointer-events: none;"></div>
-        `);
-      }
-
-      // Label at centre of zone
-      let sumCol = 0, sumRow = 0;
-      for (const { col, row } of cells) { sumCol += col; sumRow += row; }
-      const centreX = ((sumCol / cells.length - minCol + 0.5) / visCols) * overlayW;
-      const centreY = ((sumRow / cells.length - minRow + 0.5) / visRows) * overlayH;
-      items.push(html`
-        <div style="position: absolute; left: ${centreX}px; top: ${centreY}px; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
+      const xPct = ((centre.sumCol / centre.count - minCol + 0.5) / visCols) * 100;
+      const yPct = ((centre.sumRow / centre.count - minRow + 0.5) / visRows) * 100;
+      labels.push(html`
+        <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
           ${sensitivity}
         </div>
       `);
     }
-
-    return html`
-      <div style="position: absolute; top: 0; left: 0; width: ${overlayW}px; height: ${overlayH}px; pointer-events: none;">
-        ${items}
-      </div>
-    `;
-  }
-
-  private _hexToRgbPrefix(hex: string): string {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}`;
+    return labels;
   }
 
   private _renderGridDimensions() {
@@ -4250,11 +4212,24 @@ export class EverythingPresenceProPanel extends LitElement {
     minRow: number, maxRow: number,
     cellPx: number,
   ) {
+    // Pre-compute heatmap colours per zone if enabled
+    const heatmap = this._showHitCounts ? this._computeHeatmapColors() : null;
+
     const cells = [];
     for (let r = minRow; r <= maxRow; r++) {
       for (let c = minCol; c <= maxCol; c++) {
         const idx = r * GRID_COLS + c;
-        const bg = this._getCellColor(idx);
+        let bg = this._getCellColor(idx);
+        if (heatmap) {
+          const cell = this._grid[idx];
+          if (cellIsInside(cell)) {
+            const zoneId = cellZone(cell);
+            const overlay = heatmap.get(zoneId);
+            if (overlay) {
+              bg = `linear-gradient(${overlay}, ${overlay}), linear-gradient(${bg}, ${bg})`;
+            }
+          }
+        }
         cells.push(html`
           <div
             class="cell"
@@ -4266,6 +4241,29 @@ export class EverythingPresenceProPanel extends LitElement {
       }
     }
     return cells;
+  }
+
+  /** Compute rgba overlay colour per zone based on hit counts. */
+  private _computeHeatmapColors(): Map<number, string> {
+    const zs = this._zoneState;
+    const result = new Map<number, string>();
+    for (const [zoneIdStr, hitCount] of Object.entries(zs.target_counts)) {
+      const zoneId = Number(zoneIdStr);
+      if (hitCount <= 0) continue;
+      const opacity = Math.min(0.6, hitCount / RAW_FPS * 0.7);
+      let r = 100, g = 180, b = 255; // zone 0 default blue
+      if (zoneId > 0 && zoneId <= MAX_ZONES) {
+        const config = this._zoneConfigs[zoneId - 1];
+        if (config) {
+          const hex = config.color;
+          r = parseInt(hex.slice(1, 3), 16);
+          g = parseInt(hex.slice(3, 5), 16);
+          b = parseInt(hex.slice(5, 7), 16);
+        }
+      }
+      result.set(zoneId, `rgba(${r}, ${g}, ${b}, ${opacity})`);
+    }
+    return result;
   }
 
   private _renderZoneSidebar() {

@@ -415,8 +415,8 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
         ${this._renderVisibleCells(i,o,r,n,d)}
       </div>
       ${this._renderFurnitureOverlay(d,i,r,s,a)}
-      ${this._showHitCounts?this._renderHitCountOverlay(d,i,o,r,n,s,a):V}
       <div class="targets-overlay" style="pointer-events: none;">
+        ${this._showHitCounts?this._renderHitCountLabels(i,o,r,n,s,a):V}
         ${this._targets.map((t,e)=>{if(!t.active)return V;const o=this._mapTargetToGridCell(t);if(!o)return V;const n=(o.col-i)/s*100,l=(o.row-r)/a*100;return O`
             <div
               class="target-dot"
@@ -425,17 +425,11 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           `})}
       </div>
       ${this._renderGridDimensions()}
-    `}_renderHitCountOverlay(t,e,i,o,r,n,s){const a=this._zoneState,l=new Map;for(let t=o;t<=r;t++)for(let o=e;o<=i;o++){const e=t*At+o,i=this._grid[e];if(!$t(i))continue;const r=kt(i);l.has(r)||l.set(r,[]),l.get(r).push({col:o,row:t})}const d=n*t,c=s*t,h=[];for(const[i,r]of l){const l=a.target_counts[i]??0;if(0===l)continue;const p=_t(l),u=Math.min(.6,l/33*.7);let g="rgba(100, 180, 255";if(i>0&&i<=7){const t=this._zoneConfigs[i-1];t&&(g=this._hexToRgbPrefix(t.color))}for(const{col:i,row:n}of r){const r=(i-e)*t,s=(n-o)*t;h.push(O`
-          <div style="position: absolute; left: ${r}px; top: ${s}px; width: ${t}px; height: ${t}px; background: ${g}, ${u}); pointer-events: none;"></div>
-        `)}let f=0,v=0;for(const{col:t,row:e}of r)f+=t,v+=e;const m=(f/r.length-e+.5)/n*d,x=(v/r.length-o+.5)/s*c;h.push(O`
-        <div style="position: absolute; left: ${m}px; top: ${x}px; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
-          ${p}
+    `}_renderHitCountLabels(t,e,i,o,r,n){const s=this._zoneState,a=new Map;for(let r=i;r<=o;r++)for(let i=t;i<=e;i++){const t=r*At+i,e=this._grid[t];if(!$t(e))continue;const o=kt(e),n=a.get(o);n?(n.sumCol+=i,n.sumRow+=r,n.count++):a.set(o,{sumCol:i,sumRow:r,count:1})}const l=[];for(const[e,o]of a){const a=s.target_counts[e]??0;if(0===a)continue;const d=_t(a),c=(o.sumCol/o.count-t+.5)/r*100,h=(o.sumRow/o.count-i+.5)/n*100;l.push(O`
+        <div style="position: absolute; left: ${c}%; top: ${h}%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
+          ${d}
         </div>
-      `)}return O`
-      <div style="position: absolute; top: 0; left: 0; width: ${d}px; height: ${c}px; pointer-events: none;">
-        ${h}
-      </div>
-    `}_hexToRgbPrefix(t){return`rgba(${parseInt(t.slice(1,3),16)}, ${parseInt(t.slice(3,5),16)}, ${parseInt(t.slice(5,7),16)}`}_renderGridDimensions(){const t=this._getGridRoomMetrics();return t?O`
+      `)}return l}_renderGridDimensions(){const t=this._getGridRoomMetrics();return t?O`
       <div class="grid-dimensions">
         ${t.widthM}m × ${t.depthM}m · Furthest point: ${t.furthestM}m
       </div>
@@ -992,14 +986,14 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           </div>
         </div>
       </div>
-    `}_renderVisibleCells(t,e,i,o,r){const n=[];for(let s=i;s<=o;s++)for(let i=t;i<=e;i++){const t=s*At+i,e=this._getCellColor(t);n.push(O`
+    `}_renderVisibleCells(t,e,i,o,r){const n=this._showHitCounts?this._computeHeatmapColors():null,s=[];for(let a=i;a<=o;a++)for(let i=t;i<=e;i++){const t=a*At+i;let e=this._getCellColor(t);if(n){const i=this._grid[t];if($t(i)){const t=kt(i),o=n.get(t);o&&(e=`linear-gradient(${o}, ${o}), linear-gradient(${e}, ${e})`)}}s.push(O`
           <div
             class="cell"
             style="background: ${e}; width: ${r}px; height: ${r}px;"
             @mousedown=${()=>this._onCellMouseDown(t)}
             @mouseenter=${()=>this._onCellMouseEnter(t)}
           ></div>
-        `)}return n}_renderZoneSidebar(){return O`
+        `)}return s}_computeHeatmapColors(){const t=this._zoneState,e=new Map;for(const[i,o]of Object.entries(t.target_counts)){const t=Number(i);if(o<=0)continue;const r=Math.min(.6,o/33*.7);let n=100,s=180,a=255;if(t>0&&t<=7){const e=this._zoneConfigs[t-1];if(e){const t=e.color;n=parseInt(t.slice(1,3),16),s=parseInt(t.slice(3,5),16),a=parseInt(t.slice(5,7),16)}}e.set(t,`rgba(${n}, ${s}, ${a}, ${r})`)}return e}_renderZoneSidebar(){return O`
       <!-- Boundary -->
       <div
         class="zone-item ${0===this._activeZone?"active":""}"
