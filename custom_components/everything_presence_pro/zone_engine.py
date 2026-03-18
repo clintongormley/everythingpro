@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import base64
 import enum
+import logging
 import math
 from dataclasses import dataclass, field
 from statistics import median
+
+_LOGGER = logging.getLogger(__name__)
 
 from .const import (
     CELL_ROOM_BIT,
@@ -247,6 +250,15 @@ class TumblingWindow:
 
     def _emit(self) -> WindowOutput:
         """Emit the completed window and reset accumulators."""
+        total_frames = max(
+            (self._target_active_count[i] for i in range(MAX_TARGETS)),
+            default=0,
+        )
+        _LOGGER.debug(
+            "Window emit: %d frames collected, zone hit counts: %s",
+            total_frames,
+            dict(self._zone_hit_counts),
+        )
         # Compute smoothed (median) target positions
         smoothed: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
@@ -374,5 +386,12 @@ class ZoneEngine:
 
         # Room is occupied if any zone (including zone 0) is occupied
         result.device_tracking_present = any(result.zone_occupancy.values())
+
+        _LOGGER.debug(
+            "Tick: zone_hits=%s, sensitivity=%s, occupancy=%s",
+            {z: window.zone_hit_counts.get(z, 0) for z in self._zone_runtimes},
+            {z: sensitivity_to_threshold(rt.zone.trigger) for z, rt in self._zone_runtimes.items()},
+            dict(result.zone_occupancy),
+        )
 
         return result

@@ -3405,7 +3405,7 @@ export class EverythingPresenceProPanel extends LitElement {
         const cell = this._grid[idx];
         if (!cellIsInside(cell)) continue;
         const zoneId = cellZone(cell);
-        if (zoneId === 0) continue; // skip room-level — only show named zones
+        // Include zone 0 (rest of room) — it now only tracks uncovered cells
         if (!zoneCells.has(zoneId)) zoneCells.set(zoneId, []);
         zoneCells.get(zoneId)!.push({ col: c, row: r });
       }

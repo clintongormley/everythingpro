@@ -425,7 +425,7 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           `})}
       </div>
       ${this._renderGridDimensions()}
-    `}_renderHitCountOverlay(t,e,i,o,r,n,s){const a=this._zoneState,l=new Map;for(let t=o;t<=r;t++)for(let o=e;o<=i;o++){const e=t*At+o,i=this._grid[e];if(!$t(i))continue;const r=kt(i);0!==r&&(l.has(r)||l.set(r,[]),l.get(r).push({col:o,row:t}))}const d=n*t,c=s*t,h=[];for(const[i,r]of l){const l=a.target_counts[i]??0;if(0===l)continue;const p=_t(l),u=Math.min(.6,l/33*.7);let g="rgba(100, 180, 255";if(i>0&&i<=7){const t=this._zoneConfigs[i-1];t&&(g=this._hexToRgbPrefix(t.color))}for(const{col:i,row:n}of r){const r=(i-e)*t,s=(n-o)*t;h.push(O`
+    `}_renderHitCountOverlay(t,e,i,o,r,n,s){const a=this._zoneState,l=new Map;for(let t=o;t<=r;t++)for(let o=e;o<=i;o++){const e=t*At+o,i=this._grid[e];if(!$t(i))continue;const r=kt(i);l.has(r)||l.set(r,[]),l.get(r).push({col:o,row:t})}const d=n*t,c=s*t,h=[];for(const[i,r]of l){const l=a.target_counts[i]??0;if(0===l)continue;const p=_t(l),u=Math.min(.6,l/33*.7);let g="rgba(100, 180, 255";if(i>0&&i<=7){const t=this._zoneConfigs[i-1];t&&(g=this._hexToRgbPrefix(t.color))}for(const{col:i,row:n}of r){const r=(i-e)*t,s=(n-o)*t;h.push(O`
           <div style="position: absolute; left: ${r}px; top: ${s}px; width: ${t}px; height: ${t}px; background: ${g}, ${u}); pointer-events: none;"></div>
         `)}let f=0,v=0;for(const{col:t,row:e}of r)f+=t,v+=e;const m=(f/r.length-e+.5)/n*d,x=(v/r.length-o+.5)/s*c;h.push(O`
         <div style="position: absolute; left: ${m}px; top: ${x}px; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
