@@ -231,6 +231,8 @@ class TumblingWindow:
     def _accumulate(self, targets: list[tuple[float, float, bool]]) -> None:
         """Accumulate one frame of target data."""
         self._frame_count += 1
+        # Track which zones were hit THIS frame (deduplicate multiple targets)
+        zones_hit: set[int] = set()
         for i, (x, y, active) in enumerate(targets):
             if i >= MAX_TARGETS:
                 break
@@ -248,8 +250,9 @@ class TumblingWindow:
                 continue
 
             self._device_hit = True
-            zone_id = self._grid.cell_zone(cell)
-            # Zone 0 = cells not covered by any named zone
+            zones_hit.add(self._grid.cell_zone(cell))
+
+        for zone_id in zones_hit:
             self._zone_hit_counts[zone_id] = (
                 self._zone_hit_counts.get(zone_id, 0) + 1
             )

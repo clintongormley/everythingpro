@@ -104,7 +104,7 @@ def test_tumbling_window_emits_after_interval():
 
 
 def test_tumbling_window_multiple_targets_in_zone():
-    """Test that hit counts from multiple targets sum."""
+    """Test that multiple targets in same zone count as one hit per frame."""
     grid = _make_grid(cols=4, rows=4)
     # Zone 1 covers cell at (150,150)
     cell_idx = grid.xy_to_cell(150, 150)
@@ -119,8 +119,8 @@ def test_tumbling_window_multiple_targets_in_zone():
     # Trigger window emit
     result = window.feed([(150, 150, True)], t + 1.01)
     assert result is not None
-    # Each frame contributes 2 hits, so 10 frames * 2 = 20
-    assert result.zone_hit_counts[1] == 20
+    # Deduplicated: 10 frames, each counted once regardless of target count
+    assert result.zone_hit_counts[1] == 10
 
 
 def test_tumbling_window_outside_cells_ignored():
