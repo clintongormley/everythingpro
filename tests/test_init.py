@@ -24,8 +24,8 @@ def test_coordinator_full_lifecycle():
     from custom_components.everything_presence_pro.zone_engine import Zone
 
     zones = [
-        Zone(id=1, name="Desk", sensitivity="normal"),
-        Zone(id=2, name="Bed", sensitivity="high"),
+        Zone(id=1, name="Desk", type="normal"),
+        Zone(id=2, name="Bed", type="rest"),
     ]
     coordinator.set_zones(zones)
     assert len(coordinator.zones) == 2
@@ -54,7 +54,7 @@ def test_zone_engine_full_pipeline():
     cell = engine.grid.xy_to_cell(0, 3000)
     assert cell is not None
 
-    zone = Zone(id=1, name="Center", sensitivity="high")
+    zone = Zone(id=1, name="Center", type="normal", trigger=9, sustain=9)
     engine.set_zones([zone])
 
     # Process target at zone location

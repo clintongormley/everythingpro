@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry
 
 from .calibration import SensorTransform
-from .const import DOMAIN, MAX_TARGETS, MAX_ZONES
+from .const import DOMAIN, MAX_TARGETS, MAX_ZONES, ZONE_TYPE_DEFAULTS, ZONE_TYPE_NORMAL
 from .coordinator import EverythingPresenceProCoordinator, SIGNAL_SENSORS_UPDATED, SIGNAL_TARGETS_UPDATED
 from .zone_engine import Zone
 
@@ -169,8 +169,11 @@ def websocket_get_config(
             {
                 vol.Required("id"): vol.Coerce(int),
                 vol.Required("name"): str,
-                vol.Required("sensitivity"): str,
+                vol.Required("type"): vol.In(["normal", "entrance", "thoroughfare", "rest"]),
                 vol.Optional("color", default=""): str,
+                vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
+                vol.Optional("sustain"): vol.All(int, vol.Range(min=0, max=9)),
+                vol.Optional("timeout"): vol.Coerce(float),
             }
         ],
     }
@@ -191,8 +194,11 @@ async def websocket_set_zones(
         Zone(
             id=z["id"],
             name=z["name"],
-            sensitivity=z["sensitivity"],
+            type=z.get("type", ZONE_TYPE_NORMAL),
             color=z.get("color", ""),
+            trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["trigger"]),
+            sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["sustain"]),
+            timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["timeout"]),
         )
         for z in msg["zones"]
     ]
@@ -207,8 +213,11 @@ async def websocket_set_zones(
             {
                 "id": z.id,
                 "name": z.name,
-                "sensitivity": z.sensitivity,
+                "type": z.type,
                 "color": z.color,
+                "trigger": z.trigger,
+                "sustain": z.sustain,
+                "timeout": z.timeout,
             }
             for z in zones
         ]
@@ -231,13 +240,15 @@ async def websocket_set_zones(
                     {
                         vol.Required("name"): str,
                         vol.Required("color"): str,
-                        vol.Required("sensitivity"): int,
+                        vol.Required("type"): vol.In(["normal", "entrance", "thoroughfare", "rest"]),
+                        vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
+                        vol.Optional("sustain"): vol.All(int, vol.Range(min=0, max=9)),
+                        vol.Optional("timeout"): vol.Coerce(float),
                     },
                 )
             ],
             vol.Length(min=MAX_ZONES, max=MAX_ZONES),
         ),
-        vol.Optional("room_sensitivity", default=1): int,
         vol.Optional("furniture", default=[]): [
             {
                 vol.Optional("type", default="icon"): str,
@@ -271,8 +282,11 @@ async def websocket_set_room_layout(
         Zone(
             id=i + 1,
             name=z["name"],
-            sensitivity=z.get("sensitivity", 1),
+            type=z.get("type", ZONE_TYPE_NORMAL),
             color=z.get("color", ""),
+            trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["trigger"]),
+            sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["sustain"]),
+            timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[z.get("type", ZONE_TYPE_NORMAL)]["timeout"]),
         )
         for i, z in enumerate(zone_slots)
         if z is not None
@@ -282,7 +296,6 @@ async def websocket_set_room_layout(
     layout = {
         "grid_bytes": msg["grid_bytes"],
         "zone_slots": zone_slots,
-        "room_sensitivity": msg["room_sensitivity"],
         "furniture": msg["furniture"],
     }
 

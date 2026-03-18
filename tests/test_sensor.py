@@ -33,7 +33,7 @@ def mock_coordinator():
         zone_target_counts={1: 2},
     )
     coordinator.get_zone_by_slot = lambda slot: (
-        Zone(id=1, name="Desk", sensitivity="normal") if slot == 1
+        Zone(id=1, name="Desk", type="normal") if slot == 1
         else None
     )
     return coordinator
