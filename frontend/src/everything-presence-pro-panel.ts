@@ -535,7 +535,24 @@ export class EverythingPresenceProPanel extends LitElement {
       }
     }
     this._dirty = true;
+
+    // Update room dimensions when boundary changes
+    if (this._activeZone === 0) {
+      this._updateRoomDimensionsFromGrid();
+    }
+
     this.requestUpdate();
+  }
+
+  private _updateRoomDimensionsFromGrid(): void {
+    const raw = this._getRawRoomBounds();
+    if (raw.minCol > raw.maxCol) {
+      this._roomWidth = 0;
+      this._roomDepth = 0;
+      return;
+    }
+    this._roomWidth = (raw.maxCol - raw.minCol + 1) * GRID_CELL_MM;
+    this._roomDepth = (raw.maxRow - raw.minRow + 1) * GRID_CELL_MM;
   }
 
   // -- Zone management --
