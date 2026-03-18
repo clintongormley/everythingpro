@@ -608,10 +608,10 @@ class mt extends vt{}mt.directiveName="unsafeSVG",mt.resultType=2;const xt=(t=>(
           ${this._renderSaveCancelButtons()}
         </div>
       </div>
-    `}_renderSettingsSection(t){switch(t){case"detection":return this._renderDetectionRanges();case"sensitivity":return this._renderSensitivities();case"reporting":return this._renderReporting();default:return V}}_renderEnvOffset(t,e,i,o,r,s,n,a,l){const d=(this._offsetsConfig||{})[i]??0,c=null!=e?(e+d).toFixed(a):"—";return U`
+    `}_renderSettingsSection(t){switch(t){case"detection":return this._renderDetectionRanges();case"sensitivity":return this._renderSensitivities();case"reporting":return this._renderReporting();default:return V}}_renderEnvOffset(t,e,i,o,r,s,n,a,l){const d=(this._offsetsConfig||{})[i]??0,c=null!=e?e-d:null,h=null!=c?(c+d).toFixed(a):"—";return U`
       <div class="setting-row">
         <label>${t}</label>
-        <span class="setting-input-unit"><input type="range" class="setting-range" data-offset-key=${i} .value=${String(d)} min=${o} max=${r} step=${s} @input=${t=>{const i=t.target,o=parseFloat(i.value),r=null!=e?(e+o).toFixed(a):"—";i.nextElementSibling.textContent=r}} /><span class="setting-value">${c}</span> ${n}</span>
+        <span class="setting-input-unit"><input type="range" class="setting-range" data-offset-key=${i} .value=${String(d)} min=${o} max=${r} step=${s} @input=${t=>{const e=t.target,i=parseFloat(e.value),o=null!=c?(c+i).toFixed(a):"—";e.nextElementSibling.textContent=o}} /><span class="setting-value">${h}</span> ${n}</span>
         ${this._infoTip(l)}
       </div>
     `}_infoTip(t){return U`<span class="setting-info"

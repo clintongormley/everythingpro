@@ -3700,14 +3700,17 @@ export class EverythingPresenceProPanel extends LitElement {
   ) {
     const savedOffsets: Record<string, number> = (this as any)._offsetsConfig || {};
     const offset = savedOffsets[offsetKey] ?? 0;
-    const adjusted = reading != null ? (reading + offset).toFixed(precision) : "—";
+    // reading already has the saved offset applied by the coordinator,
+    // so subtract it to get the raw value
+    const raw = reading != null ? reading - offset : null;
+    const adjusted = raw != null ? (raw + offset).toFixed(precision) : "—";
     return html`
       <div class="setting-row">
         <label>${label}</label>
         <span class="setting-input-unit"><input type="range" class="setting-range" data-offset-key=${offsetKey} .value=${String(offset)} min=${min} max=${max} step=${step} @input=${(e: Event) => {
           const el = e.target as HTMLInputElement;
           const off = parseFloat(el.value);
-          const val = reading != null ? (reading + off).toFixed(precision) : "—";
+          const val = raw != null ? (raw + off).toFixed(precision) : "—";
           el.nextElementSibling!.textContent = val;
         }} /><span class="setting-value">${adjusted}</span> ${unit}</span>
         ${this._infoTip(tip)}
