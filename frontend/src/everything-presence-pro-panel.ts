@@ -9,6 +9,7 @@ interface Target {
   raw_y: number;
   speed: number;
   active: boolean;
+  signal: number;  // 0-9 signal strength from tumbling window
 }
 
 interface ZoneConfig {
@@ -435,6 +436,7 @@ export class EverythingPresenceProPanel extends LitElement {
             raw_y: t.raw_y ?? t.y,
             speed: 0,
             active: t.active,
+            signal: t.signal ?? 0,
           }));
           if (event.sensors) {
             this._sensorState = {
@@ -3361,7 +3363,6 @@ export class EverythingPresenceProPanel extends LitElement {
       </div>
       ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
       <div class="targets-overlay" style="pointer-events: none;">
-        ${this._showHitCounts ? this._renderHitCountLabels(minCol, maxCol, minRow, maxRow, visCols, visRows) : nothing}
         ${this._targets.map((t, i) => {
           if (!t.active) return nothing;
           const pos = this._mapTargetToGridCell(t);
@@ -3373,47 +3374,16 @@ export class EverythingPresenceProPanel extends LitElement {
               class="target-dot"
               style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]};"
             ></div>
+            ${this._showHitCounts && t.signal > 0 ? html`
+              <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -140%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
+                ${t.signal}
+              </div>
+            ` : nothing}
           `;
         })}
       </div>
       ${this._renderGridDimensions()}
     `;
-  }
-
-  private _renderHitCountLabels(
-    minCol: number, maxCol: number,
-    minRow: number, maxRow: number,
-    visCols: number, visRows: number,
-  ) {
-    const zs = this._zoneState;
-    // Build per-zone cell centres for label placement
-    const zoneCentre: Map<number, { sumCol: number; sumRow: number; count: number }> = new Map();
-    for (let r = minRow; r <= maxRow; r++) {
-      for (let c = minCol; c <= maxCol; c++) {
-        const idx = r * GRID_COLS + c;
-        const cell = this._grid[idx];
-        if (!cellIsInside(cell)) continue;
-        const zoneId = cellZone(cell);
-        const entry = zoneCentre.get(zoneId);
-        if (entry) { entry.sumCol += c; entry.sumRow += r; entry.count++; }
-        else zoneCentre.set(zoneId, { sumCol: c, sumRow: r, count: 1 });
-      }
-    }
-
-    const labels: any[] = [];
-    for (const [zoneId, centre] of zoneCentre) {
-      const hitCount = zs.target_counts[zoneId] ?? 0;
-      if (hitCount === 0) continue;
-      const signal = Math.min(hitCount, 9);
-      const xPct = ((centre.sumCol / centre.count - minCol + 0.5) / visCols) * 100;
-      const yPct = ((centre.sumRow / centre.count - minRow + 0.5) / visRows) * 100;
-      labels.push(html`
-        <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: bold; padding: 1px 5px; border-radius: 8px; pointer-events: none;">
-          ${signal}
-        </div>
-      `);
-    }
-    return labels;
   }
 
   private _renderGridDimensions() {

@@ -430,6 +430,7 @@ async def websocket_subscribe_targets(
         targets = coordinator.targets
         raw_targets = coordinator.raw_targets
         result = coordinator.last_result
+        signals = result.target_signals
         connection.send_message(
             websocket_api.event_message(
                 msg["id"],
@@ -441,8 +442,9 @@ async def websocket_subscribe_targets(
                             "active": t[2],
                             "raw_x": r[0],
                             "raw_y": r[1],
+                            "signal": signals[i] if i < len(signals) else 0,
                         }
-                        for t, r in zip(targets, raw_targets)
+                        for i, (t, r) in enumerate(zip(targets, raw_targets))
                     ],
                     "sensors": {
                         "occupancy": coordinator.device_occupied,

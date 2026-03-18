@@ -60,6 +60,7 @@ class ProcessingResult:
     device_tracking_present: bool = False
     zone_occupancy: dict[int, bool] = field(default_factory=dict)
     zone_target_counts: dict[int, int] = field(default_factory=dict)
+    target_signals: list[int] = field(default_factory=list)  # per-target signal 0-9
     frame_count: int = 0
 
 
@@ -350,18 +351,20 @@ class ZoneEngine:
         # Evaluate each target: is it confirmed present in a zone?
         zone_confirmed: dict[int, bool] = {}  # zone_id → has confirmed target
         zone_signal: dict[int, int] = {}  # zone_id → best signal strength
+        target_signals: list[int] = []
 
         for tw in window.targets:
             if not tw.active:
+                target_signals.append(0)
                 continue
+            signal = min(tw.frame_count, 9)
             cell = grid.xy_to_cell(tw.median_x, tw.median_y)
-            if cell is None:
-                continue
-            if not grid.cell_is_room(cell):
+            if cell is None or not grid.cell_is_room(cell):
+                target_signals.append(signal)
                 continue
 
+            target_signals.append(signal)
             zone_id = grid.cell_zone(cell)
-            signal = min(tw.frame_count, 9)
 
             # Track best signal per zone for display
             zone_signal[zone_id] = max(zone_signal.get(zone_id, 0), signal)
@@ -408,6 +411,8 @@ class ZoneEngine:
                         rt.pending_since = None
 
             result.zone_occupancy[zone_id] = rt.state != ZoneState.CLEAR
+
+        result.target_signals = target_signals
 
         # Room is occupied if any zone (including zone 0) is occupied
         result.device_tracking_present = any(result.zone_occupancy.values())
