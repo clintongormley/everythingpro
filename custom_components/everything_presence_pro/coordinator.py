@@ -601,9 +601,10 @@ class EverythingPresenceProCoordinator:
                     "type": z.type,
                     "color": z.color,
                     "trigger": z.trigger,
-                    "sustain": z.sustain,
+                    "renew": z.renew,
                     "timeout": z.timeout,
-                    "is_portal": z.is_portal,
+                    "transfer_timeout": z.transfer_timeout,
+                    "entry_point": z.entry_point,
                 }
                 for z in self._zones
             ],
@@ -665,9 +666,10 @@ class EverythingPresenceProCoordinator:
                     type=z.get("type", ZONE_TYPE_NORMAL),
                     color=z.get("color", ""),
                     trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["trigger"]),
-                    sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["sustain"]),
+                    renew=z.get("renew", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["renew"]),
                     timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["timeout"]),
-                    is_portal=z.get("is_portal", False),
+                    transfer_timeout=z.get("transfer_timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["transfer_timeout"]),
+                    entry_point=z.get("entry_point", False),
                 )
                 for i, z in enumerate(zone_slots)
                 if z is not None
@@ -681,9 +683,10 @@ class EverythingPresenceProCoordinator:
                     type=z.get("type", ZONE_TYPE_NORMAL),
                     color=z.get("color", ""),
                     trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["trigger"]),
-                    sustain=z.get("sustain", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["sustain"]),
+                    renew=z.get("renew", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["renew"]),
                     timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["timeout"]),
-                    is_portal=z.get("is_portal", False),
+                    transfer_timeout=z.get("transfer_timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["transfer_timeout"]),
+                    entry_point=z.get("entry_point", False),
                 )
                 for z in zone_list
             ]

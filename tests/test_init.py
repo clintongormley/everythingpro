@@ -54,7 +54,7 @@ def test_zone_engine_full_pipeline():
     cell = engine.grid.xy_to_cell(0, 3000)
     assert cell is not None
 
-    zone = Zone(id=1, name="Center", type="normal", trigger=9, sustain=9)
+    zone = Zone(id=1, name="Center", type="normal", trigger=9, renew=9)
     engine.set_zones([zone])
 
     # Process target at zone location

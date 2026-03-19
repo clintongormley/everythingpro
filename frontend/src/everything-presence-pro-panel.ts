@@ -17,16 +17,17 @@ interface ZoneConfig {
   color: string;
   type: "normal" | "entrance" | "thoroughfare" | "rest" | "custom";
   trigger?: number;  // 0-9 threshold, 0=disabled, higher=harder
-  sustain?: number;  // 0-9 threshold, 0=disabled, higher=harder
+  renew?: number;  // 0-9 threshold, 0=disabled, higher=harder
   timeout?: number;  // seconds, if undefined use type default
-  is_portal?: boolean;
+  transfer_timeout?: number;  // seconds, time for zone to clear after target leaves
+  entry_point?: boolean;
 }
 
-const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; sustain: number; timeout: number }> = {
-  normal: { trigger: 5, sustain: 3, timeout: 10 },
-  entrance: { trigger: 3, sustain: 2, timeout: 5 },
-  thoroughfare: { trigger: 3, sustain: 2, timeout: 3 },
-  rest: { trigger: 7, sustain: 1, timeout: 30 },
+const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; renew: number; timeout: number; transfer_timeout: number }> = {
+  normal: { trigger: 5, renew: 3, timeout: 10, transfer_timeout: 3 },
+  entrance: { trigger: 3, renew: 2, timeout: 5, transfer_timeout: 1 },
+  thoroughfare: { trigger: 3, renew: 2, timeout: 3, transfer_timeout: 1 },
+  rest: { trigger: 7, renew: 1, timeout: 30, transfer_timeout: 10 },
 };
 
 interface EntryInfo {
@@ -170,9 +171,10 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones
   @state() private _roomType: ZoneConfig["type"] = "normal";
   @state() private _roomTrigger: number = ZONE_TYPE_DEFAULTS.normal.trigger;
-  @state() private _roomSustain: number = ZONE_TYPE_DEFAULTS.normal.sustain;
+  @state() private _roomRenew: number = ZONE_TYPE_DEFAULTS.normal.renew;
   @state() private _roomTimeout: number = ZONE_TYPE_DEFAULTS.normal.timeout;
-  @state() private _roomPortal = false;
+  @state() private _roomTransferTimeout: number = ZONE_TYPE_DEFAULTS.normal.transfer_timeout;
+  @state() private _roomEntryPoint = false;
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
   @state() private _showLiveMenu = false;
@@ -416,17 +418,19 @@ export class EverythingPresenceProPanel extends LitElement {
         color: z.color || ZONE_COLORS[i % ZONE_COLORS.length],
         type: z.type ?? "normal",
         trigger: z.trigger,
-        sustain: z.sustain,
+        renew: z.renew,
         timeout: z.timeout,
-        is_portal: z.is_portal ?? false,
+        transfer_timeout: z.transfer_timeout,
+        entry_point: z.entry_point ?? false,
       };
     });
 
     this._roomType = layout.room_type ?? "normal";
     this._roomTrigger = layout.room_trigger ?? ZONE_TYPE_DEFAULTS[this._roomType]?.trigger ?? 5;
-    this._roomSustain = layout.room_sustain ?? ZONE_TYPE_DEFAULTS[this._roomType]?.sustain ?? 3;
+    this._roomRenew = layout.room_renew ?? ZONE_TYPE_DEFAULTS[this._roomType]?.renew ?? 3;
     this._roomTimeout = layout.room_timeout ?? ZONE_TYPE_DEFAULTS[this._roomType]?.timeout ?? 10;
-    this._roomPortal = layout.room_portal ?? false;
+    this._roomTransferTimeout = layout.room_transfer_timeout ?? ZONE_TYPE_DEFAULTS[this._roomType]?.transfer_timeout ?? 3;
+    this._roomEntryPoint = layout.room_entry_point ?? false;
 
     // Load reporting config and offsets
     (this as any)._reportingConfig = config.reporting || {};
@@ -807,11 +811,12 @@ export class EverythingPresenceProPanel extends LitElement {
         grid_bytes: Array.from(this._grid),
         room_type: this._roomType,
         room_trigger: this._roomTrigger,
-        room_sustain: this._roomSustain,
+        room_renew: this._roomRenew,
         room_timeout: this._roomTimeout,
-        room_portal: this._roomPortal,
+        room_transfer_timeout: this._roomTransferTimeout,
+        room_entry_point: this._roomEntryPoint,
         zone_slots: this._zoneConfigs.map((z) =>
-          z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, sustain: z.sustain, timeout: z.timeout, is_portal: z.is_portal } : null
+          z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, renew: z.renew, timeout: z.timeout, transfer_timeout: z.transfer_timeout, entry_point: z.entry_point } : null
         ),
         furniture: this._furniture.map((f) => ({
           type: f.type, icon: f.icon, label: f.label,
@@ -2837,9 +2842,10 @@ export class EverythingPresenceProPanel extends LitElement {
     this._zoneConfigs = new Array(MAX_ZONES).fill(null);
     this._roomType = "normal";
     this._roomTrigger = ZONE_TYPE_DEFAULTS.normal.trigger;
-    this._roomSustain = ZONE_TYPE_DEFAULTS.normal.sustain;
+    this._roomRenew = ZONE_TYPE_DEFAULTS.normal.renew;
     this._roomTimeout = ZONE_TYPE_DEFAULTS.normal.timeout;
-    this._roomPortal = false;
+    this._roomTransferTimeout = ZONE_TYPE_DEFAULTS.normal.transfer_timeout;
+    this._roomEntryPoint = false;
     this._furniture = [];
     // Clear calibration and layout on the backend
     try {
@@ -3823,9 +3829,9 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._infoTip("Minimum signal strength needed to initially detect static presence. Higher = harder to trigger.")}
           </div>
           <div class="setting-row">
-            <label>Sustain threshold</label>
+            <label>Renew threshold</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="3" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">3</span><span class="setting-unit"></span></span>
-            ${this._infoTip("Minimum signal strength needed to maintain static presence detection. Higher = harder to sustain.")}
+            ${this._infoTip("Minimum signal strength needed to maintain static presence detection. Higher = harder to renew.")}
           </div>
         </div>
         <div class="setting-group">
@@ -4159,7 +4165,7 @@ export class EverythingPresenceProPanel extends LitElement {
   ) {
     // Pre-compute heatmap colours per zone if enabled
     const heatmap = this._showHitCounts ? this._computeHeatmapColors() : null;
-    // Local zone occupancy with trigger/sustain thresholds and timeout
+    // Local zone occupancy with trigger/renew thresholds and timeout
     const now = Date.now() / 1000;
 
     // Determine which zones have a confirmed target this tick
@@ -4175,10 +4181,10 @@ export class EverythingPresenceProPanel extends LitElement {
       const cellVal = this._grid[idx];
       if (!cellIsInside(cellVal)) continue;
       const zid = cellZone(cellVal);
-      const { trigger, sustain } = this._getZoneThresholds(zid);
+      const { trigger, renew } = this._getZoneThresholds(zid);
       const st = this._localZoneState.get(zid);
       const isOccupied = st?.occupied ?? false;
-      const thresh = isOccupied ? sustain : trigger;
+      const thresh = isOccupied ? renew : trigger;
       if (t.signal >= thresh) zoneConfirmed.add(zid);
     }
 
@@ -4266,32 +4272,33 @@ export class EverythingPresenceProPanel extends LitElement {
     return result;
   }
 
-  /** Get trigger/sustain/timeout for a zone from the current editor state. */
-  private _getZoneThresholds(zid: number): { trigger: number; sustain: number; timeout: number } {
+  /** Get trigger/renew/timeout for a zone from the current editor state. */
+  private _getZoneThresholds(zid: number): { trigger: number; renew: number; timeout: number } {
     if (zid === 0) {
       const d = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
       return this._roomType === "custom"
-        ? { trigger: this._roomTrigger, sustain: this._roomSustain, timeout: this._roomTimeout }
-        : { trigger: d.trigger, sustain: d.sustain, timeout: d.timeout };
+        ? { trigger: this._roomTrigger, renew: this._roomRenew, timeout: this._roomTimeout }
+        : { trigger: d.trigger, renew: d.renew, timeout: d.timeout };
     }
     if (zid > 0 && zid <= MAX_ZONES) {
       const cfg = this._zoneConfigs[zid - 1];
       if (cfg) {
         const d = ZONE_TYPE_DEFAULTS[cfg.type] || ZONE_TYPE_DEFAULTS.normal;
         return cfg.type === "custom"
-          ? { trigger: cfg.trigger ?? d.trigger, sustain: cfg.sustain ?? d.sustain, timeout: cfg.timeout ?? d.timeout }
-          : { trigger: d.trigger, sustain: d.sustain, timeout: d.timeout };
+          ? { trigger: cfg.trigger ?? d.trigger, renew: cfg.renew ?? d.renew, timeout: cfg.timeout ?? d.timeout }
+          : { trigger: d.trigger, renew: d.renew, timeout: d.timeout };
       }
     }
-    return { trigger: 5, sustain: 3, timeout: 10 };
+    return { trigger: 5, renew: 3, timeout: 10 };
   }
 
   private _renderBoundaryTypeControls() {
     const isCustom = this._roomType === "custom";
     const defaults = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
     const trigger = isCustom ? this._roomTrigger : defaults.trigger;
-    const sustain = isCustom ? this._roomSustain : defaults.sustain;
+    const renew = isCustom ? this._roomRenew : defaults.renew;
     const timeout = isCustom ? this._roomTimeout : defaults.timeout;
+    const transferTimeout = isCustom ? this._roomTransferTimeout : defaults.transfer_timeout;
     const rowStyle = `width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
     return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
@@ -4305,8 +4312,9 @@ export class EverythingPresenceProPanel extends LitElement {
               const d = ZONE_TYPE_DEFAULTS[val] || ZONE_TYPE_DEFAULTS.normal;
               this._roomType = val;
               this._roomTrigger = d.trigger;
-              this._roomSustain = d.sustain;
+              this._roomRenew = d.renew;
               this._roomTimeout = d.timeout;
+              this._roomTransferTimeout = d.transfer_timeout;
               this._dirty = true;
             }}
             @click=${(e: Event) => e.stopPropagation()}
@@ -4326,11 +4334,11 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Sustain</label>
-          <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(sustain)} ?disabled=${!isCustom}
-            @input=${(e: Event) => { this._roomSustain = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
+          <label style="width: 50px; flex-shrink: 0;">Renew</label>
+          <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(renew)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { this._roomRenew = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="width: 10px; text-align: right; flex-shrink: 0;">${sustain}</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0;">${renew}</span>
         </div>
         <div style="${rowStyle}">
           <label style="width: 50px; flex-shrink: 0;">Timeout</label>
@@ -4340,14 +4348,22 @@ export class EverythingPresenceProPanel extends LitElement {
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
+        <div style="${rowStyle}">
+          <label style="width: 50px; flex-shrink: 0;">Transfer</label>
+          <span style="flex: 1;"></span>
+          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(transferTimeout)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { this._roomTransferTimeout = v; this._dirty = true; } }}
+            @click=${(e: Event) => e.stopPropagation()} />
+          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
+        </div>
         ${isCustom ? html`
           <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px;">
-            <label style="width: 50px; flex-shrink: 0;">Portal</label>
+            <label style="width: 50px; flex-shrink: 0;">Entry pt</label>
             <span style="flex: 1;"></span>
             <label class="toggle-switch">
-              <input type="checkbox" ?checked=${this._roomPortal}
+              <input type="checkbox" ?checked=${this._roomEntryPoint}
                 @change=${(e: Event) => {
-                  this._roomPortal = (e.target as HTMLInputElement).checked;
+                  this._roomEntryPoint = (e.target as HTMLInputElement).checked;
                   this._dirty = true;
                 }}
                 @click=${(e: Event) => e.stopPropagation()}
@@ -4365,8 +4381,9 @@ export class EverythingPresenceProPanel extends LitElement {
     const isCustom = zone.type === "custom";
     const defaults = ZONE_TYPE_DEFAULTS[zone.type] || ZONE_TYPE_DEFAULTS.normal;
     const trigger = zone.trigger ?? defaults.trigger;
-    const sustain = zone.sustain ?? defaults.sustain;
+    const renew = zone.renew ?? defaults.renew;
     const timeout = zone.timeout ?? defaults.timeout;
+    const transferTimeout = zone.transfer_timeout ?? defaults.transfer_timeout;
     const rowStyle = `width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
     return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
@@ -4379,7 +4396,7 @@ export class EverythingPresenceProPanel extends LitElement {
               const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
               const d = ZONE_TYPE_DEFAULTS[val] || ZONE_TYPE_DEFAULTS.normal;
               const configs = [...this._zoneConfigs];
-              configs[index] = { ...zone, type: val, trigger: d.trigger, sustain: d.sustain, timeout: d.timeout };
+              configs[index] = { ...zone, type: val, trigger: d.trigger, renew: d.renew, timeout: d.timeout, transfer_timeout: d.transfer_timeout };
               this._zoneConfigs = configs;
               this._dirty = true;
             }}
@@ -4400,11 +4417,11 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Sustain</label>
-          <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(sustain)} ?disabled=${!isCustom}
-            @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, sustain: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
+          <label style="width: 50px; flex-shrink: 0;">Renew</label>
+          <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(renew)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, renew: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="width: 10px; text-align: right; flex-shrink: 0;">${sustain}</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0;">${renew}</span>
         </div>
         <div style="${rowStyle}">
           <label style="width: 50px; flex-shrink: 0;">Timeout</label>
@@ -4414,15 +4431,23 @@ export class EverythingPresenceProPanel extends LitElement {
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
+        <div style="${rowStyle}">
+          <label style="width: 50px; flex-shrink: 0;">Transfer</label>
+          <span style="flex: 1;"></span>
+          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(transferTimeout)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, transfer_timeout: v }; this._zoneConfigs = configs; this._dirty = true; } }}
+            @click=${(e: Event) => e.stopPropagation()} />
+          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
+        </div>
         ${isCustom ? html`
           <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px;">
-            <label style="width: 50px; flex-shrink: 0;">Portal</label>
+            <label style="width: 50px; flex-shrink: 0;">Entry pt</label>
             <span style="flex: 1;"></span>
             <label class="toggle-switch">
-              <input type="checkbox" ?checked=${zone.is_portal ?? false}
+              <input type="checkbox" ?checked=${zone.entry_point ?? false}
                 @change=${(e: Event) => {
                   const configs = [...this._zoneConfigs];
-                  configs[index] = { ...zone, is_portal: (e.target as HTMLInputElement).checked };
+                  configs[index] = { ...zone, entry_point: (e.target as HTMLInputElement).checked };
                   this._zoneConfigs = configs;
                   this._dirty = true;
                 }}

@@ -35,17 +35,17 @@ ZONE_TYPE_REST = "rest"
 ZONE_TYPE_CUSTOM = "custom"
 
 ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
-    ZONE_TYPE_NORMAL: {"trigger": 5, "sustain": 3, "timeout": 10.0},
-    ZONE_TYPE_ENTRANCE: {"trigger": 3, "sustain": 2, "timeout": 5.0},
-    ZONE_TYPE_THOROUGHFARE: {"trigger": 3, "sustain": 2, "timeout": 3.0},
-    ZONE_TYPE_REST: {"trigger": 7, "sustain": 1, "timeout": 30.0},
+    ZONE_TYPE_NORMAL: {"trigger": 5, "renew": 3, "timeout": 10.0, "transfer_timeout": 3},
+    ZONE_TYPE_ENTRANCE: {"trigger": 3, "renew": 2, "timeout": 5.0, "transfer_timeout": 1},
+    ZONE_TYPE_THOROUGHFARE: {"trigger": 3, "renew": 2, "timeout": 3.0, "transfer_timeout": 1},
+    ZONE_TYPE_REST: {"trigger": 7, "renew": 1, "timeout": 30.0, "transfer_timeout": 10},
 }
 
 # Maximum Chebyshev distance (cells) for continuous movement between ticks
 MAX_MOVEMENT_CELLS = 5
 
-# Zone types that are portals (targets can appear from nowhere)
-PORTAL_ZONE_TYPES = {ZONE_TYPE_ENTRANCE, ZONE_TYPE_THOROUGHFARE}
+# Zone types that are entry points (targets can appear from nowhere)
+ENTRY_POINT_ZONE_TYPES = {ZONE_TYPE_ENTRANCE, ZONE_TYPE_THOROUGHFARE}
 
 # LD2450 raw frame rate (10Hz per datasheet)
 RAW_FPS = 10

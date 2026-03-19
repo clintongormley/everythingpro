@@ -21,11 +21,12 @@ from .const import (
     CELL_ROOM_BIT,
     CELL_ZONE_MASK,
     CELL_ZONE_SHIFT,
+    ENTRY_POINT_ZONE_TYPES,
     FOV_DEGREES,
     GRID_CELL_SIZE_MM,
+    MAX_MOVEMENT_CELLS,
     MAX_RANGE_MM,
     MAX_TARGETS,
-    PORTAL_ZONE_TYPES,
     RAW_FPS,
     ZONE_TYPE_CUSTOM,
     ZONE_TYPE_DEFAULTS,
@@ -43,14 +44,15 @@ class Zone:
     type: str  # "normal" | "entrance" | "thoroughfare" | "rest" | "custom"
     color: str = ""
     trigger: int = 5  # 1-9 threshold, higher=harder to trigger
-    sustain: int = 3  # 1-9 threshold, higher=harder
+    renew: int = 3  # 1-9 threshold, higher=harder
     timeout: float = 10.0  # seconds
-    is_portal: bool = False  # derived from type, explicit for custom
+    transfer_timeout: float = 3.0  # seconds, time for zone to clear after target leaves
+    entry_point: bool = False  # derived from type, explicit for custom
 
     def __post_init__(self) -> None:
-        """Derive portal flag from type if not custom."""
+        """Derive entry point flag from type if not custom."""
         if self.type != ZONE_TYPE_CUSTOM:
-            self.is_portal = self.type in PORTAL_ZONE_TYPES
+            self.entry_point = self.type in ENTRY_POINT_ZONE_TYPES
 
 
 class ZoneState(enum.Enum):
@@ -305,6 +307,8 @@ class ZoneEngine:
         """Initialize the zone engine."""
         self._window = TumblingWindow(grid=grid or Grid())
         self._zone_runtimes: dict[int, _ZoneRuntime] = {}
+        self._target_prev: list[tuple[int, int] | None] = [None] * MAX_TARGETS
+        self._target_gate_count: list[int] = [0] * MAX_TARGETS
         if zones:
             self.set_zones(zones)
 
@@ -326,12 +330,15 @@ class ZoneEngine:
         room_zone = Zone(
             id=0, name="Room", type=ZONE_TYPE_NORMAL,
             trigger=defaults["trigger"],
-            sustain=defaults["sustain"],
+            renew=defaults["renew"],
             timeout=defaults["timeout"],
+            transfer_timeout=defaults["transfer_timeout"],
         )
         self._zone_runtimes = {0: _ZoneRuntime(zone=room_zone)}
         for z in zones:
             self._zone_runtimes[z.id] = _ZoneRuntime(zone=z)
+        self._target_prev = [None] * MAX_TARGETS
+        self._target_gate_count = [0] * MAX_TARGETS
 
     def feed_raw(
         self, targets: list[tuple[float, float, bool]], timestamp: float,
@@ -347,11 +354,14 @@ class ZoneEngine:
     ) -> ProcessingResult:
         """Run one tick of the state machine for all zones.
 
-        Per-target model:
+        Per-target model with entry point gating, distance continuity, and handoff:
         1. For each target, compute median position → cell → zone
-        2. Compare target's frame count against zone threshold
-        3. If passes → target is confirmed present in that zone
-        4. Zone has a confirmed target → feed into state machine
+        2. Check continuity from previous tick (Chebyshev distance)
+        3. Entry point gating: non-entry-point zones require 2 consecutive
+           qualifying ticks at doubled threshold before confirming a new
+           (non-continuous) target
+        4. Target handoff: when a target moves between zones, the source zone
+           clears after transfer_timeout seconds
         """
         frames = max(window.total_frames, RAW_FPS)
         result = ProcessingResult(frame_count=frames)
@@ -362,35 +372,123 @@ class ZoneEngine:
         zone_signal: dict[int, int] = {}  # zone_id → best signal strength
         target_signals: list[int] = []
 
-        for tw in window.targets:
+        # Track per-target zone assignments for handoff detection
+        target_zone_prev: list[int | None] = [None] * MAX_TARGETS
+        target_zone_curr: list[int | None] = [None] * MAX_TARGETS
+
+        for i, tw in enumerate(window.targets):
             if not tw.active:
                 target_signals.append(0)
+                # Target gone: clear its tracking state
+                self._target_prev[i] = None
+                self._target_gate_count[i] = 0
                 continue
+
             signal = min(tw.frame_count, 9)
             cell = grid.xy_to_cell(tw.median_x, tw.median_y)
             if cell is None or not grid.cell_is_room(cell):
                 target_signals.append(signal)
+                self._target_prev[i] = None
+                self._target_gate_count[i] = 0
                 continue
 
             target_signals.append(signal)
             zone_id = grid.cell_zone(cell)
+            target_zone_curr[i] = zone_id
+
+            # Compute current cell position as (col, row)
+            col = int((tw.median_x - grid.origin_x) / grid.cell_size)
+            row = int((tw.median_y - grid.origin_y) / grid.cell_size)
+            current_pos = (col, row)
+
+            # Determine previous zone from previous position
+            prev = self._target_prev[i]
+            if prev is not None:
+                prev_cell = grid.xy_to_cell(
+                    grid.origin_x + prev[0] * grid.cell_size + grid.cell_size / 2,
+                    grid.origin_y + prev[1] * grid.cell_size + grid.cell_size / 2,
+                )
+                if prev_cell is not None:
+                    target_zone_prev[i] = grid.cell_zone(prev_cell)
+
+            # Continuity check: Chebyshev distance from previous position
+            continuous = False
+            if prev is not None:
+                dist = max(abs(col - prev[0]), abs(row - prev[1]))
+                continuous = dist <= MAX_MOVEMENT_CELLS
 
             # Track best signal per zone for display
             zone_signal[zone_id] = max(zone_signal.get(zone_id, 0), signal)
 
-            # Check against zone threshold
+            # Determine if this target is confirmed in this zone
             if zone_id in self._zone_runtimes:
                 rt = self._zone_runtimes[zone_id]
                 trigger_thresh = threshold_to_frame_count(rt.zone.trigger)
-                sustain_thresh = threshold_to_frame_count(rt.zone.sustain)
+                renew_thresh = threshold_to_frame_count(rt.zone.renew)
 
+                # Determine effective threshold based on zone state
                 match rt.state:
                     case ZoneState.CLEAR:
-                        if tw.frame_count >= trigger_thresh:
-                            zone_confirmed[zone_id] = True
+                        base_thresh = trigger_thresh
                     case ZoneState.OCCUPIED | ZoneState.PENDING:
-                        if tw.frame_count >= sustain_thresh:
+                        base_thresh = renew_thresh
+
+                entry_point = rt.zone.entry_point
+                needs_gating = not entry_point and not continuous
+
+                if needs_gating and rt.state == ZoneState.CLEAR:
+                    # Entry point gating: double threshold, cap at 9
+                    gated_thresh = min(base_thresh * 2, 9)
+                    if tw.frame_count >= gated_thresh:
+                        self._target_gate_count[i] += 1
+                        if self._target_gate_count[i] >= 2:
+                            # Confirmed after 2 qualifying ticks
                             zone_confirmed[zone_id] = True
+                            rt.confirmed_targets.add(i)
+                            self._target_prev[i] = current_pos
+                            self._target_gate_count[i] = 0
+                        else:
+                            # gate_count == 1: record position for next
+                            # tick's distance check but don't confirm
+                            self._target_prev[i] = current_pos
+                    else:
+                        # Below gated threshold: reset tracking
+                        self._target_prev[i] = None
+                        self._target_gate_count[i] = 0
+                else:
+                    # Not gated: entry point zone, continuous movement,
+                    # or already occupied/pending
+                    if tw.frame_count >= base_thresh:
+                        zone_confirmed[zone_id] = True
+                        rt.confirmed_targets.add(i)
+                        self._target_prev[i] = current_pos
+                        self._target_gate_count[i] = 0
+                    else:
+                        self._target_prev[i] = current_pos
+            else:
+                # No runtime for this zone (e.g. zone 0 room default)
+                # Still record position for continuity tracking
+                self._target_prev[i] = current_pos
+
+        # Target handoff: detect targets that moved between zones
+        for i in range(len(window.targets)):
+            prev_zid = target_zone_prev[i]
+            curr_zid = target_zone_curr[i]
+            if prev_zid is None or curr_zid is None or prev_zid == curr_zid:
+                continue
+            # Target i moved from prev_zid to curr_zid
+            if prev_zid in self._zone_runtimes:
+                src_rt = self._zone_runtimes[prev_zid]
+                # Remove this target from the source zone's confirmed set
+                src_rt.confirmed_targets.discard(i)
+                # If this was the last confirmed target in the source zone
+                # and the zone is occupied, accelerate its pending timeout
+                if (
+                    not src_rt.confirmed_targets
+                    and src_rt.state == ZoneState.OCCUPIED
+                ):
+                    src_rt.state = ZoneState.PENDING
+                    src_rt.pending_since = timestamp - (src_rt.zone.timeout - src_rt.zone.transfer_timeout)
 
         # Run state machine per zone
         for zone_id, rt in self._zone_runtimes.items():
@@ -418,6 +516,7 @@ class ZoneEngine:
                     ):
                         rt.state = ZoneState.CLEAR
                         rt.pending_since = None
+                        rt.confirmed_targets.clear()
 
             result.zone_occupancy[zone_id] = rt.state != ZoneState.CLEAR
 

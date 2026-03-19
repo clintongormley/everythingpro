@@ -172,9 +172,10 @@ def websocket_get_config(
                 vol.Required("type"): vol.In(["normal", "entrance", "thoroughfare", "rest", "custom"]),
                 vol.Optional("color", default=""): str,
                 vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
-                vol.Optional("sustain"): vol.All(int, vol.Range(min=0, max=9)),
+                vol.Optional("renew"): vol.All(int, vol.Range(min=0, max=9)),
                 vol.Optional("timeout"): vol.Coerce(float),
-                vol.Optional("is_portal"): bool,
+                vol.Optional("transfer_timeout"): vol.Coerce(float),
+                vol.Optional("entry_point"): bool,
             }
         ],
     }
@@ -201,9 +202,10 @@ async def websocket_set_zones(
             type=ztype,
             color=z.get("color", ""),
             trigger=z.get("trigger", defaults["trigger"]),
-            sustain=z.get("sustain", defaults["sustain"]),
+            renew=z.get("renew", defaults["renew"]),
             timeout=z.get("timeout", defaults["timeout"]),
-            is_portal=z.get("is_portal", False),
+            transfer_timeout=z.get("transfer_timeout", defaults["transfer_timeout"]),
+            entry_point=z.get("entry_point", False),
         ))
 
     coordinator.set_zones(zones)
@@ -219,9 +221,10 @@ async def websocket_set_zones(
                 "type": z.type,
                 "color": z.color,
                 "trigger": z.trigger,
-                "sustain": z.sustain,
+                "renew": z.renew,
                 "timeout": z.timeout,
-                "is_portal": z.is_portal,
+                "transfer_timeout": z.transfer_timeout,
+                "entry_point": z.entry_point,
             }
             for z in zones
         ]
@@ -246,9 +249,10 @@ async def websocket_set_zones(
                         vol.Required("color"): str,
                         vol.Required("type"): vol.In(["normal", "entrance", "thoroughfare", "rest", "custom"]),
                         vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
-                        vol.Optional("sustain"): vol.All(int, vol.Range(min=0, max=9)),
+                        vol.Optional("renew"): vol.All(int, vol.Range(min=0, max=9)),
                         vol.Optional("timeout"): vol.Coerce(float),
-                        vol.Optional("is_portal"): bool,
+                        vol.Optional("transfer_timeout"): vol.Coerce(float),
+                        vol.Optional("entry_point"): bool,
                     },
                 )
             ],
@@ -256,9 +260,10 @@ async def websocket_set_zones(
         ),
         vol.Optional("room_type", default="normal"): vol.In(["normal", "entrance", "thoroughfare", "rest", "custom"]),
         vol.Optional("room_trigger"): vol.All(int, vol.Range(min=0, max=9)),
-        vol.Optional("room_sustain"): vol.All(int, vol.Range(min=0, max=9)),
+        vol.Optional("room_renew"): vol.All(int, vol.Range(min=0, max=9)),
         vol.Optional("room_timeout"): vol.Coerce(float),
-        vol.Optional("room_portal"): bool,
+        vol.Optional("room_transfer_timeout"): vol.Coerce(float),
+        vol.Optional("room_entry_point"): bool,
         vol.Optional("furniture", default=[]): [
             {
                 vol.Optional("type", default="icon"): str,
@@ -300,9 +305,10 @@ async def websocket_set_room_layout(
             type=ztype,
             color=z.get("color", ""),
             trigger=z.get("trigger", defaults["trigger"]),
-            sustain=z.get("sustain", defaults["sustain"]),
+            renew=z.get("renew", defaults["renew"]),
             timeout=z.get("timeout", defaults["timeout"]),
-            is_portal=z.get("is_portal", False),
+            transfer_timeout=z.get("transfer_timeout", defaults["transfer_timeout"]),
+            entry_point=z.get("entry_point", False),
         ))
     coordinator.set_zones(zones)
 
@@ -310,9 +316,10 @@ async def websocket_set_room_layout(
         "grid_bytes": msg["grid_bytes"],
         "room_type": msg["room_type"],
         "room_trigger": msg.get("room_trigger"),
-        "room_sustain": msg.get("room_sustain"),
+        "room_renew": msg.get("room_renew"),
         "room_timeout": msg.get("room_timeout"),
-        "room_portal": msg.get("room_portal", False),
+        "room_transfer_timeout": msg.get("room_transfer_timeout"),
+        "room_entry_point": msg.get("room_entry_point", False),
         "zone_slots": zone_slots,
         "furniture": msg["furniture"],
     }
