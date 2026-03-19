@@ -4320,7 +4320,7 @@ export class EverythingPresenceProPanel extends LitElement {
     return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
         <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
-          <label style="width: 50px; flex-shrink: 0; font-size: 12px;">Type</label>
+          <label style="width: 80px; flex-shrink: 0; font-size: 12px;">Type</label>
           <select
             class="sensitivity-select" style="flex: 1; min-width: 0;"
             .value=${this._roomType}
@@ -4344,21 +4344,21 @@ export class EverythingPresenceProPanel extends LitElement {
           </select>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Trigger</label>
+          <label style="width: 80px; flex-shrink: 0;">Trigger</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => { this._roomTrigger = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Renew</label>
+          <label style="width: 80px; flex-shrink: 0;">Renew</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(renew)} ?disabled=${!isCustom}
             @input=${(e: Event) => { this._roomRenew = Number((e.target as HTMLInputElement).value); this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${renew}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">Presence timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(timeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { this._roomTimeout = v; this._dirty = true; } }}
@@ -4366,30 +4366,28 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Transfer</label>
+          <label style="width: 80px; flex-shrink: 0;">Transfer timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(transferTimeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { this._roomTransferTimeout = v; this._dirty = true; } }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
-        ${isCustom ? html`
-          <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px;">
-            <label style="width: 50px; flex-shrink: 0;">Entry pt</label>
-            <span style="flex: 1;"></span>
-            <label class="toggle-switch">
-              <input type="checkbox" ?checked=${this._roomEntryPoint}
-                @change=${(e: Event) => {
-                  this._roomEntryPoint = (e.target as HTMLInputElement).checked;
-                  this._dirty = true;
-                }}
-                @click=${(e: Event) => e.stopPropagation()}
-              />
-              <span class="toggle-slider"></span>
-            </label>
-            <span style="width: 10px;"></span>
-          </div>
-        ` : nothing}
+        <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+          <label style="width: 80px; flex-shrink: 0;">Entry point</label>
+          <span style="flex: 1;"></span>
+          <label class="toggle-switch">
+            <input type="checkbox" ?checked=${isCustom ? this._roomEntryPoint : false} ?disabled=${!isCustom}
+              @change=${(e: Event) => {
+                this._roomEntryPoint = (e.target as HTMLInputElement).checked;
+                this._dirty = true;
+              }}
+              @click=${(e: Event) => e.stopPropagation()}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="width: 10px;"></span>
+        </div>
       </div>
     `;
   }
@@ -4405,7 +4403,7 @@ export class EverythingPresenceProPanel extends LitElement {
     return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
         <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
-          <label style="width: 50px; flex-shrink: 0; font-size: 12px;">Type</label>
+          <label style="width: 80px; flex-shrink: 0; font-size: 12px;">Type</label>
           <select
             class="sensitivity-select" style="flex: 1; min-width: 0;"
             .value=${zone.type}
@@ -4427,21 +4425,21 @@ export class EverythingPresenceProPanel extends LitElement {
           </select>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Trigger</label>
+          <label style="width: 80px; flex-shrink: 0;">Trigger</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, trigger: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Renew</label>
+          <label style="width: 80px; flex-shrink: 0;">Renew</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(renew)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, renew: Number((e.target as HTMLInputElement).value) }; this._zoneConfigs = configs; this._dirty = true; }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${renew}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">Presence timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(timeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, timeout: v }; this._zoneConfigs = configs; this._dirty = true; } }}
@@ -4449,32 +4447,30 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 50px; flex-shrink: 0;">Transfer</label>
+          <label style="width: 80px; flex-shrink: 0;">Transfer timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(transferTimeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, transfer_timeout: v }; this._zoneConfigs = configs; this._dirty = true; } }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
-        ${isCustom ? html`
-          <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px;">
-            <label style="width: 50px; flex-shrink: 0;">Entry pt</label>
-            <span style="flex: 1;"></span>
-            <label class="toggle-switch">
-              <input type="checkbox" ?checked=${zone.entry_point ?? false}
-                @change=${(e: Event) => {
-                  const configs = [...this._zoneConfigs];
-                  configs[index] = { ...zone, entry_point: (e.target as HTMLInputElement).checked };
-                  this._zoneConfigs = configs;
-                  this._dirty = true;
-                }}
-                @click=${(e: Event) => e.stopPropagation()}
-              />
-              <span class="toggle-slider"></span>
-            </label>
-            <span style="width: 10px;"></span>
-          </div>
-        ` : nothing}
+        <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
+          <label style="width: 80px; flex-shrink: 0;">Entry point</label>
+          <span style="flex: 1;"></span>
+          <label class="toggle-switch">
+            <input type="checkbox" ?checked=${isCustom ? (zone.entry_point ?? false) : (zone.type === "entrance")} ?disabled=${!isCustom}
+              @change=${(e: Event) => {
+                const configs = [...this._zoneConfigs];
+                configs[index] = { ...zone, entry_point: (e.target as HTMLInputElement).checked };
+                this._zoneConfigs = configs;
+                this._dirty = true;
+              }}
+              @click=${(e: Event) => e.stopPropagation()}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="width: 10px;"></span>
+        </div>
       </div>
     `;
   }

@@ -970,7 +970,7 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
         `)}return h}_computeHeatmapColors(){const t=this._zoneState,e=new Map;for(const[i,o]of Object.entries(t.target_counts)){const t=Number(i);if(o<=0)continue;const r=Math.min(o,9)/9*.6;let n=100,s=180,a=255;if(t>0&&t<=7){const e=this._zoneConfigs[t-1];if(e){const t=e.color;n=parseInt(t.slice(1,3),16),s=parseInt(t.slice(3,5),16),a=parseInt(t.slice(5,7),16)}}e.set(t,`rgba(${n}, ${s}, ${a}, ${r})`)}return e}_getZoneThresholds(t){if(0===t){const t=yt[this._roomType]||yt.normal;return"custom"===this._roomType?{trigger:this._roomTrigger,renew:this._roomRenew,timeout:this._roomTimeout,transferTimeout:this._roomTransferTimeout}:{trigger:t.trigger,renew:t.renew,timeout:t.timeout,transferTimeout:t.transfer_timeout}}if(t>0&&t<=7){const e=this._zoneConfigs[t-1];if(e){const t=yt[e.type]||yt.normal;return"custom"===e.type?{trigger:e.trigger??t.trigger,renew:e.renew??t.renew,timeout:e.timeout??t.timeout,transferTimeout:e.transfer_timeout??t.transfer_timeout}:{trigger:t.trigger,renew:t.renew,timeout:t.timeout,transferTimeout:t.transfer_timeout}}}return{trigger:5,renew:3,timeout:10,transferTimeout:3}}_renderBoundaryTypeControls(){const t="custom"===this._roomType,e=yt[this._roomType]||yt.normal,i=t?this._roomTrigger:e.trigger,o=t?this._roomRenew:e.renew,r=t?this._roomTimeout:e.timeout,n=t?this._roomTransferTimeout:e.transfer_timeout,s=`width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${t?1:.5};`;return O`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
         <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
-          <label style="width: 50px; flex-shrink: 0; font-size: 12px;">Type</label>
+          <label style="width: 80px; flex-shrink: 0; font-size: 12px;">Type</label>
           <select
             class="sensitivity-select" style="flex: 1; min-width: 0;"
             .value=${this._roomType}
@@ -985,21 +985,21 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
           </select>
         </div>
         <div style="${s}">
-          <label style="width: 50px; flex-shrink: 0;">Trigger</label>
+          <label style="width: 80px; flex-shrink: 0;">Trigger</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(i)} ?disabled=${!t}
             @input=${t=>{this._roomTrigger=Number(t.target.value),this._dirty=!0}}
             @click=${t=>t.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${i}</span>
         </div>
         <div style="${s}">
-          <label style="width: 50px; flex-shrink: 0;">Renew</label>
+          <label style="width: 80px; flex-shrink: 0;">Renew</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(o)} ?disabled=${!t}
             @input=${t=>{this._roomRenew=Number(t.target.value),this._dirty=!0}}
             @click=${t=>t.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${o}</span>
         </div>
         <div style="${s}">
-          <label style="width: 50px; flex-shrink: 0;">Timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">Presence timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(r)} ?disabled=${!t}
             @input=${t=>{const e=Number(t.target.value);e>0&&(this._roomTimeout=e,this._dirty=!0)}}
@@ -1007,32 +1007,30 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
         <div style="${s}">
-          <label style="width: 50px; flex-shrink: 0;">Transfer</label>
+          <label style="width: 80px; flex-shrink: 0;">Transfer timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(n)} ?disabled=${!t}
             @input=${t=>{const e=Number(t.target.value);e>0&&(this._roomTransferTimeout=e,this._dirty=!0)}}
             @click=${t=>t.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
-        ${t?O`
-          <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px;">
-            <label style="width: 50px; flex-shrink: 0;">Entry pt</label>
-            <span style="flex: 1;"></span>
-            <label class="toggle-switch">
-              <input type="checkbox" ?checked=${this._roomEntryPoint}
-                @change=${t=>{this._roomEntryPoint=t.target.checked,this._dirty=!0}}
-                @click=${t=>t.stopPropagation()}
-              />
-              <span class="toggle-slider"></span>
-            </label>
-            <span style="width: 10px;"></span>
-          </div>
-        `:V}
+        <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${t?1:.5};">
+          <label style="width: 80px; flex-shrink: 0;">Entry point</label>
+          <span style="flex: 1;"></span>
+          <label class="toggle-switch">
+            <input type="checkbox" ?checked=${!!t&&this._roomEntryPoint} ?disabled=${!t}
+              @change=${t=>{this._roomEntryPoint=t.target.checked,this._dirty=!0}}
+              @click=${t=>t.stopPropagation()}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="width: 10px;"></span>
+        </div>
       </div>
     `}_renderZoneTypeControls(t,e){const i="custom"===t.type,o=yt[t.type]||yt.normal,r=t.trigger??o.trigger,n=t.renew??o.renew,s=t.timeout??o.timeout,a=t.transfer_timeout??o.transfer_timeout,l=`width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${i?1:.5};`;return O`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
         <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
-          <label style="width: 50px; flex-shrink: 0; font-size: 12px;">Type</label>
+          <label style="width: 80px; flex-shrink: 0; font-size: 12px;">Type</label>
           <select
             class="sensitivity-select" style="flex: 1; min-width: 0;"
             .value=${t.type}
@@ -1047,21 +1045,21 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
           </select>
         </div>
         <div style="${l}">
-          <label style="width: 50px; flex-shrink: 0;">Trigger</label>
+          <label style="width: 80px; flex-shrink: 0;">Trigger</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(r)} ?disabled=${!i}
             @input=${i=>{const o=[...this._zoneConfigs];o[e]={...t,trigger:Number(i.target.value)},this._zoneConfigs=o,this._dirty=!0}}
             @click=${t=>t.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${r}</span>
         </div>
         <div style="${l}">
-          <label style="width: 50px; flex-shrink: 0;">Renew</label>
+          <label style="width: 80px; flex-shrink: 0;">Renew</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(n)} ?disabled=${!i}
             @input=${i=>{const o=[...this._zoneConfigs];o[e]={...t,renew:Number(i.target.value)},this._zoneConfigs=o,this._dirty=!0}}
             @click=${t=>t.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${n}</span>
         </div>
         <div style="${l}">
-          <label style="width: 50px; flex-shrink: 0;">Timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">Presence timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(s)} ?disabled=${!i}
             @input=${i=>{const o=Number(i.target.value);if(o>0){const i=[...this._zoneConfigs];i[e]={...t,timeout:o},this._zoneConfigs=i,this._dirty=!0}}}
@@ -1069,27 +1067,25 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
         <div style="${l}">
-          <label style="width: 50px; flex-shrink: 0;">Transfer</label>
+          <label style="width: 80px; flex-shrink: 0;">Transfer timeout</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(a)} ?disabled=${!i}
             @input=${i=>{const o=Number(i.target.value);if(o>0){const i=[...this._zoneConfigs];i[e]={...t,transfer_timeout:o},this._zoneConfigs=i,this._dirty=!0}}}
             @click=${t=>t.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
-        ${i?O`
-          <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px;">
-            <label style="width: 50px; flex-shrink: 0;">Entry pt</label>
-            <span style="flex: 1;"></span>
-            <label class="toggle-switch">
-              <input type="checkbox" ?checked=${t.entry_point??!1}
-                @change=${i=>{const o=[...this._zoneConfigs];o[e]={...t,entry_point:i.target.checked},this._zoneConfigs=o,this._dirty=!0}}
-                @click=${t=>t.stopPropagation()}
-              />
-              <span class="toggle-slider"></span>
-            </label>
-            <span style="width: 10px;"></span>
-          </div>
-        `:V}
+        <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${i?1:.5};">
+          <label style="width: 80px; flex-shrink: 0;">Entry point</label>
+          <span style="flex: 1;"></span>
+          <label class="toggle-switch">
+            <input type="checkbox" ?checked=${i?t.entry_point??!1:"entrance"===t.type} ?disabled=${!i}
+              @change=${i=>{const o=[...this._zoneConfigs];o[e]={...t,entry_point:i.target.checked},this._zoneConfigs=o,this._dirty=!0}}
+              @click=${t=>t.stopPropagation()}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="width: 10px;"></span>
+        </div>
       </div>
     `}_renderZoneSidebar(){return O`
       <!-- Boundary -->
