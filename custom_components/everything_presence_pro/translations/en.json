@@ -7,6 +7,13 @@
         "data": {
           "host": "Host"
         }
+      },
+      "name": {
+        "title": "Name your sensor",
+        "description": "Choose a name for this coverage area.",
+        "data": {
+          "name": "Sensor name"
+        }
       }
     },
     "error": {
