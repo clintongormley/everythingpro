@@ -2190,23 +2190,29 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
     }
 
     .corner-chip {
-      padding: 6px 12px;
+      padding: 5px 11px;
       border-radius: 16px;
       font-size: 13px;
       background: var(--secondary-background-color, #e0e0e0);
       color: var(--secondary-text-color, #757575);
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.2s, border-color 0.2s;
+      border: 2px solid transparent;
     }
 
     .corner-chip.active {
       background: var(--primary-color, #03a9f4);
       color: #fff;
+      border-color: var(--primary-color, #03a9f4);
     }
 
     .corner-chip.done {
       background: #4caf50;
       color: #fff;
+    }
+
+    .corner-chip.done.active {
+      border-color: var(--primary-color, #03a9f4);
     }
 
     .corner-arrow {
