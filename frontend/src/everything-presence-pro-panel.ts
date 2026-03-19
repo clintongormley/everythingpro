@@ -10,6 +10,7 @@ interface Target {
   speed: number;
   active: boolean;
   signal: number;  // 0-9 signal strength from tumbling window
+  pending?: boolean;  // true = faded dot (presence timeout counting down)
 }
 
 interface ZoneConfig {
@@ -211,7 +212,6 @@ export class EverythingPresenceProPanel extends LitElement {
     co2: number | null;
   } = { occupancy: false, static_presence: false, pir_motion: false, illuminance: null, temperature: null, humidity: null, co2: null };
   @state() private _zoneState: { occupancy: Record<number, boolean>; target_counts: Record<number, number>; frame_count: number } = { occupancy: {}, target_counts: {}, frame_count: 0 };
-  @state() private _pendingTargets: { x: number; y: number; target_index: number }[] = [];
   @state() private _showHitCounts = false;
 
   // Local zone occupancy state machine for live preview (with timeout)
@@ -447,7 +447,7 @@ export class EverythingPresenceProPanel extends LitElement {
     conn
       .subscribeMessage(
         (event: any) => {
-          this._targets = (event.targets || []).map((t: any) => ({
+          const targets: Target[] = (event.targets || []).map((t: any) => ({
             x: t.x,
             y: t.y,
             raw_x: t.raw_x ?? t.x,
@@ -455,7 +455,16 @@ export class EverythingPresenceProPanel extends LitElement {
             speed: 0,
             active: t.active,
             signal: t.signal ?? 0,
+            pending: false,
           }));
+          // Merge pending targets: replace inactive slots with faded versions
+          for (const pt of (event.pending_targets || [])) {
+            const i = pt.target_index;
+            if (i < targets.length && !targets[i].active) {
+              targets[i] = { x: pt.x, y: pt.y, raw_x: pt.x, raw_y: pt.y, speed: 0, active: true, signal: 0, pending: true };
+            }
+          }
+          this._targets = targets;
           if (event.sensors) {
             this._sensorState = {
               occupancy: event.sensors.occupancy ?? false,
@@ -474,11 +483,6 @@ export class EverythingPresenceProPanel extends LitElement {
               frame_count: event.zones.frame_count ?? 0,
             };
           }
-          this._pendingTargets = (event.pending_targets || []).map((pt: any) => ({
-            x: pt.x,
-            y: pt.y,
-            target_index: pt.target_index,
-          }));
         },
         {
           type: "everything_presence_pro/subscribe_targets",
@@ -4015,29 +4019,15 @@ export class EverythingPresenceProPanel extends LitElement {
                   return html`
                     <div
                       class="target-dot"
-                      style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]};"
+                      style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]}; opacity: ${t.pending ? 0.3 : 1}; transition: opacity 0.5s ease;"
                     ></div>
-                    ${t.signal > 0 ? html`
+                    ${!t.pending && t.signal > 0 ? html`
                       <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -280%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
                         ${t.signal}
                       </div>
                     ` : nothing}
                   `;
                 })}
-              ${this._pendingTargets.map((pt) => {
-                const pos = this._mapTargetToGridCell(
-                  { x: pt.x, y: pt.y, raw_x: pt.x, raw_y: pt.y, speed: 0, active: true, signal: 0 } as Target,
-                );
-                if (!pos) return nothing;
-                const xPct = ((pos.col - minCol) / visCols) * 100;
-                const yPct = ((pos.row - minRow) / visRows) * 100;
-                return html`
-                  <div
-                    class="target-dot"
-                    style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[pt.target_index] || TARGET_COLORS[0]}; opacity: 0.3;"
-                  ></div>
-                `;
-              })}
             </div>
             ${this._renderGridDimensions()}
           </div>
