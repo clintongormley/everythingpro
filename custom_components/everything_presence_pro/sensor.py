@@ -90,7 +90,6 @@ class EverythingPresenceProIlluminanceSensor(SensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_illuminance"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -132,7 +131,6 @@ class EverythingPresenceProTemperatureSensor(SensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_temperature"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -172,7 +170,6 @@ class EverythingPresenceProHumiditySensor(SensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_humidity"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -211,7 +208,6 @@ class EverythingPresenceProCO2Sensor(SensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_co2"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -249,7 +245,6 @@ class EverythingPresenceProRoomTargetCountSensor(SensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_target_count"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -290,7 +285,6 @@ class _PerTargetSensor(SensorEntity):
         )
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     async def async_added_to_hass(self) -> None:
@@ -490,7 +484,6 @@ class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{suffix}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property

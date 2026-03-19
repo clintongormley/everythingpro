@@ -11,6 +11,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN
 from .coordinator import EverythingPresenceProCoordinator
@@ -67,6 +68,20 @@ async def async_setup_entry(
             config={},
         )
         hass.data[f"{DOMAIN}_panel_registered"] = True
+
+    # Create the device explicitly before entity platforms are set up.
+    # This follows ESPHome's pattern: the device exists with its name before
+    # any entities register. Entity DeviceInfo only references by identifier,
+    # never sets name — so entity registration won't fight with user renames.
+    device_name = entry.data.get("device_name", entry.title)
+    dev_reg = dr.async_get(hass)
+    dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=device_name,
+        manufacturer="Everything Smart Technology",
+        model="Everything Presence Pro",
+    )
 
     coordinator = EverythingPresenceProCoordinator(hass, entry)
     coordinator.load_config_data(entry.options.get("config", {}))

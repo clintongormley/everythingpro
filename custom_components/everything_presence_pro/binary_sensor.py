@@ -68,7 +68,6 @@ class EverythingPresenceProOccupancySensor(BinarySensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_occupancy"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -112,7 +111,6 @@ class EverythingPresenceProMotionSensor(BinarySensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_motion"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -149,7 +147,6 @@ class EverythingPresenceProStaticPresenceSensor(BinarySensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_static_presence"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -187,7 +184,6 @@ class EverythingPresenceProTargetPresenceSensor(BinarySensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_target_presence"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
@@ -229,7 +225,6 @@ class EverythingPresenceProTargetActiveSensor(BinarySensorEntity):
         )
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
         self._attr_translation_key = f"target_{index + 1}_active"
 
@@ -279,7 +274,6 @@ class EverythingPresenceProZoneOccupancySensor(BinarySensorEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{suffix}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.device_name,
         )
 
     @property
