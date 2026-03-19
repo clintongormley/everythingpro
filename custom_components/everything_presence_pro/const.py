@@ -45,7 +45,7 @@ ZONE_TYPE_DEFAULTS: dict[str, dict[str, int | float]] = {
 MAX_MOVEMENT_CELLS = 5
 
 # Zone types that are entry points (targets can appear from nowhere)
-ENTRY_POINT_ZONE_TYPES = {ZONE_TYPE_ENTRANCE, ZONE_TYPE_THOROUGHFARE}
+ENTRY_POINT_ZONE_TYPES = {ZONE_TYPE_ENTRANCE}
 
 # LD2450 raw frame rate (10Hz per datasheet)
 RAW_FPS = 10
