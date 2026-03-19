@@ -67,7 +67,8 @@ class EverythingPresenceProOccupancySensor(BinarySensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_occupancy"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -110,7 +111,8 @@ class EverythingPresenceProMotionSensor(BinarySensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_motion"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -146,7 +148,8 @@ class EverythingPresenceProStaticPresenceSensor(BinarySensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_static_presence"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -183,7 +186,8 @@ class EverythingPresenceProTargetPresenceSensor(BinarySensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_target_presence"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -224,7 +228,8 @@ class EverythingPresenceProTargetActiveSensor(BinarySensorEntity):
             f"{coordinator.entry.entry_id}_target_{index + 1}_active"
         )
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
         self._attr_translation_key = f"target_{index + 1}_active"
 
@@ -273,7 +278,8 @@ class EverythingPresenceProZoneOccupancySensor(BinarySensorEntity):
         suffix = "rest_of_room" if slot == 0 else f"zone_{slot}"
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{suffix}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property

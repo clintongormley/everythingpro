@@ -89,7 +89,8 @@ class EverythingPresenceProIlluminanceSensor(SensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_illuminance"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -130,7 +131,8 @@ class EverythingPresenceProTemperatureSensor(SensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_temperature"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -169,7 +171,8 @@ class EverythingPresenceProHumiditySensor(SensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_humidity"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -207,7 +210,8 @@ class EverythingPresenceProCO2Sensor(SensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_co2"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -244,7 +248,8 @@ class EverythingPresenceProRoomTargetCountSensor(SensorEntity):
         self._coordinator = coordinator
         self._attr_unique_id = f"{coordinator.entry.entry_id}_target_count"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property
@@ -284,7 +289,8 @@ class _PerTargetSensor(SensorEntity):
             f"{coordinator.entry.entry_id}_target_{index + 1}_{key}"
         )
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     async def async_added_to_hass(self) -> None:
@@ -483,7 +489,8 @@ class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
         suffix = "rest_of_room_count" if slot == 0 else f"zone_{slot}_count"
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{suffix}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)}
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name=coordinator.device_name,
         )
 
     @property

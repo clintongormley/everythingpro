@@ -21,7 +21,6 @@ _LOGGER = logging.getLogger(__name__)
 USER_SCHEMA = vol.Schema(
     {
         vol.Required("host"): str,
-        vol.Optional("name", default=""): str,
     }
 )
 
@@ -60,14 +59,14 @@ class EverythingPresenceProConfigFlow(ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(device_info.mac_address)
                 self._abort_if_unique_id_configured()
 
-                name = user_input.get("name", "").strip()
-                title = name or device_info.friendly_name or device_info.name
+                title = device_info.friendly_name or device_info.name
 
                 return self.async_create_entry(
                     title=title,
                     data={
                         "host": host,
                         "mac": device_info.mac_address,
+                        "device_name": title,
                     },
                 )
             finally:

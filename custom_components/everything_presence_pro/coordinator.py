@@ -56,6 +56,7 @@ class EverythingPresenceProCoordinator:
         self._host: str = entry.data.get("host", "")
         self._noise_psk: str = entry.data.get("noise_psk", "")
         self._port: int = entry.data.get("port", DEFAULT_PORT)
+        self._device_name: str = entry.data.get("device_name", entry.title)
 
         self._client: APIClient | None = None
         self._reconnect_logic: ReconnectLogic | None = None
@@ -105,6 +106,11 @@ class EverythingPresenceProCoordinator:
         self._binary_sensor_key_map: dict[int, str] = {}
 
     # -- Public properties --
+
+    @property
+    def device_name(self) -> str:
+        """Return the ESPHome device name."""
+        return self._device_name
 
     @property
     def zones(self) -> list[Zone]:
