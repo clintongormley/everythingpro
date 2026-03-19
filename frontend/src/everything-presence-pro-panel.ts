@@ -3091,7 +3091,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
         <div style="display: flex; justify-content: space-between; margin-top: 20px;">
           <button class="wizard-btn wizard-btn-back"
-            @click=${() => { this._setupStep = null; }}
+            @click=${() => { this._setupStep = null; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; }}
           >Cancel</button>
           <button class="wizard-btn wizard-btn-primary"
             @click=${() => { this._setupStep = "corners"; }}
