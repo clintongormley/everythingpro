@@ -72,6 +72,7 @@ class ProcessingResult:
     zone_target_counts: dict[int, int] = field(default_factory=dict)
     target_signals: list[int] = field(default_factory=list)  # per-target signal 0-9
     frame_count: int = 0
+    pending_targets: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -308,6 +309,7 @@ class ZoneEngine:
         self._window = TumblingWindow(grid=grid or Grid())
         self._zone_runtimes: dict[int, _ZoneRuntime] = {}
         self._target_prev: list[tuple[int, int] | None] = [None] * MAX_TARGETS
+        self._target_prev_xy: list[tuple[float, float] | None] = [None] * MAX_TARGETS
         self._target_gate_count: list[int] = [0] * MAX_TARGETS
         if zones:
             self.set_zones(zones)
@@ -338,6 +340,7 @@ class ZoneEngine:
         for z in zones:
             self._zone_runtimes[z.id] = _ZoneRuntime(zone=z)
         self._target_prev = [None] * MAX_TARGETS
+        self._target_prev_xy = [None] * MAX_TARGETS
         self._target_gate_count = [0] * MAX_TARGETS
 
     def feed_raw(
@@ -395,6 +398,9 @@ class ZoneEngine:
             target_signals.append(signal)
             zone_id = grid.cell_zone(cell)
             target_zone_curr[i] = zone_id
+
+            # Store actual x,y for faded-dot rendering
+            self._target_prev_xy[i] = (tw.median_x, tw.median_y)
 
             # Compute current cell position as (col, row)
             col = int((tw.median_x - grid.origin_x) / grid.cell_size)
@@ -521,6 +527,29 @@ class ZoneEngine:
             result.zone_occupancy[zone_id] = rt.state != ZoneState.CLEAR
 
         result.target_signals = target_signals
+
+        # Build pending targets list: targets that disappeared (inactive) but
+        # are still in a zone's confirmed_targets while that zone is PENDING.
+        # Handoff targets are already removed from confirmed_targets, so they
+        # won't appear here.
+        active_targets = {
+            i for i, tw in enumerate(window.targets) if tw.active
+        }
+        for zone_id, rt in self._zone_runtimes.items():
+            if rt.state != ZoneState.PENDING:
+                continue
+            for target_idx in rt.confirmed_targets:
+                if target_idx in active_targets:
+                    continue
+                xy = self._target_prev_xy[target_idx]
+                if xy is None:
+                    continue
+                result.pending_targets.append({
+                    "x": xy[0],
+                    "y": xy[1],
+                    "target_index": target_idx,
+                    "zone_id": zone_id,
+                })
 
         # Room is occupied if any zone (including zone 0) is occupied
         result.device_tracking_present = any(result.zone_occupancy.values())

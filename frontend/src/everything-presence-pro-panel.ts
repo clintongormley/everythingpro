@@ -211,6 +211,7 @@ export class EverythingPresenceProPanel extends LitElement {
     co2: number | null;
   } = { occupancy: false, static_presence: false, pir_motion: false, illuminance: null, temperature: null, humidity: null, co2: null };
   @state() private _zoneState: { occupancy: Record<number, boolean>; target_counts: Record<number, number>; frame_count: number } = { occupancy: {}, target_counts: {}, frame_count: 0 };
+  @state() private _pendingTargets: { x: number; y: number; target_index: number }[] = [];
   @state() private _showHitCounts = false;
 
   // Local zone occupancy state machine for live preview (with timeout)
@@ -473,6 +474,11 @@ export class EverythingPresenceProPanel extends LitElement {
               frame_count: event.zones.frame_count ?? 0,
             };
           }
+          this._pendingTargets = (event.pending_targets || []).map((pt: any) => ({
+            x: pt.x,
+            y: pt.y,
+            target_index: pt.target_index,
+          }));
         },
         {
           type: "everything_presence_pro/subscribe_targets",
@@ -4018,6 +4024,20 @@ export class EverythingPresenceProPanel extends LitElement {
                     ` : nothing}
                   `;
                 })}
+              ${this._pendingTargets.map((pt) => {
+                const pos = this._mapTargetToGridCell(
+                  { x: pt.x, y: pt.y, raw_x: pt.x, raw_y: pt.y, speed: 0, active: true, signal: 0 } as Target,
+                );
+                if (!pos) return nothing;
+                const xPct = ((pos.col - minCol) / visCols) * 100;
+                const yPct = ((pos.row - minRow) / visRows) * 100;
+                return html`
+                  <div
+                    class="target-dot"
+                    style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[pt.target_index] || TARGET_COLORS[0]}; opacity: 0.3;"
+                  ></div>
+                `;
+              })}
             </div>
             ${this._renderGridDimensions()}
           </div>

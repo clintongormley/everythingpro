@@ -478,3 +478,146 @@ def test_target_handoff_accelerates_timeout():
 
     # Verify it cleared much faster than 10s from the handoff tick
     # (10s from t+1.0 would be t+11.0, but it cleared by t+4.0)
+
+
+# --- Pending targets (faded dots) tests ---
+
+
+def test_pending_targets_appear_when_target_disappears():
+    """Faded dot appears when a target disappears and zone enters PENDING.
+
+    Target confirmed in zone, then goes inactive → zone enters PENDING.
+    pending_targets should contain the target's last known x,y.
+    """
+    grid = _make_grid(cols=4, rows=4)
+    cell_idx = grid.xy_to_cell(150, 150)
+    grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
+
+    zone = Zone(
+        id=1, name="Desk", type=ZONE_TYPE_ENTRANCE,
+        trigger=3, renew=3, timeout=10.0,
+    )
+    engine = ZoneEngine(grid=grid, zones=[zone])
+
+    t = 100.0
+
+    # Tick 1: target confirmed in zone (entry point, no gating)
+    w1 = _make_window([(150, 150, 8)])
+    r1 = engine._tick(w1, t)
+    assert r1.zone_occupancy[1] is True
+    assert r1.pending_targets == []
+
+    # Tick 2: target disappears → zone enters PENDING, faded dot appears
+    w2 = _make_window([(0, 0, 0)])
+    r2 = engine._tick(w2, t + 1.0)
+    assert r2.zone_occupancy[1] is True  # still occupied (pending)
+    assert len(r2.pending_targets) == 1
+    pt = r2.pending_targets[0]
+    assert pt["x"] == 150
+    assert pt["y"] == 150
+    assert pt["target_index"] == 0
+    assert pt["zone_id"] == 1
+
+
+def test_pending_targets_clear_when_zone_clears():
+    """Faded dot disappears when the zone's timeout expires and it goes CLEAR."""
+    grid = _make_grid(cols=4, rows=4)
+    cell_idx = grid.xy_to_cell(150, 150)
+    grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
+
+    zone = Zone(
+        id=1, name="Desk", type=ZONE_TYPE_ENTRANCE,
+        trigger=3, renew=3, timeout=2.0,
+    )
+    engine = ZoneEngine(grid=grid, zones=[zone])
+
+    t = 100.0
+
+    # Tick 1: target confirmed
+    w1 = _make_window([(150, 150, 8)])
+    engine._tick(w1, t)
+
+    # Tick 2: target gone → PENDING with faded dot
+    w2 = _make_window([(0, 0, 0)])
+    r2 = engine._tick(w2, t + 1.0)
+    assert len(r2.pending_targets) == 1
+
+    # Tick 3-4: still empty, timeout expires (2s)
+    w3 = _make_window([(0, 0, 0)])
+    engine._tick(w3, t + 2.0)
+    w4 = _make_window([(0, 0, 0)])
+    r4 = engine._tick(w4, t + 3.5)
+    assert r4.zone_occupancy[1] is False
+    assert r4.pending_targets == []
+
+
+def test_no_pending_target_for_handoff():
+    """No faded dot when a target moves to another zone (handoff).
+
+    The target is removed from confirmed_targets during handoff,
+    so no faded dot should appear in the source zone.
+    """
+    grid = _make_grid(cols=4, rows=4)
+    cell1 = grid.xy_to_cell(150, 150)
+    grid.cells[cell1] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
+
+    cell2 = grid.xy_to_cell(450, 150)
+    grid.cells[cell2] = CELL_ROOM_BIT | (2 << CELL_ZONE_SHIFT)
+
+    zone1 = Zone(
+        id=1, name="Entrance", type=ZONE_TYPE_ENTRANCE,
+        trigger=3, renew=3, timeout=10.0, transfer_timeout=2.0,
+    )
+    zone2 = Zone(
+        id=2, name="Normal", type=ZONE_TYPE_NORMAL,
+        trigger=3, renew=3, timeout=10.0,
+    )
+    engine = ZoneEngine(grid=grid, zones=[zone1, zone2])
+
+    t = 100.0
+
+    # Tick 1: target in zone 1 → confirmed
+    w1 = _make_window([(150, 150, 8)])
+    r1 = engine._tick(w1, t)
+    assert r1.zone_occupancy[1] is True
+
+    # Tick 2: target moves to zone 2 (adjacent, continuous)
+    # Zone 1 enters transfer-pending, target removed from confirmed_targets
+    w2 = _make_window([(450, 150, 8)])
+    r2 = engine._tick(w2, t + 1.0)
+
+    # Zone 1 is PENDING due to handoff — but no faded dot
+    assert r2.zone_occupancy[1] is True
+    # Filter pending_targets for zone 1 only
+    zone1_pending = [p for p in r2.pending_targets if p["zone_id"] == 1]
+    assert zone1_pending == []
+
+
+def test_pending_targets_disappear_when_target_returns():
+    """Faded dot disappears when the target reappears and renews the zone."""
+    grid = _make_grid(cols=4, rows=4)
+    cell_idx = grid.xy_to_cell(150, 150)
+    grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
+
+    zone = Zone(
+        id=1, name="Desk", type=ZONE_TYPE_ENTRANCE,
+        trigger=3, renew=3, timeout=10.0,
+    )
+    engine = ZoneEngine(grid=grid, zones=[zone])
+
+    t = 100.0
+
+    # Tick 1: target confirmed
+    w1 = _make_window([(150, 150, 8)])
+    engine._tick(w1, t)
+
+    # Tick 2: target gone → PENDING with faded dot
+    w2 = _make_window([(0, 0, 0)])
+    r2 = engine._tick(w2, t + 1.0)
+    assert len(r2.pending_targets) == 1
+
+    # Tick 3: target returns → renewed to OCCUPIED, no faded dot
+    w3 = _make_window([(150, 150, 8)])
+    r3 = engine._tick(w3, t + 2.0)
+    assert r3.zone_occupancy[1] is True
+    assert r3.pending_targets == []

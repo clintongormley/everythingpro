@@ -169,6 +169,11 @@ class EverythingPresenceProCoordinator:
         )
 
     @property
+    def pending_targets(self) -> list[dict]:
+        """Return pending target positions for faded dot rendering."""
+        return self._last_result.pending_targets if self._last_result else []
+
+    @property
     def target_present(self) -> bool:
         """Return whether any target is actively tracked."""
         return any(t[2] for t in self._targets)

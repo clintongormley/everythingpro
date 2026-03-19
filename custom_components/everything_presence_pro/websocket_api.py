@@ -483,6 +483,14 @@ async def websocket_subscribe_targets(
                         "occupancy": result.zone_occupancy,
                         "target_counts": result.zone_target_counts,
                     },
+                    "pending_targets": [
+                        {
+                            "x": pt["x"],
+                            "y": pt["y"],
+                            "target_index": pt["target_index"],
+                        }
+                        for pt in coordinator.pending_targets
+                    ],
                 },
             )
         )
