@@ -215,7 +215,7 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _showHitCounts = false;
 
   // Local zone occupancy state machine for live preview (with timeout)
-  private _localZoneState: Map<number, { occupied: boolean; pendingSince: number | null }> = new Map();
+  private _localZoneState: Map<number, { occupied: boolean; pendingSince: number | null; isTransfer: boolean }> = new Map();
   @state() private _isPainting = false;
   @state() private _paintAction: "set" | "clear" = "set";
   private _frozenBounds: { minCol: number; maxCol: number; minRow: number; maxRow: number } | null = null;
@@ -4181,7 +4181,7 @@ export class EverythingPresenceProPanel extends LitElement {
     // Determine which zones have a confirmed target this tick
     const zoneConfirmed: Set<number> = new Set();
     for (const t of this._targets) {
-      if (!t.active || t.signal <= 0) continue;
+      if (!t.active || t.pending || t.signal <= 0) continue;
       const pos = this._mapTargetToGridCell(t);
       if (!pos) continue;
       const col = Math.floor(pos.col);
@@ -4200,27 +4200,34 @@ export class EverythingPresenceProPanel extends LitElement {
 
     // Update per-zone state machine
     const occupancy: Record<number, boolean> = {};
-    // Ensure all zones with cells are tracked
     const allZoneIds = new Set<number>();
     for (let i = 0; i < this._grid.length; i++) {
       if (cellIsInside(this._grid[i])) allZoneIds.add(cellZone(this._grid[i]));
     }
+    // Detect if any zone gained a target (for transfer detection)
+    const anyConfirmed = zoneConfirmed.size > 0;
     for (const zid of allZoneIds) {
       let st = this._localZoneState.get(zid);
-      if (!st) { st = { occupied: false, pendingSince: null }; this._localZoneState.set(zid, st); }
-      const { timeout } = this._getZoneThresholds(zid);
+      if (!st) { st = { occupied: false, pendingSince: null, isTransfer: false }; this._localZoneState.set(zid, st); }
+      const { timeout, transferTimeout } = this._getZoneThresholds(zid);
       const confirmed = zoneConfirmed.has(zid);
 
       if (!st.occupied) {
         // CLEAR
-        if (confirmed) { st.occupied = true; st.pendingSince = null; }
+        if (confirmed) { st.occupied = true; st.pendingSince = null; st.isTransfer = false; }
       } else if (st.pendingSince === null) {
-        // OCCUPIED
-        if (!confirmed) { st.pendingSince = now; }
+        // OCCUPIED → check if target left
+        if (!confirmed) {
+          // Is this a transfer? Target is confirmed in another zone but not this one
+          const isTransfer = anyConfirmed && !confirmed;
+          st.pendingSince = now;
+          st.isTransfer = isTransfer;
+        }
       } else {
         // PENDING
-        if (confirmed) { st.pendingSince = null; }
-        else if (now - st.pendingSince >= timeout) { st.occupied = false; st.pendingSince = null; }
+        const effectiveTimeout = st.isTransfer ? transferTimeout : timeout;
+        if (confirmed) { st.pendingSince = null; st.isTransfer = false; }
+        else if (now - st.pendingSince >= effectiveTimeout) { st.occupied = false; st.pendingSince = null; st.isTransfer = false; }
       }
       occupancy[zid] = st.occupied;
     }
@@ -4283,23 +4290,23 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   /** Get trigger/renew/timeout for a zone from the current editor state. */
-  private _getZoneThresholds(zid: number): { trigger: number; renew: number; timeout: number } {
+  private _getZoneThresholds(zid: number): { trigger: number; renew: number; timeout: number; transferTimeout: number } {
     if (zid === 0) {
       const d = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
       return this._roomType === "custom"
-        ? { trigger: this._roomTrigger, renew: this._roomRenew, timeout: this._roomTimeout }
-        : { trigger: d.trigger, renew: d.renew, timeout: d.timeout };
+        ? { trigger: this._roomTrigger, renew: this._roomRenew, timeout: this._roomTimeout, transferTimeout: this._roomTransferTimeout }
+        : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, transferTimeout: d.transfer_timeout };
     }
     if (zid > 0 && zid <= MAX_ZONES) {
       const cfg = this._zoneConfigs[zid - 1];
       if (cfg) {
         const d = ZONE_TYPE_DEFAULTS[cfg.type] || ZONE_TYPE_DEFAULTS.normal;
         return cfg.type === "custom"
-          ? { trigger: cfg.trigger ?? d.trigger, renew: cfg.renew ?? d.renew, timeout: cfg.timeout ?? d.timeout }
-          : { trigger: d.trigger, renew: d.renew, timeout: d.timeout };
+          ? { trigger: cfg.trigger ?? d.trigger, renew: cfg.renew ?? d.renew, timeout: cfg.timeout ?? d.timeout, transferTimeout: cfg.transfer_timeout ?? d.transfer_timeout }
+          : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, transferTimeout: d.transfer_timeout };
       }
     }
-    return { trigger: 5, renew: 3, timeout: 10 };
+    return { trigger: 5, renew: 3, timeout: 10, transferTimeout: 3 };
   }
 
   private _renderBoundaryTypeControls() {

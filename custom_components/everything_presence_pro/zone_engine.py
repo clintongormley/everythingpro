@@ -483,6 +483,9 @@ class ZoneEngine:
             if prev_zid is None or curr_zid is None or prev_zid == curr_zid:
                 continue
             # Target i moved from prev_zid to curr_zid
+            _LOGGER.debug(
+                "Handoff: target %d moved zone %d→%d", i, prev_zid, curr_zid,
+            )
             if prev_zid in self._zone_runtimes:
                 src_rt = self._zone_runtimes[prev_zid]
                 # Remove this target from the source zone's confirmed set
@@ -495,6 +498,10 @@ class ZoneEngine:
                 ):
                     src_rt.state = ZoneState.PENDING
                     src_rt.pending_since = timestamp - (src_rt.zone.timeout - src_rt.zone.transfer_timeout)
+                    _LOGGER.debug(
+                        "Handoff: zone %d → PENDING, transfer_timeout=%.1f",
+                        prev_zid, src_rt.zone.transfer_timeout,
+                    )
 
         # Run state machine per zone
         for zone_id, rt in self._zone_runtimes.items():
@@ -555,8 +562,9 @@ class ZoneEngine:
         result.device_tracking_present = any(result.zone_occupancy.values())
 
         _LOGGER.debug(
-            "Tick: frames=%d, confirmed=%s, signal=%s, occupancy=%s",
+            "Tick: frames=%d, target_zones=%s, confirmed=%s, signal=%s, occupancy=%s",
             frames,
+            {i: z for i, z in enumerate(target_zone_curr) if z is not None},
             dict(zone_confirmed),
             dict(zone_signal),
             dict(result.zone_occupancy),
