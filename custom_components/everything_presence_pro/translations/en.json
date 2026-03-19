@@ -3,9 +3,9 @@
     "step": {
       "user": {
         "title": "Connect to Everything Presence Pro",
+        "description": "Enter the IP address of your sensor.",
         "data": {
-          "host": "Host",
-          "noise_psk": "Encryption key"
+          "host": "Host"
         }
       }
     },
@@ -28,6 +28,9 @@
       },
       "static_presence": {
         "name": "Static presence"
+      },
+      "target_presence": {
+        "name": "Target presence"
       }
     },
     "sensor": {
@@ -43,8 +46,8 @@
       "co2": {
         "name": "CO2"
       },
-      "zone_target_count": {
-        "name": "Zone target count"
+      "target_count": {
+        "name": "Target count"
       }
     }
   }
