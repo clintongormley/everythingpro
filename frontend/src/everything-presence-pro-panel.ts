@@ -3829,12 +3829,6 @@ export class EverythingPresenceProPanel extends LitElement {
               @input=${(e: Event) => { const el = e.target as HTMLInputElement; this._staticMaxDistance = Number(el.value); el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${staticMaxVal}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Maximum detection distance for the static sensor. Hardware limit: 25m.")}
           </div>
-          <div class="setting-row" style="${this._staticAutoRange ? autoStyle : ""}">
-            <label>Trigger distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticAutoRange ? staticMaxVal : this._staticTriggerDistance)} min="0.5" max="25" step="0.1"
-              @input=${(e: Event) => { const el = e.target as HTMLInputElement; this._staticTriggerDistance = Number(el.value); el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${this._staticAutoRange ? staticMaxVal : this._staticTriggerDistance}</span><span class="setting-unit">m</span></span>
-            ${this._infoTip("Distance at which the static sensor triggers presence.")}
-          </div>
         </div>
       </div>
     `;
