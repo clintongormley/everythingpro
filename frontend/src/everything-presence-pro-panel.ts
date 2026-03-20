@@ -3238,15 +3238,11 @@ export class EverythingPresenceProPanel extends LitElement {
 
             ${this._renderMiniSensorView()}
 
-            ${!hasTarget
-              ? html`<p class="no-target-warning">
-                  No target detected. Make sure you are visible to the sensor.
-                </p>`
-              : tooManyTargets
-              ? html`<p class="no-target-warning">
-                  Multiple targets detected. Only one person should be in the room during calibration.
-                </p>`
-              : nothing}
+            <p class="no-target-warning" style="visibility: ${!hasTarget || tooManyTargets ? "visible" : "hidden"};">
+              ${!hasTarget
+                ? "No target detected. Make sure you are visible to the sensor."
+                : "Multiple targets detected. Only one person should be in the room during calibration."}
+            </p>
 
             <div class="wizard-actions">
               <button
