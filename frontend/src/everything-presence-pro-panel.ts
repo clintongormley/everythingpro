@@ -2,6 +2,41 @@ import { LitElement, html, svg, css, PropertyValues, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 
+import {
+  CELL_ROOM_BIT,
+  MAX_ZONES,
+  GRID_COLS,
+  GRID_ROWS,
+  GRID_CELL_COUNT,
+  GRID_CELL_MM,
+  MAX_RANGE,
+  cellIsInside,
+  cellZone,
+  cellSetZone,
+  getRoomBounds,
+  getRawRoomBounds,
+  initGridFromRoom,
+  updateRoomDimensionsFromGrid,
+} from "./lib/grid.js";
+import {
+  solvePerspective,
+  applyPerspective,
+  getInversePerspective,
+} from "./lib/perspective.js";
+import {
+  mapTargetToPercent,
+  mapTargetToGridCell,
+  rawToFovPct,
+  getSmoothedValue,
+} from "./lib/coordinates.js";
+import type { SmoothBufferEntry } from "./lib/coordinates.js";
+import {
+  type ZoneConfig,
+  ZONE_TYPE_DEFAULTS,
+  ZONE_COLORS,
+  getZoneThresholds,
+} from "./lib/zone-defaults.js";
+
 interface Target {
   x: number;
   y: number;
@@ -13,23 +48,6 @@ interface Target {
   pending?: boolean;  // true = faded dot (presence timeout counting down)
 }
 
-interface ZoneConfig {
-  name: string;
-  color: string;
-  type: "normal" | "entrance" | "thoroughfare" | "rest" | "custom";
-  trigger?: number;  // 0-9 threshold, 0=disabled, higher=harder
-  renew?: number;  // 0-9 threshold, 0=disabled, higher=harder
-  timeout?: number;  // seconds, if undefined use type default
-  handoff_timeout?: number;  // seconds, time for zone to clear after target leaves
-  entry_point?: boolean;
-}
-
-const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; renew: number; timeout: number; handoff_timeout: number }> = {
-  normal: { trigger: 5, renew: 3, timeout: 10, handoff_timeout: 3 },
-  entrance: { trigger: 3, renew: 2, timeout: 5, handoff_timeout: 1 },
-  thoroughfare: { trigger: 3, renew: 2, timeout: 3, handoff_timeout: 1 },
-  rest: { trigger: 7, renew: 1, timeout: 30, handoff_timeout: 10 },
-};
 
 interface EntryInfo {
   entry_id: string;
@@ -117,21 +135,6 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
   { type: "icon", icon: "mdi:window-open-variant", label: "Window", defaultWidth: 1000, defaultHeight: 150, lockAspect: false },
 ];
 
-// Bit 0: room (0=outside, 1=inside)
-// Bits 1-3: zone (0=room default, 1-7=named zone)
-// Bits 4-7: per-cell training (reserved)
-const CELL_ROOM_BIT = 0x01;
-const CELL_ZONE_MASK = 0x0E;  // bits 1-3
-const CELL_ZONE_SHIFT = 1;
-const MAX_ZONES = 7;
-
-const cellIsInside = (v: number): boolean => (v & CELL_ROOM_BIT) !== 0;
-const cellZone = (v: number): number => (v >> CELL_ZONE_SHIFT) & 0x07;
-const cellSetInside = (v: number, inside: boolean): number =>
-  inside ? (v | CELL_ROOM_BIT) : (v & ~CELL_ROOM_BIT);
-const cellSetZone = (v: number, zone: number): number =>
-  (v & ~CELL_ZONE_MASK) | ((zone & 0x07) << CELL_ZONE_SHIFT);
-
 const CORNER_LABELS = ["Front-left", "Front-right", "Back-right", "Back-left"];
 const CORNER_OFFSET_LABELS: [string, string][] = [
   ["left wall", "front wall"],
@@ -140,28 +143,11 @@ const CORNER_OFFSET_LABELS: [string, string][] = [
   ["left wall", "back wall"],
 ];
 
-const GRID_COLS = 20;
-const GRID_ROWS = 20;
-const GRID_CELL_COUNT = GRID_COLS * GRID_ROWS;
-const GRID_CELL_MM = 300; // each cell represents 300mm x 300mm
-const MAX_RANGE = 6000;
-
 // Corner capture duration (seconds)
 const CAPTURE_DURATION_S = 5;
 
 // Target dot colors (1 per target, high contrast)
 const TARGET_COLORS = ["#2196F3", "#FF5722", "#4CAF50"]; // blue, red-orange, green
-
-// Color-blind-friendly palette (distinguishable across protanopia, deuteranopia, tritanopia)
-const ZONE_COLORS = [
-  "#E69F00", // orange
-  "#56B4E9", // sky blue
-  "#009E73", // bluish green
-  "#F0E442", // yellow
-  "#0072B2", // blue
-  "#D55E00", // vermillion
-  "#CC79A7", // reddish purple
-];
 
 export class EverythingPresenceProPanel extends LitElement {
   @property({ attribute: false }) hass: any;
@@ -586,14 +572,9 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _updateRoomDimensionsFromGrid(): void {
-    const raw = this._getRawRoomBounds();
-    if (raw.minCol > raw.maxCol) {
-      this._roomWidth = 0;
-      this._roomDepth = 0;
-      return;
-    }
-    this._roomWidth = (raw.maxCol - raw.minCol + 1) * GRID_CELL_MM;
-    this._roomDepth = (raw.maxRow - raw.minRow + 1) * GRID_CELL_MM;
+    const { roomWidth, roomDepth } = updateRoomDimensionsFromGrid(this._grid);
+    this._roomWidth = roomWidth;
+    this._roomDepth = roomDepth;
   }
 
   // -- Zone management --
@@ -807,24 +788,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   /** Compute the bounding box of inside-room cells (for zoom) */
   private _getRoomBounds(): { minCol: number; maxCol: number; minRow: number; maxRow: number } {
-    let minCol = GRID_COLS, maxCol = 0, minRow = GRID_ROWS, maxRow = 0;
-    for (let i = 0; i < GRID_CELL_COUNT; i++) {
-      if (cellIsInside(this._grid[i])) {
-        const col = i % GRID_COLS;
-        const row = Math.floor(i / GRID_COLS);
-        if (col < minCol) minCol = col;
-        if (col > maxCol) maxCol = col;
-        if (row < minRow) minRow = row;
-        if (row > maxRow) maxRow = row;
-      }
-    }
-    // Add 1-cell padding
-    return {
-      minCol: Math.max(0, minCol - 1),
-      maxCol: Math.min(GRID_COLS - 1, maxCol + 1),
-      minRow: Math.max(0, minRow - 1),
-      maxRow: Math.min(GRID_ROWS - 1, maxRow + 1),
-    };
+    return getRoomBounds(this._grid);
   }
 
   /** Save the current grid and zone config to the backend */
@@ -977,32 +941,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   /** Initialize grid from room dimensions after wizard finishes */
   private _initGridFromRoom(): void {
-    const grid = new Uint8Array(GRID_CELL_COUNT);
-
-    // Sensor is centered at top of the grid
-    // Grid origin (0,0) is top-left, room origin (0,0) is also top-left (sensor side)
-    // Room width centered horizontally in 20-col grid
-    const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
-    const roomRows = Math.ceil(this._roomDepth / GRID_CELL_MM);
-    const startCol = Math.floor((GRID_COLS - roomCols) / 2);
-    const startRow = 0; // sensor is at front wall
-
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        const idx = r * GRID_COLS + c;
-        // Is this cell within the room rectangle?
-        const inRoom =
-          c >= startCol && c < startCol + roomCols &&
-          r >= startRow && r < startRow + roomRows;
-
-        if (inRoom) {
-          grid[idx] = CELL_ROOM_BIT; // inside room, zone 0
-        }
-        // Otherwise stays 0 (outside room)
-      }
-    }
-
-    this._grid = grid;
+    this._grid = initGridFromRoom(this._roomWidth, this._roomDepth);
   }
 
   // -- Coordinate mapping (perspective transform) --
@@ -1016,50 +955,17 @@ export class EverythingPresenceProPanel extends LitElement {
   private _mapTargetToPercent(
     target: Target,
   ): { x: number; y: number } {
-    if (this._roomWidth > 0 && this._roomDepth > 0) {
-      const rx = Math.max(0, Math.min(target.x, this._roomWidth));
-      const ry = Math.max(0, Math.min(target.y, this._roomDepth));
-      return {
-        x: (rx / this._roomWidth) * 100,
-        y: (ry / this._roomDepth) * 100,
-      };
-    }
-    return {
-      x: (target.x / MAX_RANGE) * 100,
-      y: (target.y / MAX_RANGE) * 100,
-    };
+    return mapTargetToPercent(target.x, target.y, this._roomWidth, this._roomDepth);
   }
 
   /** Compute the inverse perspective (room→sensor) from the forward perspective. */
   private _getInversePerspective(): number[] | null {
-    const h = this._perspective;
-    if (!h || h.length < 8) return null;
-    // Forward: rx = (h0*sx + h1*sy + h2)/(h6*sx + h7*sy + 1)
-    //          ry = (h3*sx + h4*sy + h5)/(h6*sx + h7*sy + 1)
-    // This is a 3x3 homography matrix:
-    // [h0 h1 h2]
-    // [h3 h4 h5]
-    // [h6 h7  1]
-    // Inverse is the matrix inverse, then normalize so H[2][2]=1
-    const H = [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
-    // 3x3 matrix inverse
-    const det = H[0]*(H[4]*H[8]-H[5]*H[7]) - H[1]*(H[3]*H[8]-H[5]*H[6]) + H[2]*(H[3]*H[7]-H[4]*H[6]);
-    if (Math.abs(det) < 1e-10) return null;
-    const inv = [
-      (H[4]*H[8]-H[5]*H[7])/det, (H[2]*H[7]-H[1]*H[8])/det, (H[1]*H[5]-H[2]*H[4])/det,
-      (H[5]*H[6]-H[3]*H[8])/det, (H[0]*H[8]-H[2]*H[6])/det, (H[2]*H[3]-H[0]*H[5])/det,
-      (H[3]*H[7]-H[4]*H[6])/det, (H[1]*H[6]-H[0]*H[7])/det, (H[0]*H[4]-H[1]*H[3])/det,
-    ];
-    // Normalize so inv[8] = 1
-    const s = inv[8];
-    if (Math.abs(s) < 1e-10) return null;
-    return [inv[0]/s, inv[1]/s, inv[2]/s, inv[3]/s, inv[4]/s, inv[5]/s, inv[6]/s, inv[7]/s];
+    return getInversePerspective(this._perspective);
   }
 
   /** Apply a perspective transform (8 coefficients) to a point. */
   private _applyPerspective(h: number[], x: number, y: number): { x: number; y: number } {
-    const w = h[6]*x + h[7]*y + 1;
-    return { x: (h[0]*x + h[1]*y + h[2]) / w, y: (h[3]*x + h[4]*y + h[5]) / w };
+    return applyPerspective(h, x, y);
   }
 
   /** Check if a grid cell (col, row) is within the sensor's FOV and range.
@@ -1155,36 +1061,14 @@ export class EverythingPresenceProPanel extends LitElement {
 
   /** Get raw room bounds without padding (only actual inside cells) */
   private _getRawRoomBounds(): { minCol: number; maxCol: number; minRow: number; maxRow: number } {
-    let minCol = GRID_COLS, maxCol = 0, minRow = GRID_ROWS, maxRow = 0;
-    for (let i = 0; i < GRID_CELL_COUNT; i++) {
-      if (cellIsInside(this._grid[i])) {
-        const col = i % GRID_COLS;
-        const row = Math.floor(i / GRID_COLS);
-        if (col < minCol) minCol = col;
-        if (col > maxCol) maxCol = col;
-        if (row < minRow) minRow = row;
-        if (row > maxRow) maxRow = row;
-      }
-    }
-    return { minCol, maxCol, minRow, maxRow };
+    return getRawRoomBounds(this._grid);
   }
 
   /** Map a target to a fractional grid cell position (col, row) */
   private _mapTargetToGridCell(
     target: Target,
   ): { col: number; row: number } | null {
-    if (this._roomWidth <= 0 || this._roomDepth <= 0) return null;
-
-    // Room is centered horizontally in the grid
-    const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
-    const startCol = Math.floor((GRID_COLS - roomCols) / 2);
-
-    // target.x/y are room-space mm (perspective applied server-side)
-    // No clamping — targets outside the calibrated room are shown on the grid
-    const col = startCol + (target.x / GRID_CELL_MM);
-    const row = target.y / GRID_CELL_MM;
-
-    return { col, row };
+    return mapTargetToGridCell(target.x, target.y, this._roomWidth, this._roomDepth);
   }
 
   // -- Device selector --
@@ -1222,32 +1106,15 @@ export class EverythingPresenceProPanel extends LitElement {
   // -- Setup wizard: perspective corner marking --
 
   // Local 1s rolling median smoother for raw readings during marking
-  private _smoothBuffer: { x: number; y: number; t: number }[] = [];
+  private _smoothBuffer: SmoothBufferEntry[] = [];
 
   private _getSmoothedRaw(): { x: number; y: number } | null {
     const active = this._targets.find((t) => t.active);
     if (!active) return null;
 
-    const now = Date.now();
-    this._smoothBuffer.push({ x: active.raw_x, y: active.raw_y, t: now });
-
-    // Prune readings older than 1 second
-    while (this._smoothBuffer.length > 0 && now - this._smoothBuffer[0].t > 1000) {
-      this._smoothBuffer.shift();
-    }
-
-    if (this._smoothBuffer.length === 0) return { x: active.raw_x, y: active.raw_y };
-
-    const medianOf = (arr: number[]): number => {
-      const sorted = arr.slice().sort((a, b) => a - b);
-      const mid = Math.floor(sorted.length / 2);
-      return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-    };
-
-    return {
-      x: medianOf(this._smoothBuffer.map((s) => s.x)),
-      y: medianOf(this._smoothBuffer.map((s) => s.y)),
-    };
+    const result = getSmoothedValue(this._smoothBuffer, active.raw_x, active.raw_y, Date.now());
+    this._smoothBuffer = result.buffer;
+    return { x: result.x, y: result.y };
   }
 
   @state() private _wizardCapturePaused = false;
@@ -1346,43 +1213,7 @@ export class EverythingPresenceProPanel extends LitElement {
     src: { x: number; y: number }[],
     dst: { x: number; y: number }[],
   ): number[] | null {
-    // Build 8x8 system from 4 point pairs
-    const A: number[][] = [];
-    const b: number[] = [];
-    for (let i = 0; i < 4; i++) {
-      const sx = src[i].x, sy = src[i].y;
-      const rx = dst[i].x, ry = dst[i].y;
-      A.push([sx, sy, 1, 0, 0, 0, -sx * rx, -sy * rx]);
-      b.push(rx);
-      A.push([0, 0, 0, sx, sy, 1, -sx * ry, -sy * ry]);
-      b.push(ry);
-    }
-    // Gaussian elimination with partial pivoting
-    const n = 8;
-    const M = A.map((row, i) => [...row, b[i]]);
-    for (let col = 0; col < n; col++) {
-      let maxVal = Math.abs(M[col][col]), maxRow = col;
-      for (let row = col + 1; row < n; row++) {
-        if (Math.abs(M[row][col]) > maxVal) {
-          maxVal = Math.abs(M[row][col]);
-          maxRow = row;
-        }
-      }
-      if (maxVal < 1e-12) return null; // singular
-      [M[col], M[maxRow]] = [M[maxRow], M[col]];
-      for (let row = col + 1; row < n; row++) {
-        const factor = M[row][col] / M[col][col];
-        for (let j = col; j <= n; j++) M[row][j] -= factor * M[col][j];
-      }
-    }
-    // Back-substitution
-    const x = new Array(n);
-    for (let i = n - 1; i >= 0; i--) {
-      x[i] = M[i][n];
-      for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j];
-      x[i] /= M[i][i];
-    }
-    return x;
+    return solvePerspective(src, dst);
   }
 
   private _computeWizardPerspective(): void {
@@ -1435,11 +1266,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   /** Map raw sensor coords to percentage in the FOV view (marking step) */
   private _rawToFovPct(rawX: number, rawY: number): { xPct: number; yPct: number } {
-    const halfW = EverythingPresenceProPanel.FOV_X_EXTENT;
-    return {
-      xPct: ((rawX + halfW) / (halfW * 2)) * 100,
-      yPct: (rawY / MAX_RANGE) * 100,
-    };
+    return rawToFovPct(rawX, rawY);
   }
 
   private _getWizardTargetStyle(target: Target): string {
@@ -4602,24 +4429,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
   /** Get trigger/renew/timeout for a zone from the current editor state. */
   private _getZoneThresholds(zid: number): { trigger: number; renew: number; timeout: number; handoffTimeout: number; entryPoint: boolean } {
-    if (zid === 0) {
-      const d = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
-      const isCustom = this._roomType === "custom";
-      return isCustom
-        ? { trigger: this._roomTrigger, renew: this._roomRenew, timeout: this._roomTimeout, handoffTimeout: this._roomHandoffTimeout, entryPoint: this._roomEntryPoint }
-        : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoffTimeout: d.handoff_timeout, entryPoint: false };
-    }
-    if (zid > 0 && zid <= MAX_ZONES) {
-      const cfg = this._zoneConfigs[zid - 1];
-      if (cfg) {
-        const d = ZONE_TYPE_DEFAULTS[cfg.type] || ZONE_TYPE_DEFAULTS.normal;
-        const isCustom = cfg.type === "custom";
-        return isCustom
-          ? { trigger: cfg.trigger ?? d.trigger, renew: cfg.renew ?? d.renew, timeout: cfg.timeout ?? d.timeout, handoffTimeout: cfg.handoff_timeout ?? d.handoff_timeout, entryPoint: cfg.entry_point ?? false }
-          : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoffTimeout: d.handoff_timeout, entryPoint: cfg.type === "entrance" };
-      }
-    }
-    return { trigger: 5, renew: 3, timeout: 10, handoffTimeout: 3, entryPoint: false };
+    return getZoneThresholds(zid, this._zoneConfigs, this._roomType, this._roomTrigger, this._roomRenew, this._roomTimeout, this._roomHandoffTimeout, this._roomEntryPoint);
   }
 
   private _renderBoundaryTypeControls() {
