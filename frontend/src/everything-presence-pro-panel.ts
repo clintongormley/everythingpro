@@ -1183,32 +1183,46 @@ export class EverythingPresenceProPanel extends LitElement {
     };
   }
 
+  @state() private _wizardCapturePaused = false;
+
   private _wizardStartCapture(): void {
     const active = this._targets.find((t) => t.active);
     if (!active) return;
 
     this._wizardCapturing = true;
     this._wizardCaptureProgress = 0;
+    this._wizardCapturePaused = false;
 
     const samples: { x: number; y: number }[] = [];
-    const startTime = Date.now();
+    let goodElapsed = 0;
+    let lastTick = Date.now();
     const duration = CAPTURE_DURATION_S * 1000;
 
     const tick = () => {
-      const elapsed = Date.now() - startTime;
-      this._wizardCaptureProgress = Math.min(elapsed / duration, 1);
+      const now = Date.now();
+      const dt = now - lastTick;
+      lastTick = now;
 
-      // Collect sample from first active target
-      const t = this._targets.find((t) => t.active);
-      if (t) samples.push({ x: t.raw_x, y: t.raw_y });
+      // Check target count: exactly 1 active target required
+      const activeTargets = this._targets.filter((t) => t.active);
+      const valid = activeTargets.length === 1;
+      this._wizardCapturePaused = !valid;
 
-      if (elapsed < duration) {
+      if (valid) {
+        goodElapsed += dt;
+        samples.push({ x: activeTargets[0].raw_x, y: activeTargets[0].raw_y });
+      }
+
+      this._wizardCaptureProgress = Math.min(goodElapsed / duration, 1);
+
+      if (goodElapsed < duration) {
         requestAnimationFrame(tick);
         return;
       }
 
       // Done — compute median position
       this._wizardCapturing = false;
+      this._wizardCapturePaused = false;
       if (samples.length === 0) return;
 
       const sortedX = samples.map((s) => s.x).sort((a, b) => a - b);
@@ -2981,7 +2995,9 @@ export class EverythingPresenceProPanel extends LitElement {
                 </div>
                 <span>Recording... ${Math.round(this._wizardCaptureProgress * CAPTURE_DURATION_S)}s / ${CAPTURE_DURATION_S}s</span>
               </div>
-              <p style="margin: 8px 0 0; font-size: 13px; color: var(--secondary-text-color);">Stand still</p>
+              <p style="margin: 8px 0 0; font-size: 13px; color: ${this._wizardCapturePaused ? "var(--error-color, #e53935)" : "var(--secondary-text-color)"};">
+                ${this._wizardCapturePaused ? "Paused — need exactly one target visible" : "Stand still"}
+              </p>
             </div>
           </div>
         ` : nothing}
