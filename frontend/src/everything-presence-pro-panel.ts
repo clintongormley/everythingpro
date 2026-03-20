@@ -4394,7 +4394,9 @@ export class EverythingPresenceProPanel extends LitElement {
       for (let c = minCol; c <= maxCol; c++) {
         const idx = r * GRID_COLS + c;
         const cellVal = this._grid[idx];
-        const inRange = this._isCellInSensorRange(c, r);
+        // FOV blackout disabled — needs calibration refinement
+        // const inRange = this._isCellInSensorRange(c, r);
+        const inRange = true;
         let bg = inRange ? this._getCellColor(idx) : "#1a1a1a";
         let border = "";
         if (inRange && cellIsInside(cellVal)) {
