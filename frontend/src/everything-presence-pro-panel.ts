@@ -179,9 +179,8 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _targetAutoRange = true;
   @state() private _targetMaxDistance = 6.0;
   @state() private _staticAutoRange = true;
-  @state() private _staticMinDistance = 0;
-  @state() private _staticMaxDistance = 6.0;
-  @state() private _staticTriggerDistance = 6.0;
+  @state() private _staticMinDistance = 0.3;
+  @state() private _staticMaxDistance = 16.0;
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
   @state() private _showLiveMenu = false;
@@ -3783,7 +3782,7 @@ export class EverythingPresenceProPanel extends LitElement {
     const autoRange = this._autoDetectionRange();
     const metrics = this._getGridRoomMetrics();
     const targetVal = this._targetAutoRange ? (autoRange > 0 ? Math.min(autoRange, 6) : 6) : this._targetMaxDistance;
-    const staticMaxVal = this._staticAutoRange ? (autoRange > 0 ? Math.min(autoRange, 25) : 25) : this._staticMaxDistance;
+    const staticMaxVal = this._staticAutoRange ? (autoRange > 0 ? Math.min(autoRange, 16) : 16) : this._staticMaxDistance;
     const autoStyle = "opacity: 0.5; pointer-events: none;";
     return html`
       <div class="settings-section">
@@ -3819,15 +3818,15 @@ export class EverythingPresenceProPanel extends LitElement {
           </div>
           <div class="setting-row" style="${this._staticAutoRange ? autoStyle : ""}">
             <label>Min distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticAutoRange ? 0 : this._staticMinDistance)} min="0" max="25" step="0.1"
-              @input=${(e: Event) => { const el = e.target as HTMLInputElement; this._staticMinDistance = Number(el.value); el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${this._staticAutoRange ? 0 : this._staticMinDistance}</span><span class="setting-unit">m</span></span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticAutoRange ? 0.3 : this._staticMinDistance)} min="0.3" max="16" step="0.1"
+              @input=${(e: Event) => { const el = e.target as HTMLInputElement; let v = Number(el.value); if (v >= this._staticMaxDistance) { v = this._staticMaxDistance - 0.1; el.value = String(v); } this._staticMinDistance = v; el.nextElementSibling!.textContent = String(v); }} /><span class="setting-value">${this._staticAutoRange ? 0.3 : this._staticMinDistance}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Minimum detection distance for the static sensor.")}
           </div>
           <div class="setting-row" style="${this._staticAutoRange ? autoStyle : ""}">
             <label>Max distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(staticMaxVal)} min="0.5" max="25" step="0.1"
-              @input=${(e: Event) => { const el = e.target as HTMLInputElement; this._staticMaxDistance = Number(el.value); el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${staticMaxVal}</span><span class="setting-unit">m</span></span>
-            ${this._infoTip("Maximum detection distance for the static sensor. Hardware limit: 25m.")}
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(staticMaxVal)} min="2.4" max="16" step="0.1"
+              @input=${(e: Event) => { const el = e.target as HTMLInputElement; let v = Number(el.value); if (v <= this._staticMinDistance) { v = this._staticMinDistance + 0.1; el.value = String(v); } this._staticMaxDistance = v; el.nextElementSibling!.textContent = String(v); }} /><span class="setting-value">${staticMaxVal}</span><span class="setting-unit">m</span></span>
+            ${this._infoTip("Maximum detection distance for the static sensor. Hardware limit: 16m.")}
           </div>
         </div>
       </div>
