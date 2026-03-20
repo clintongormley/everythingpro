@@ -629,7 +629,7 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
       </div>
     `}_infoTip(t){return O`<span class="setting-info"
       @click=${t=>{t.stopPropagation();const e=t.currentTarget,i=e.querySelector(".setting-info-tooltip");if(!i)return;const o="block"===i.style.display;if(this.shadowRoot.querySelectorAll(".setting-info-tooltip").forEach(t=>{t.style.display="none"}),o)return;const r=e.getBoundingClientRect();i.style.display="block",i.style.left=`${Math.max(8,Math.min(r.right-240,window.innerWidth-256))}px`,i.style.top=`${r.bottom+6}px`}}
-    ><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${t}</span></span>`}_renderDetectionRanges(){const t=this._autoDetectionRange(),e=this._getGridRoomMetrics(),i=this._targetAutoRange?Math.min(t,6):this._targetMaxDistance,o=this._staticAutoRange?Math.min(t,25):this._staticMaxDistance,r="opacity: 0.5; pointer-events: none;";return O`
+    ><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${t}</span></span>`}_renderDetectionRanges(){const t=this._autoDetectionRange(),e=this._getGridRoomMetrics(),i=this._targetAutoRange?t>0?Math.min(t,6):6:this._targetMaxDistance,o=this._staticAutoRange?t>0?Math.min(t,25):25:this._staticMaxDistance,r="opacity: 0.5; pointer-events: none;";return O`
       <div class="settings-section">
         ${e?O`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong style="color: var(--error-color, #e53935);">${e.furthestM}m</strong></p>`:V}
         <div class="setting-group">

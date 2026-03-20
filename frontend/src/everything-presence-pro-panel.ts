@@ -3782,8 +3782,8 @@ export class EverythingPresenceProPanel extends LitElement {
   private _renderDetectionRanges() {
     const autoRange = this._autoDetectionRange();
     const metrics = this._getGridRoomMetrics();
-    const targetVal = this._targetAutoRange ? Math.min(autoRange, 6) : this._targetMaxDistance;
-    const staticMaxVal = this._staticAutoRange ? Math.min(autoRange, 25) : this._staticMaxDistance;
+    const targetVal = this._targetAutoRange ? (autoRange > 0 ? Math.min(autoRange, 6) : 6) : this._targetMaxDistance;
+    const staticMaxVal = this._staticAutoRange ? (autoRange > 0 ? Math.min(autoRange, 25) : 25) : this._staticMaxDistance;
     const autoStyle = "opacity: 0.5; pointer-events: none;";
     return html`
       <div class="settings-section">
