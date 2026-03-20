@@ -1051,23 +1051,29 @@ export class EverythingPresenceProPanel extends LitElement {
     return { x: (h[0]*x + h[1]*y + h[2]) / w, y: (h[3]*x + h[4]*y + h[5]) / w };
   }
 
-  /** Check if a grid cell (col, row) is within the sensor's FOV and range. */
+  /** Check if a grid cell (col, row) is within the sensor's FOV and range.
+   *  Works in sensor-space: transform cell's room-space position back to
+   *  sensor-space via the inverse perspective, then check distance and FOV angle.
+   */
   private _isCellInSensorRange(col: number, row: number): boolean {
     if (!this._perspective) return true; // no calibration — allow all
 
     const inv = this._getInversePerspective();
     if (!inv) return true;
 
-    // Cell centre in room-space mm
+    // Cell centre in room-space mm.
+    // The frontend grid is centred horizontally: startCol is the first room column.
+    // Room-space x=0 corresponds to grid column startCol.
+    // Room-space y=0 corresponds to grid row 0.
     const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
     const startCol = Math.floor((GRID_COLS - roomCols) / 2);
-    const rx = (col + 0.5 - startCol) * GRID_CELL_MM;
+    const rx = (col - startCol + 0.5) * GRID_CELL_MM;
     const ry = (row + 0.5) * GRID_CELL_MM;
 
-    // Transform room-space → sensor-space
+    // Transform room-space → sensor-space via inverse perspective
     const sensor = this._applyPerspective(inv, rx, ry);
 
-    // Distance from sensor origin
+    // Distance from sensor origin (0,0) in sensor-space
     const dist = Math.sqrt(sensor.x * sensor.x + sensor.y * sensor.y);
 
     // Max range from current target sensor setting
@@ -1075,7 +1081,8 @@ export class EverythingPresenceProPanel extends LitElement {
     const maxRange = (this._targetAutoRange ? (autoRange > 0 ? Math.min(autoRange, 6) : 6) : this._targetMaxDistance) * 1000;
     if (dist > maxRange) return false;
 
-    // 120° FOV: sensor looks along +Y axis, angle from centreline
+    // 120° FOV: LD2450 sensor looks along +Y axis in sensor-space.
+    // Angle from centreline must be within ±60°.
     if (sensor.y <= 0) return false; // behind the sensor
     const angle = Math.abs(Math.atan2(sensor.x, sensor.y));
     return angle <= Math.PI / 3; // 60° half-angle
@@ -3765,10 +3772,38 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   private _autoDetectionRange(): number {
+    if (this._roomWidth <= 0 || this._roomDepth <= 0) return 0;
+
+    // If we have a perspective, compute the max sensor-space distance
+    // across all room cells. The sensor-space distance can be much larger
+    // than the room dimensions due to perspective distortion.
+    const inv = this._getInversePerspective();
+    if (inv) {
+      const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
+      const startCol = Math.floor((GRID_COLS - roomCols) / 2);
+      let maxDistMm = 0;
+      const raw = this._getRawRoomBounds();
+      for (let r = raw.minRow; r <= raw.maxRow; r++) {
+        for (let c = raw.minCol; c <= raw.maxCol; c++) {
+          const idx = r * GRID_COLS + c;
+          if (!cellIsInside(this._grid[idx])) continue;
+          const rx = (c - startCol + 0.5) * GRID_CELL_MM;
+          const ry = (r + 0.5) * GRID_CELL_MM;
+          const s = this._applyPerspective(inv, rx, ry);
+          const dist = Math.sqrt(s.x * s.x + s.y * s.y);
+          if (dist > maxDistMm) maxDistMm = dist;
+        }
+      }
+      if (maxDistMm > 0) {
+        const m = maxDistMm / 1000;
+        return Math.ceil(m * 2) / 2; // round up to nearest 0.5m
+      }
+    }
+
+    // Fallback: use room dimensions
     const maxMm = Math.max(this._roomWidth, this._roomDepth);
-    if (maxMm <= 0) return 0;
     const m = maxMm / 1000;
-    return Math.ceil(m * 2) / 2; // round up to nearest 0.5m
+    return Math.ceil(m * 2) / 2;
   }
 
   private _renderSettings() {
