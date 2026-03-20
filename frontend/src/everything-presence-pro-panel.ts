@@ -1094,7 +1094,7 @@ export class EverythingPresenceProPanel extends LitElement {
     // Angle between sensor direction and cell direction (both in room-space)
     const dot = (dx / dist) * fov.dirX + (dy / dist) * fov.dirY;
     const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
-    if (angle > Math.PI / 3) return false; // 120° FOV = 60° half-angle
+    if (angle > 50 * Math.PI / 180) return false; // ~100° effective FOV
 
     // Distance check
     const autoRange = this._autoDetectionRange();
