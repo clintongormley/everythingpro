@@ -343,6 +343,16 @@ class ZoneEngine:
         self._target_prev_xy = [None] * MAX_TARGETS
         self._target_gate_count = [0] * MAX_TARGETS
 
+    def next_expiry(self) -> float | None:
+        """Return the soonest pending zone expiry timestamp, or None."""
+        soonest: float | None = None
+        for rt in self._zone_runtimes.values():
+            if rt.state == ZoneState.PENDING and rt.pending_since is not None:
+                expiry = rt.pending_since + rt.zone.timeout
+                if soonest is None or expiry < soonest:
+                    soonest = expiry
+        return soonest
+
     def feed_raw(
         self, targets: list[tuple[float, float, bool]], timestamp: float,
     ) -> ProcessingResult | None:

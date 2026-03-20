@@ -531,21 +531,24 @@ class EverythingPresenceProCoordinator:
             self._rebuild_scheduled = True
             self.hass.loop.call_later(0.2, self._do_display_update)
 
-        # Only start idle timer if any zone is occupied (needs timeout expiry)
-        if any(self._last_result.zone_occupancy.values()):
-            self._reset_idle_timer()
-        elif self._window_timer is not None:
+        # Schedule a single callback at the soonest pending zone expiry
+        self._schedule_expiry_tick()
+
+    def _schedule_expiry_tick(self) -> None:
+        """Schedule a single callback when the next pending zone should expire."""
+        if self._window_timer is not None:
             self._window_timer.cancel()
             self._window_timer = None
 
-    def _reset_idle_timer(self) -> None:
-        """Reset the idle timer that ensures the window ticks even without data."""
-        if self._window_timer is not None:
-            self._window_timer.cancel()
-        self._window_timer = self.hass.loop.call_later(1.5, self._idle_tick)
+        expiry = self._zone_engine.next_expiry()
+        if expiry is None:
+            return
 
-    def _idle_tick(self) -> None:
-        """Feed empty targets to flush the window when no ESPHome data arrives."""
+        delay = max(0.1, expiry - time.monotonic())
+        self._window_timer = self.hass.loop.call_later(delay, self._expiry_tick)
+
+    def _expiry_tick(self) -> None:
+        """Feed empty targets at timeout expiry to clear zone entity states."""
         self._window_timer = None
         now = time.monotonic()
         empty = [(0.0, 0.0, False)] * MAX_TARGETS
@@ -556,9 +559,8 @@ class EverythingPresenceProCoordinator:
             async_dispatcher_send(
                 self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
             )
-        # Keep ticking until all zones are clear (for timeout expiry)
-        if any(self._last_result.zone_occupancy.values()):
-            self._window_timer = self.hass.loop.call_later(1.5, self._idle_tick)
+        # If more zones are still pending, schedule the next expiry
+        self._schedule_expiry_tick()
 
     def _build_calibrated_targets(self) -> list[tuple[float, float, bool]]:
         """Build calibrated target list from current raw state."""
