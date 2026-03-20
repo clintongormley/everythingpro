@@ -220,7 +220,10 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _showHitCounts = false;
 
   // Local zone occupancy state machine for live preview (with timeout)
-  private _localZoneState: Map<number, { occupied: boolean; pendingSince: number | null; isHandoff: boolean }> = new Map();
+  private _localZoneState: Map<number, { occupied: boolean; pendingSince: number | null; isHandoff: boolean; confirmedTargets: Set<number> }> = new Map();
+  // Per-target tracking for zone engine replication
+  private _targetPrev: ({ col: number; row: number } | null)[] = [null, null, null];
+  private _targetGateCount: number[] = [0, 0, 0];
   @state() private _isPainting = false;
   @state() private _paintAction: "set" | "clear" = "set";
   private _frozenBounds: { minCol: number; maxCol: number; minRow: number; maxRow: number } | null = null;
@@ -4335,56 +4338,173 @@ export class EverythingPresenceProPanel extends LitElement {
     // Local zone occupancy with trigger/renew thresholds and timeout
     const now = Date.now() / 1000;
 
-    // Determine which zones have a confirmed target this tick
-    const zoneConfirmed: Set<number> = new Set();
-    for (const t of this._targets) {
-      if (!t.active || t.pending || t.signal <= 0) continue;
+    // Per-target evaluation (matches backend zone_engine._tick)
+    const MAX_MOVEMENT_CELLS = 5;
+    const MAX_TARGETS = 3;
+
+    const zoneConfirmed: Map<number, boolean> = new Map();
+    const zoneSignal: Map<number, number> = new Map();
+    const targetZonePrev: (number | null)[] = [null, null, null];
+    const targetZoneCurr: (number | null)[] = [null, null, null];
+
+    for (let i = 0; i < MAX_TARGETS && i < this._targets.length; i++) {
+      const t = this._targets[i];
+
+      if (!t.active || t.pending) {
+        // Target gone: clear tracking
+        this._targetPrev[i] = null;
+        this._targetGateCount[i] = 0;
+        continue;
+      }
+
+      const signal = t.signal;
+      if (signal <= 0) continue;
+
+      // Map to grid cell
       const pos = this._mapTargetToGridCell(t);
-      if (!pos) continue;
+      if (!pos) {
+        this._targetPrev[i] = null;
+        this._targetGateCount[i] = 0;
+        continue;
+      }
       const col = Math.floor(pos.col);
       const row = Math.floor(pos.row);
-      if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) continue;
+      if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) {
+        this._targetPrev[i] = null;
+        this._targetGateCount[i] = 0;
+        continue;
+      }
       const idx = row * GRID_COLS + col;
       const cellVal = this._grid[idx];
-      if (!cellIsInside(cellVal)) continue;
+      if (!cellIsInside(cellVal)) {
+        this._targetPrev[i] = null;
+        this._targetGateCount[i] = 0;
+        continue;
+      }
+
       const zid = cellZone(cellVal);
-      const { trigger, renew } = this._getZoneThresholds(zid);
+      targetZoneCurr[i] = zid;
+
+      // Determine previous zone from previous position
+      const prev = this._targetPrev[i];
+      if (prev !== null) {
+        const prevIdx = prev.row * GRID_COLS + prev.col;
+        if (prevIdx >= 0 && prevIdx < GRID_CELL_COUNT && cellIsInside(this._grid[prevIdx])) {
+          targetZonePrev[i] = cellZone(this._grid[prevIdx]);
+        }
+      }
+
+      // Continuity check: Chebyshev distance
+      let continuous = false;
+      if (prev !== null) {
+        const dist = Math.max(Math.abs(col - prev.col), Math.abs(row - prev.row));
+        continuous = dist <= MAX_MOVEMENT_CELLS;
+      }
+
+      // Track best signal per zone
+      zoneSignal.set(zid, Math.max(zoneSignal.get(zid) ?? 0, signal));
+
+      // Get zone thresholds
+      const { trigger, renew, entryPoint } = this._getZoneThresholds(zid);
       const st = this._localZoneState.get(zid);
       const isOccupied = st?.occupied ?? false;
-      const thresh = isOccupied ? renew : trigger;
-      if (t.signal >= thresh) zoneConfirmed.add(zid);
+      const isClear = !isOccupied;
+
+      const baseTrigger = isClear ? trigger : renew;
+      const needsGating = !entryPoint && !continuous;
+
+      if (needsGating && isClear) {
+        // Entry point gating: double threshold, cap at 9
+        const gatedThresh = Math.min(baseTrigger * 2, 9);
+        if (signal >= gatedThresh) {
+          this._targetGateCount[i]++;
+          if (this._targetGateCount[i] >= 2) {
+            zoneConfirmed.set(zid, true);
+            if (st) st.confirmedTargets.add(i);
+            this._targetPrev[i] = { col, row };
+            this._targetGateCount[i] = 0;
+          } else {
+            // Record position for next tick's continuity check
+            this._targetPrev[i] = { col, row };
+          }
+        } else {
+          // Below gated threshold: reset
+          this._targetPrev[i] = null;
+          this._targetGateCount[i] = 0;
+        }
+      } else {
+        // Not gated: entry point, continuous, or already occupied/pending
+        if (signal >= baseTrigger) {
+          zoneConfirmed.set(zid, true);
+          if (st) st.confirmedTargets.add(i);
+          this._targetPrev[i] = { col, row };
+          this._targetGateCount[i] = 0;
+        } else {
+          this._targetPrev[i] = { col, row };
+        }
+      }
     }
 
-    // Update per-zone state machine
+    // Handoff detection: targets that moved between zones
+    for (let i = 0; i < MAX_TARGETS; i++) {
+      const prevZid = targetZonePrev[i];
+      const currZid = targetZoneCurr[i];
+      if (prevZid === null || currZid === null || prevZid === currZid) continue;
+
+      const srcSt = this._localZoneState.get(prevZid);
+      if (!srcSt) continue;
+      srcSt.confirmedTargets.delete(i);
+      if (srcSt.confirmedTargets.size === 0 && srcSt.occupied && srcSt.pendingSince === null) {
+        const { timeout, handoffTimeout } = this._getZoneThresholds(prevZid);
+        srcSt.pendingSince = now - (timeout - handoffTimeout);
+        srcSt.isHandoff = true;
+      }
+    }
+
+    // State machine per zone
     const occupancy: Record<number, boolean> = {};
     const allZoneIds = new Set<number>();
     for (let i = 0; i < this._grid.length; i++) {
       if (cellIsInside(this._grid[i])) allZoneIds.add(cellZone(this._grid[i]));
     }
-    // Detect if any zone gained a target (for handoff detection)
-    const anyConfirmed = zoneConfirmed.size > 0;
     for (const zid of allZoneIds) {
       let st = this._localZoneState.get(zid);
-      if (!st) { st = { occupied: false, pendingSince: null, isHandoff: false }; this._localZoneState.set(zid, st); }
-      const { timeout, handoffTimeout } = this._getZoneThresholds(zid);
-      const confirmed = zoneConfirmed.has(zid);
+      if (!st) {
+        st = { occupied: false, pendingSince: null, isHandoff: false, confirmedTargets: new Set() };
+        this._localZoneState.set(zid, st);
+      }
+      const { timeout } = this._getZoneThresholds(zid);
+      const confirmed = zoneConfirmed.get(zid) ?? false;
 
       if (!st.occupied) {
         // CLEAR
-        if (confirmed) { st.occupied = true; st.pendingSince = null; st.isHandoff = false; }
+        if (confirmed) {
+          st.occupied = true;
+          st.pendingSince = null;
+          st.isHandoff = false;
+        }
       } else if (st.pendingSince === null) {
-        // OCCUPIED → check if target left
+        // OCCUPIED
         if (!confirmed) {
-          // Is this a handoff? Target is confirmed in another zone but not this one
-          const isHandoff = anyConfirmed && !confirmed;
           st.pendingSince = now;
-          st.isHandoff = isHandoff;
+          st.isHandoff = false;
         }
       } else {
         // PENDING
-        const effectiveTimeout = st.isHandoff ? handoffTimeout : timeout;
-        if (confirmed) { st.pendingSince = null; st.isHandoff = false; }
-        else if (now - st.pendingSince >= effectiveTimeout) { st.occupied = false; st.pendingSince = null; st.isHandoff = false; }
+        if (confirmed) {
+          st.pendingSince = null;
+          st.isHandoff = false;
+        } else {
+          const effectiveTimeout = st.isHandoff
+            ? this._getZoneThresholds(zid).handoffTimeout
+            : timeout;
+          if (now - st.pendingSince >= effectiveTimeout) {
+            st.occupied = false;
+            st.pendingSince = null;
+            st.isHandoff = false;
+            st.confirmedTargets.clear();
+          }
+        }
       }
       occupancy[zid] = st.occupied;
     }
@@ -4449,23 +4569,25 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   /** Get trigger/renew/timeout for a zone from the current editor state. */
-  private _getZoneThresholds(zid: number): { trigger: number; renew: number; timeout: number; handoffTimeout: number } {
+  private _getZoneThresholds(zid: number): { trigger: number; renew: number; timeout: number; handoffTimeout: number; entryPoint: boolean } {
     if (zid === 0) {
       const d = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
-      return this._roomType === "custom"
-        ? { trigger: this._roomTrigger, renew: this._roomRenew, timeout: this._roomTimeout, handoffTimeout: this._roomHandoffTimeout }
-        : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoffTimeout: d.handoff_timeout };
+      const isCustom = this._roomType === "custom";
+      return isCustom
+        ? { trigger: this._roomTrigger, renew: this._roomRenew, timeout: this._roomTimeout, handoffTimeout: this._roomHandoffTimeout, entryPoint: this._roomEntryPoint }
+        : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoffTimeout: d.handoff_timeout, entryPoint: false };
     }
     if (zid > 0 && zid <= MAX_ZONES) {
       const cfg = this._zoneConfigs[zid - 1];
       if (cfg) {
         const d = ZONE_TYPE_DEFAULTS[cfg.type] || ZONE_TYPE_DEFAULTS.normal;
-        return cfg.type === "custom"
-          ? { trigger: cfg.trigger ?? d.trigger, renew: cfg.renew ?? d.renew, timeout: cfg.timeout ?? d.timeout, handoffTimeout: cfg.handoff_timeout ?? d.handoff_timeout }
-          : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoffTimeout: d.handoff_timeout };
+        const isCustom = cfg.type === "custom";
+        return isCustom
+          ? { trigger: cfg.trigger ?? d.trigger, renew: cfg.renew ?? d.renew, timeout: cfg.timeout ?? d.timeout, handoffTimeout: cfg.handoff_timeout ?? d.handoff_timeout, entryPoint: cfg.entry_point ?? false }
+          : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoffTimeout: d.handoff_timeout, entryPoint: cfg.type === "entrance" };
       }
     }
-    return { trigger: 5, renew: 3, timeout: 10, handoffTimeout: 3 };
+    return { trigger: 5, renew: 3, timeout: 10, handoffTimeout: 3, entryPoint: false };
   }
 
   private _renderBoundaryTypeControls() {
