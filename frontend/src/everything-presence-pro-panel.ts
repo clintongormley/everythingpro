@@ -1073,17 +1073,16 @@ export class EverythingPresenceProPanel extends LitElement {
     // Transform room-space → sensor-space via inverse perspective
     const sensor = this._applyPerspective(inv, rx, ry);
 
-    // FOV check: LD2450 nominally 120° but detects wider in practice (~150°).
-    // Use 75° half-angle to match observed detection area.
+    // 120° FOV: LD2450 sensor looks along +Y axis in sensor-space.
     if (sensor.y <= 0) return false; // behind the sensor
     const angle = Math.abs(Math.atan2(sensor.x, sensor.y));
-    if (angle > 75 * Math.PI / 180) return false;
+    if (angle > Math.PI / 3) return false; // 60° half-angle
 
-    // Distance check: only when user has set a manual range (auto off)
-    if (!this._targetAutoRange) {
-      const dist = Math.sqrt(sensor.x * sensor.x + sensor.y * sensor.y);
-      if (dist > this._targetMaxDistance * 1000) return false;
-    }
+    // Distance check
+    const dist = Math.sqrt(sensor.x * sensor.x + sensor.y * sensor.y);
+    const autoRange = this._autoDetectionRange();
+    const maxRange = (this._targetAutoRange ? (autoRange > 0 ? Math.min(autoRange, 6) : 6) : this._targetMaxDistance) * 1000;
+    if (dist > maxRange) return false;
 
     return true;
   }
