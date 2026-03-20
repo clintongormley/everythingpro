@@ -1019,6 +1019,32 @@ export class EverythingPresenceProPanel extends LitElement {
     };
   }
 
+  /** Check if a grid cell (col, row) is within the sensor's FOV and range. */
+  private _isCellInSensorRange(col: number, row: number): boolean {
+    if (!this._perspective) return true; // no calibration — allow all
+    const raw = this._getRawRoomBounds();
+    if (raw.minCol > raw.maxCol) return true;
+
+    // Sensor is at top-centre of room
+    const sensorCol = (raw.minCol + raw.maxCol) / 2;
+    const sensorRow = raw.minRow;
+
+    // Cell centre relative to sensor, in mm
+    const dx = (col + 0.5 - sensorCol) * GRID_CELL_MM;
+    const dy = (row + 0.5 - sensorRow) * GRID_CELL_MM;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Max range from current target sensor setting
+    const autoRange = this._autoDetectionRange();
+    const maxRange = (this._targetAutoRange ? (autoRange > 0 ? Math.min(autoRange, 6) : 6) : this._targetMaxDistance) * 1000;
+    if (dist > maxRange) return false;
+
+    // 120° FOV: angle from centreline (straight down = positive dy)
+    if (dy <= 0) return false; // behind the sensor
+    const angle = Math.abs(Math.atan2(dx, dy));
+    return angle <= Math.PI / 3; // 60° half-angle
+  }
+
   /** Compute room dimensions and furthest point from sensor based on grid */
   private _getGridRoomMetrics(): { widthM: string; depthM: string; furthestM: string } | null {
     const raw = this._getRawRoomBounds();
@@ -4255,9 +4281,10 @@ export class EverythingPresenceProPanel extends LitElement {
       for (let c = minCol; c <= maxCol; c++) {
         const idx = r * GRID_COLS + c;
         const cellVal = this._grid[idx];
-        let bg = this._getCellColor(idx);
+        const inRange = this._isCellInSensorRange(c, r);
+        let bg = inRange ? this._getCellColor(idx) : "#1a1a1a";
         let border = "";
-        if (cellIsInside(cellVal)) {
+        if (inRange && cellIsInside(cellVal)) {
           const zoneId = cellZone(cellVal);
           if (heatmap) {
             const overlay = heatmap.get(zoneId);
@@ -4266,7 +4293,6 @@ export class EverythingPresenceProPanel extends LitElement {
             }
           }
           if (occupancy[zoneId]) {
-            // Zone is occupied — show coloured border
             border = `box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);`;
           }
         }
@@ -4274,8 +4300,8 @@ export class EverythingPresenceProPanel extends LitElement {
           <div
             class="cell"
             style="background: ${bg}; width: ${cellPx}px; height: ${cellPx}px; ${border}"
-            @mousedown=${() => this._onCellMouseDown(idx)}
-            @mouseenter=${() => this._onCellMouseEnter(idx)}
+            @mousedown=${() => { if (inRange) this._onCellMouseDown(idx); }}
+            @mouseenter=${() => { if (inRange) this._onCellMouseEnter(idx); }}
           ></div>
         `);
       }
