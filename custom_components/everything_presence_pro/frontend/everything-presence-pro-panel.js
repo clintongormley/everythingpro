@@ -468,7 +468,7 @@ class xt extends mt{}xt.directiveName="unsafeSVG",xt.resultType=2;const vt=(t=>(
 
         <button
           class="live-nav-link" style="margin-top: 16px;"
-          @click=${()=>{this._setupStep="guide",this._view="live"}}
+          @click=${()=>{this._setupStep="guide",this._wizardCorners=[null,null,null,null],this._wizardCornerIndex=0,this._view="live"}}
         >
           <ha-icon icon="mdi:target" style="--mdc-icon-size: 16px;"></ha-icon>
           Calibrate room size
@@ -592,7 +592,7 @@ class xt extends mt{}xt.directiveName="unsafeSVG",xt.resultType=2;const vt=(t=>(
           <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
             <button
               class="wizard-btn wizard-btn-primary"
-              @click=${()=>{this._setupStep="guide"}}
+              @click=${()=>{this._setupStep="guide",this._wizardCorners=[null,null,null,null],this._wizardCornerIndex=0}}
             >
               Start room size calibration
             </button>
