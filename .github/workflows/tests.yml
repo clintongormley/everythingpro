@@ -32,6 +32,8 @@ jobs:
           else
             pip install homeassistant==${{ matrix.ha-version }}
           fi
+      - name: Install integration requirements
+        run: pip install aioesphomeapi>=29.0.0
       - name: Install test dependencies
         run: pip install -r requirements_test.txt
       - name: Ruff lint
@@ -56,6 +58,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - name: Biome lint
-        run: npx biome check src/
+        run: npx biome check src/ --diagnostic-level=error
       - name: Vitest
         run: npx vitest run
