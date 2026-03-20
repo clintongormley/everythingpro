@@ -520,6 +520,14 @@ class EverythingPresenceProCoordinator:
         result = self._zone_engine.feed_raw(calibrated, now)
 
         if result is not None:
+            # Debug: log calibrated target positions
+            for idx, (cx, cy, active) in enumerate(calibrated):
+                if active:
+                    _LOGGER.debug(
+                        "Target %d calibrated: room=(%.0f, %.0f) raw=(%.0f, %.0f)",
+                        idx, cx, cy,
+                        self._target_x[idx], self._target_y[idx],
+                    )
             # Window ticked — update state and dispatch
             self._last_result = result
             self._targets = calibrated
@@ -608,7 +616,7 @@ class EverythingPresenceProCoordinator:
                     "trigger": z.trigger,
                     "renew": z.renew,
                     "timeout": z.timeout,
-                    "transfer_timeout": z.transfer_timeout,
+                    "handoff_timeout": z.handoff_timeout,
                     "entry_point": z.entry_point,
                 }
                 for z in self._zones
@@ -673,7 +681,7 @@ class EverythingPresenceProCoordinator:
                     trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["trigger"]),
                     renew=z.get("renew", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["renew"]),
                     timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["timeout"]),
-                    transfer_timeout=z.get("transfer_timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["transfer_timeout"]),
+                    handoff_timeout=z.get("handoff_timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["handoff_timeout"]),
                     entry_point=z.get("entry_point", False),
                 )
                 for i, z in enumerate(zone_slots)
@@ -690,7 +698,7 @@ class EverythingPresenceProCoordinator:
                     trigger=z.get("trigger", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["trigger"]),
                     renew=z.get("renew", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["renew"]),
                     timeout=z.get("timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["timeout"]),
-                    transfer_timeout=z.get("transfer_timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["transfer_timeout"]),
+                    handoff_timeout=z.get("handoff_timeout", ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]["handoff_timeout"]),
                     entry_point=z.get("entry_point", False),
                 )
                 for z in zone_list

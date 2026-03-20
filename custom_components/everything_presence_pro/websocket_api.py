@@ -174,7 +174,7 @@ def websocket_get_config(
                 vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
                 vol.Optional("renew"): vol.All(int, vol.Range(min=0, max=9)),
                 vol.Optional("timeout"): vol.Coerce(float),
-                vol.Optional("transfer_timeout"): vol.Coerce(float),
+                vol.Optional("handoff_timeout"): vol.Coerce(float),
                 vol.Optional("entry_point"): bool,
             }
         ],
@@ -204,7 +204,7 @@ async def websocket_set_zones(
             trigger=z.get("trigger", defaults["trigger"]),
             renew=z.get("renew", defaults["renew"]),
             timeout=z.get("timeout", defaults["timeout"]),
-            transfer_timeout=z.get("transfer_timeout", defaults["transfer_timeout"]),
+            handoff_timeout=z.get("handoff_timeout", defaults["handoff_timeout"]),
             entry_point=z.get("entry_point", False),
         ))
 
@@ -223,7 +223,7 @@ async def websocket_set_zones(
                 "trigger": z.trigger,
                 "renew": z.renew,
                 "timeout": z.timeout,
-                "transfer_timeout": z.transfer_timeout,
+                "handoff_timeout": z.handoff_timeout,
                 "entry_point": z.entry_point,
             }
             for z in zones
@@ -251,7 +251,7 @@ async def websocket_set_zones(
                         vol.Optional("trigger"): vol.All(int, vol.Range(min=0, max=9)),
                         vol.Optional("renew"): vol.All(int, vol.Range(min=0, max=9)),
                         vol.Optional("timeout"): vol.Coerce(float),
-                        vol.Optional("transfer_timeout"): vol.Coerce(float),
+                        vol.Optional("handoff_timeout"): vol.Coerce(float),
                         vol.Optional("entry_point"): bool,
                     },
                 )
@@ -262,7 +262,7 @@ async def websocket_set_zones(
         vol.Optional("room_trigger"): vol.All(int, vol.Range(min=0, max=9)),
         vol.Optional("room_renew"): vol.All(int, vol.Range(min=0, max=9)),
         vol.Optional("room_timeout"): vol.Coerce(float),
-        vol.Optional("room_transfer_timeout"): vol.Coerce(float),
+        vol.Optional("room_handoff_timeout"): vol.Coerce(float),
         vol.Optional("room_entry_point"): bool,
         vol.Optional("furniture", default=[]): [
             {
@@ -307,7 +307,7 @@ async def websocket_set_room_layout(
             trigger=z.get("trigger", defaults["trigger"]),
             renew=z.get("renew", defaults["renew"]),
             timeout=z.get("timeout", defaults["timeout"]),
-            transfer_timeout=z.get("transfer_timeout", defaults["transfer_timeout"]),
+            handoff_timeout=z.get("handoff_timeout", defaults["handoff_timeout"]),
             entry_point=z.get("entry_point", False),
         ))
     coordinator.set_zones(zones)
@@ -318,7 +318,7 @@ async def websocket_set_room_layout(
         "room_trigger": msg.get("room_trigger"),
         "room_renew": msg.get("room_renew"),
         "room_timeout": msg.get("room_timeout"),
-        "room_transfer_timeout": msg.get("room_transfer_timeout"),
+        "room_handoff_timeout": msg.get("room_handoff_timeout"),
         "room_entry_point": msg.get("room_entry_point", False),
         "zone_slots": zone_slots,
         "furniture": msg["furniture"],

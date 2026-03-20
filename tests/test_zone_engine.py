@@ -431,11 +431,11 @@ def test_continuous_movement_no_gating():
 
 
 def test_target_handoff_accelerates_timeout():
-    """When a target moves out of a zone, the source zone clears after transfer_timeout.
+    """When a target moves out of a zone, the source zone clears after handoff_timeout.
 
-    Target in zone 1 (entrance, timeout=10s, transfer_timeout=2s), moves to zone 2.
-    Zone 1 should enter PENDING with (timeout - transfer_timeout) already elapsed,
-    so it clears in transfer_timeout seconds instead of the full timeout.
+    Target in zone 1 (entrance, timeout=10s, handoff_timeout=2s), moves to zone 2.
+    Zone 1 should enter PENDING with (timeout - handoff_timeout) already elapsed,
+    so it clears in handoff_timeout seconds instead of the full timeout.
     """
     grid = _make_grid(cols=4, rows=4)
     cell1 = grid.xy_to_cell(150, 150)
@@ -446,7 +446,7 @@ def test_target_handoff_accelerates_timeout():
 
     zone1 = Zone(
         id=1, name="Entrance", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=10.0, transfer_timeout=2.0,
+        trigger=3, renew=3, timeout=10.0, handoff_timeout=2.0,
     )
     zone2 = Zone(
         id=2, name="Normal", type=ZONE_TYPE_NORMAL,
@@ -469,7 +469,7 @@ def test_target_handoff_accelerates_timeout():
     # Zone 1 is now PENDING but hasn't expired yet
     assert r2.zone_occupancy[1] is True
 
-    # After transfer_timeout (2s) from tick 2, zone 1 should clear.
+    # After handoff_timeout (2s) from tick 2, zone 1 should clear.
     # pending_since = t+1 - 8 = t-7, timeout=10, so clears at t-7+10 = t+3
     # Tick at t+4 (3s after tick 2) → zone 1 should be clear
     w3 = _make_window([(450, 150, 8)])
@@ -566,7 +566,7 @@ def test_no_pending_target_for_handoff():
 
     zone1 = Zone(
         id=1, name="Entrance", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=10.0, transfer_timeout=2.0,
+        trigger=3, renew=3, timeout=10.0, handoff_timeout=2.0,
     )
     zone2 = Zone(
         id=2, name="Normal", type=ZONE_TYPE_NORMAL,
@@ -582,7 +582,7 @@ def test_no_pending_target_for_handoff():
     assert r1.zone_occupancy[1] is True
 
     # Tick 2: target moves to zone 2 (adjacent, continuous)
-    # Zone 1 enters transfer-pending, target removed from confirmed_targets
+    # Zone 1 enters handoff-pending, target removed from confirmed_targets
     w2 = _make_window([(450, 150, 8)])
     r2 = engine._tick(w2, t + 1.0)
 

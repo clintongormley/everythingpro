@@ -20,15 +20,15 @@ interface ZoneConfig {
   trigger?: number;  // 0-9 threshold, 0=disabled, higher=harder
   renew?: number;  // 0-9 threshold, 0=disabled, higher=harder
   timeout?: number;  // seconds, if undefined use type default
-  transfer_timeout?: number;  // seconds, time for zone to clear after target leaves
+  handoff_timeout?: number;  // seconds, time for zone to clear after target leaves
   entry_point?: boolean;
 }
 
-const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; renew: number; timeout: number; transfer_timeout: number }> = {
-  normal: { trigger: 5, renew: 3, timeout: 10, transfer_timeout: 3 },
-  entrance: { trigger: 3, renew: 2, timeout: 5, transfer_timeout: 1 },
-  thoroughfare: { trigger: 3, renew: 2, timeout: 3, transfer_timeout: 1 },
-  rest: { trigger: 7, renew: 1, timeout: 30, transfer_timeout: 10 },
+const ZONE_TYPE_DEFAULTS: Record<string, { trigger: number; renew: number; timeout: number; handoff_timeout: number }> = {
+  normal: { trigger: 5, renew: 3, timeout: 10, handoff_timeout: 3 },
+  entrance: { trigger: 3, renew: 2, timeout: 5, handoff_timeout: 1 },
+  thoroughfare: { trigger: 3, renew: 2, timeout: 3, handoff_timeout: 1 },
+  rest: { trigger: 7, renew: 1, timeout: 30, handoff_timeout: 10 },
 };
 
 interface EntryInfo {
@@ -174,7 +174,7 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _roomTrigger: number = ZONE_TYPE_DEFAULTS.normal.trigger;
   @state() private _roomRenew: number = ZONE_TYPE_DEFAULTS.normal.renew;
   @state() private _roomTimeout: number = ZONE_TYPE_DEFAULTS.normal.timeout;
-  @state() private _roomTransferTimeout: number = ZONE_TYPE_DEFAULTS.normal.transfer_timeout;
+  @state() private _roomHandoffTimeout: number = ZONE_TYPE_DEFAULTS.normal.handoff_timeout;
   @state() private _roomEntryPoint = false;
   @state() private _targetAutoRange = true;
   @state() private _targetMaxDistance = 6.0;
@@ -220,7 +220,7 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _showHitCounts = false;
 
   // Local zone occupancy state machine for live preview (with timeout)
-  private _localZoneState: Map<number, { occupied: boolean; pendingSince: number | null; isTransfer: boolean }> = new Map();
+  private _localZoneState: Map<number, { occupied: boolean; pendingSince: number | null; isHandoff: boolean }> = new Map();
   @state() private _isPainting = false;
   @state() private _paintAction: "set" | "clear" = "set";
   private _frozenBounds: { minCol: number; maxCol: number; minRow: number; maxRow: number } | null = null;
@@ -426,7 +426,7 @@ export class EverythingPresenceProPanel extends LitElement {
         trigger: z.trigger,
         renew: z.renew,
         timeout: z.timeout,
-        transfer_timeout: z.transfer_timeout,
+        handoff_timeout: z.handoff_timeout,
         entry_point: z.entry_point ?? false,
       };
     });
@@ -435,7 +435,7 @@ export class EverythingPresenceProPanel extends LitElement {
     this._roomTrigger = layout.room_trigger ?? ZONE_TYPE_DEFAULTS[this._roomType]?.trigger ?? 5;
     this._roomRenew = layout.room_renew ?? ZONE_TYPE_DEFAULTS[this._roomType]?.renew ?? 3;
     this._roomTimeout = layout.room_timeout ?? ZONE_TYPE_DEFAULTS[this._roomType]?.timeout ?? 10;
-    this._roomTransferTimeout = layout.room_transfer_timeout ?? ZONE_TYPE_DEFAULTS[this._roomType]?.transfer_timeout ?? 3;
+    this._roomHandoffTimeout = layout.room_handoff_timeout ?? ZONE_TYPE_DEFAULTS[this._roomType]?.handoff_timeout ?? 3;
     this._roomEntryPoint = layout.room_entry_point ?? false;
 
     // Load reporting config and offsets
@@ -828,10 +828,10 @@ export class EverythingPresenceProPanel extends LitElement {
         room_trigger: this._roomTrigger,
         room_renew: this._roomRenew,
         room_timeout: this._roomTimeout,
-        room_transfer_timeout: this._roomTransferTimeout,
+        room_handoff_timeout: this._roomHandoffTimeout,
         room_entry_point: this._roomEntryPoint,
         zone_slots: this._zoneConfigs.map((z) =>
-          z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, renew: z.renew, timeout: z.timeout, transfer_timeout: z.transfer_timeout, entry_point: z.entry_point } : null
+          z !== null ? { name: z.name, color: z.color, type: z.type, trigger: z.trigger, renew: z.renew, timeout: z.timeout, handoff_timeout: z.handoff_timeout, entry_point: z.entry_point } : null
         ),
         furniture: this._furniture.map((f) => ({
           type: f.type, icon: f.icon, label: f.label,
@@ -2959,7 +2959,7 @@ export class EverythingPresenceProPanel extends LitElement {
     this._roomTrigger = ZONE_TYPE_DEFAULTS.normal.trigger;
     this._roomRenew = ZONE_TYPE_DEFAULTS.normal.renew;
     this._roomTimeout = ZONE_TYPE_DEFAULTS.normal.timeout;
-    this._roomTransferTimeout = ZONE_TYPE_DEFAULTS.normal.transfer_timeout;
+    this._roomHandoffTimeout = ZONE_TYPE_DEFAULTS.normal.handoff_timeout;
     this._roomEntryPoint = false;
     this._furniture = [];
     // Clear calibration and layout on the backend
@@ -4361,30 +4361,30 @@ export class EverythingPresenceProPanel extends LitElement {
     for (let i = 0; i < this._grid.length; i++) {
       if (cellIsInside(this._grid[i])) allZoneIds.add(cellZone(this._grid[i]));
     }
-    // Detect if any zone gained a target (for transfer detection)
+    // Detect if any zone gained a target (for handoff detection)
     const anyConfirmed = zoneConfirmed.size > 0;
     for (const zid of allZoneIds) {
       let st = this._localZoneState.get(zid);
-      if (!st) { st = { occupied: false, pendingSince: null, isTransfer: false }; this._localZoneState.set(zid, st); }
-      const { timeout, transferTimeout } = this._getZoneThresholds(zid);
+      if (!st) { st = { occupied: false, pendingSince: null, isHandoff: false }; this._localZoneState.set(zid, st); }
+      const { timeout, handoffTimeout } = this._getZoneThresholds(zid);
       const confirmed = zoneConfirmed.has(zid);
 
       if (!st.occupied) {
         // CLEAR
-        if (confirmed) { st.occupied = true; st.pendingSince = null; st.isTransfer = false; }
+        if (confirmed) { st.occupied = true; st.pendingSince = null; st.isHandoff = false; }
       } else if (st.pendingSince === null) {
         // OCCUPIED → check if target left
         if (!confirmed) {
-          // Is this a transfer? Target is confirmed in another zone but not this one
-          const isTransfer = anyConfirmed && !confirmed;
+          // Is this a handoff? Target is confirmed in another zone but not this one
+          const isHandoff = anyConfirmed && !confirmed;
           st.pendingSince = now;
-          st.isTransfer = isTransfer;
+          st.isHandoff = isHandoff;
         }
       } else {
         // PENDING
-        const effectiveTimeout = st.isTransfer ? transferTimeout : timeout;
-        if (confirmed) { st.pendingSince = null; st.isTransfer = false; }
-        else if (now - st.pendingSince >= effectiveTimeout) { st.occupied = false; st.pendingSince = null; st.isTransfer = false; }
+        const effectiveTimeout = st.isHandoff ? handoffTimeout : timeout;
+        if (confirmed) { st.pendingSince = null; st.isHandoff = false; }
+        else if (now - st.pendingSince >= effectiveTimeout) { st.occupied = false; st.pendingSince = null; st.isHandoff = false; }
       }
       occupancy[zid] = st.occupied;
     }
@@ -4449,23 +4449,23 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   /** Get trigger/renew/timeout for a zone from the current editor state. */
-  private _getZoneThresholds(zid: number): { trigger: number; renew: number; timeout: number; transferTimeout: number } {
+  private _getZoneThresholds(zid: number): { trigger: number; renew: number; timeout: number; handoffTimeout: number } {
     if (zid === 0) {
       const d = ZONE_TYPE_DEFAULTS[this._roomType] || ZONE_TYPE_DEFAULTS.normal;
       return this._roomType === "custom"
-        ? { trigger: this._roomTrigger, renew: this._roomRenew, timeout: this._roomTimeout, transferTimeout: this._roomTransferTimeout }
-        : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, transferTimeout: d.transfer_timeout };
+        ? { trigger: this._roomTrigger, renew: this._roomRenew, timeout: this._roomTimeout, handoffTimeout: this._roomHandoffTimeout }
+        : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoffTimeout: d.handoff_timeout };
     }
     if (zid > 0 && zid <= MAX_ZONES) {
       const cfg = this._zoneConfigs[zid - 1];
       if (cfg) {
         const d = ZONE_TYPE_DEFAULTS[cfg.type] || ZONE_TYPE_DEFAULTS.normal;
         return cfg.type === "custom"
-          ? { trigger: cfg.trigger ?? d.trigger, renew: cfg.renew ?? d.renew, timeout: cfg.timeout ?? d.timeout, transferTimeout: cfg.transfer_timeout ?? d.transfer_timeout }
-          : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, transferTimeout: d.transfer_timeout };
+          ? { trigger: cfg.trigger ?? d.trigger, renew: cfg.renew ?? d.renew, timeout: cfg.timeout ?? d.timeout, handoffTimeout: cfg.handoff_timeout ?? d.handoff_timeout }
+          : { trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoffTimeout: d.handoff_timeout };
       }
     }
-    return { trigger: 5, renew: 3, timeout: 10, transferTimeout: 3 };
+    return { trigger: 5, renew: 3, timeout: 10, handoffTimeout: 3 };
   }
 
   private _renderBoundaryTypeControls() {
@@ -4474,7 +4474,7 @@ export class EverythingPresenceProPanel extends LitElement {
     const trigger = isCustom ? this._roomTrigger : defaults.trigger;
     const renew = isCustom ? this._roomRenew : defaults.renew;
     const timeout = isCustom ? this._roomTimeout : defaults.timeout;
-    const transferTimeout = isCustom ? this._roomTransferTimeout : defaults.transfer_timeout;
+    const handoffTimeout = isCustom ? this._roomHandoffTimeout : defaults.handoff_timeout;
     const rowStyle = `width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
     return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
@@ -4490,7 +4490,7 @@ export class EverythingPresenceProPanel extends LitElement {
               this._roomTrigger = d.trigger;
               this._roomRenew = d.renew;
               this._roomTimeout = d.timeout;
-              this._roomTransferTimeout = d.transfer_timeout;
+              this._roomHandoffTimeout = d.handoff_timeout;
               this._dirty = true;
             }}
             @click=${(e: Event) => e.stopPropagation()}
@@ -4525,10 +4525,10 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Transfer timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">Handoff timeout</label>
           <span style="flex: 1;"></span>
-          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(transferTimeout)} ?disabled=${!isCustom}
-            @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { this._roomTransferTimeout = v; this._dirty = true; } }}
+          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(handoffTimeout)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { this._roomHandoffTimeout = v; this._dirty = true; } }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
@@ -4557,7 +4557,7 @@ export class EverythingPresenceProPanel extends LitElement {
     const trigger = zone.trigger ?? defaults.trigger;
     const renew = zone.renew ?? defaults.renew;
     const timeout = zone.timeout ?? defaults.timeout;
-    const transferTimeout = zone.transfer_timeout ?? defaults.transfer_timeout;
+    const handoffTimeout = zone.handoff_timeout ?? defaults.handoff_timeout;
     const rowStyle = `width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};`;
     return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
@@ -4570,7 +4570,7 @@ export class EverythingPresenceProPanel extends LitElement {
               const val = (e.target as HTMLSelectElement).value as ZoneConfig["type"];
               const d = ZONE_TYPE_DEFAULTS[val] || ZONE_TYPE_DEFAULTS.normal;
               const configs = [...this._zoneConfigs];
-              configs[index] = { ...zone, type: val, trigger: d.trigger, renew: d.renew, timeout: d.timeout, transfer_timeout: d.transfer_timeout };
+              configs[index] = { ...zone, type: val, trigger: d.trigger, renew: d.renew, timeout: d.timeout, handoff_timeout: d.handoff_timeout };
               this._zoneConfigs = configs;
               this._dirty = true;
             }}
@@ -4606,10 +4606,10 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Transfer timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">Handoff timeout</label>
           <span style="flex: 1;"></span>
-          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(transferTimeout)} ?disabled=${!isCustom}
-            @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, transfer_timeout: v }; this._zoneConfigs = configs; this._dirty = true; } }}
+          <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(handoffTimeout)} ?disabled=${!isCustom}
+            @input=${(e: Event) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) { const configs = [...this._zoneConfigs]; configs[index] = { ...zone, handoff_timeout: v }; this._zoneConfigs = configs; this._dirty = true; } }}
             @click=${(e: Event) => e.stopPropagation()} />
           <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
         </div>

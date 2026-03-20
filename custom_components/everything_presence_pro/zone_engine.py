@@ -46,7 +46,7 @@ class Zone:
     trigger: int = 5  # 1-9 threshold, higher=harder to trigger
     renew: int = 3  # 1-9 threshold, higher=harder
     timeout: float = 10.0  # seconds
-    transfer_timeout: float = 3.0  # seconds, time for zone to clear after target leaves
+    handoff_timeout: float = 3.0  # seconds, time for zone to clear after target leaves
     entry_point: bool = False  # derived from type, explicit for custom
 
     def __post_init__(self) -> None:
@@ -334,7 +334,7 @@ class ZoneEngine:
             trigger=defaults["trigger"],
             renew=defaults["renew"],
             timeout=defaults["timeout"],
-            transfer_timeout=defaults["transfer_timeout"],
+            handoff_timeout=defaults["handoff_timeout"],
         )
         self._zone_runtimes = {0: _ZoneRuntime(zone=room_zone)}
         for z in zones:
@@ -364,7 +364,7 @@ class ZoneEngine:
            qualifying ticks at doubled threshold before confirming a new
            (non-continuous) target
         4. Target handoff: when a target moves between zones, the source zone
-           clears after transfer_timeout seconds
+           clears after handoff_timeout seconds
         """
         frames = max(window.total_frames, RAW_FPS)
         result = ProcessingResult(frame_count=frames)
@@ -497,10 +497,10 @@ class ZoneEngine:
                     and src_rt.state == ZoneState.OCCUPIED
                 ):
                     src_rt.state = ZoneState.PENDING
-                    src_rt.pending_since = timestamp - (src_rt.zone.timeout - src_rt.zone.transfer_timeout)
+                    src_rt.pending_since = timestamp - (src_rt.zone.timeout - src_rt.zone.handoff_timeout)
                     _LOGGER.debug(
-                        "Handoff: zone %d → PENDING, transfer_timeout=%.1f",
-                        prev_zid, src_rt.zone.transfer_timeout,
+                        "Handoff: zone %d → PENDING, handoff_timeout=%.1f",
+                        prev_zid, src_rt.zone.handoff_timeout,
                     )
 
         # Run state machine per zone
