@@ -7,7 +7,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from custom_components.everything_presence_pro.calibration import SensorTransform
+from custom_components.everything_presence_pro.const import CELL_ROOM_BIT
+from custom_components.everything_presence_pro.const import GRID_CELL_SIZE_MM
+from custom_components.everything_presence_pro.const import GRID_COLS
+from custom_components.everything_presence_pro.const import GRID_ROWS
 from custom_components.everything_presence_pro.coordinator import EverythingPresenceProCoordinator
+from custom_components.everything_presence_pro.zone_engine import Grid
 from custom_components.everything_presence_pro.zone_engine import Zone
 
 
@@ -329,3 +334,127 @@ class TestOffsets:
         assert coordinator._target_index("target_0_x") is None  # out of range
         assert coordinator._target_index("target_4_x") is None  # out of range
         assert coordinator._target_index("bad_name") is None
+
+
+# ---------------------------------------------------------------------------
+# Grid-bounds gating (_build_calibrated_targets)
+# ---------------------------------------------------------------------------
+
+
+def _make_room_grid(room_width_mm: float, room_depth_mm: float) -> Grid:
+    """Create a 20x20 grid with the room rectangle marked as room cells."""
+    cell_size = GRID_CELL_SIZE_MM
+    room_cols = max(1, -(-int(room_width_mm) // cell_size))  # ceil division
+    start_col = (GRID_COLS - room_cols) // 2
+    origin_x = -start_col * cell_size
+    origin_y = 0.0
+    grid = Grid(origin_x=origin_x, origin_y=origin_y, cols=GRID_COLS, rows=GRID_ROWS)
+    for r in range(GRID_ROWS):
+        for c in range(GRID_COLS):
+            cx = origin_x + (c + 0.5) * cell_size
+            cy = origin_y + (r + 0.5) * cell_size
+            if 0 <= cx < room_width_mm and 0 <= cy < room_depth_mm:
+                grid.cells[r * GRID_COLS + c] = CELL_ROOM_BIT
+    return grid
+
+
+def _coordinator_with_grid(mock_hass, mock_entry, room_w=3000, room_d=3000):
+    """Create a coordinator with an identity perspective and a room grid."""
+    coord = EverythingPresenceProCoordinator(mock_hass, mock_entry)
+    # Identity perspective: calibrated coords == raw coords
+    transform = SensorTransform(
+        perspective=[1, 0, 0, 0, 1, 0, 0, 0],
+        room_width=room_w,
+        room_depth=room_d,
+    )
+    coord.set_sensor_transform(transform)
+    grid = _make_room_grid(room_w, room_d)
+    coord._zone_engine.set_grid(grid)
+    return coord
+
+
+class TestBuildCalibratedTargetsGridGating:
+    """Tests for _build_calibrated_targets grid-bounds gating."""
+
+    def test_target_inside_room_stays_active(self, mock_hass, mock_entry):
+        """A target inside the room grid is reported as active."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [True, False, False]
+        coord._target_x = [1500.0, 0.0, 0.0]
+        coord._target_y = [1500.0, 0.0, 0.0]
+
+        result = coord._build_calibrated_targets()
+
+        assert result[0][2] is True  # active
+        assert result[0][0] == pytest.approx(1500.0)
+        assert result[0][1] == pytest.approx(1500.0)
+
+    def test_target_outside_grid_becomes_inactive(self, mock_hass, mock_entry):
+        """A target beyond the 20x20 grid boundary is treated as inactive."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [True, False, False]
+        # Place target far outside the grid (grid is 20*300=6000mm wide)
+        coord._target_x = [9000.0, 0.0, 0.0]
+        coord._target_y = [1500.0, 0.0, 0.0]
+
+        result = coord._build_calibrated_targets()
+
+        assert result[0][2] is False  # gated to inactive
+
+    def test_target_on_non_room_cell_becomes_inactive(self, mock_hass, mock_entry):
+        """A target inside the grid but on a non-room cell is treated as inactive."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [True, False, False]
+        # Place target at negative x — inside the 20x20 grid but outside the room rectangle
+        coord._target_x = [-1000.0, 0.0, 0.0]
+        coord._target_y = [1500.0, 0.0, 0.0]
+
+        result = coord._build_calibrated_targets()
+
+        assert result[0][2] is False  # gated to inactive
+
+    def test_inactive_target_stays_inactive(self, mock_hass, mock_entry):
+        """An already-inactive target is unaffected by grid gating."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [False, False, False]
+        coord._target_x = [1500.0, 0.0, 0.0]
+        coord._target_y = [1500.0, 0.0, 0.0]
+
+        result = coord._build_calibrated_targets()
+
+        assert result[0][2] is False
+
+    def test_multiple_targets_gated_independently(self, mock_hass, mock_entry):
+        """Each target is gated based on its own position."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [True, True, True]
+        coord._target_x = [1500.0, 9000.0, 1500.0]  # inside, outside, inside
+        coord._target_y = [1500.0, 1500.0, 1500.0]
+
+        result = coord._build_calibrated_targets()
+
+        assert result[0][2] is True  # inside room
+        assert result[1][2] is False  # outside grid
+        assert result[2][2] is True  # inside room
+
+    def test_target_at_room_edge_is_active(self, mock_hass, mock_entry):
+        """A target just inside the room boundary stays active."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [True, False, False]
+        coord._target_x = [150.0, 0.0, 0.0]  # center of first room cell
+        coord._target_y = [150.0, 0.0, 0.0]
+
+        result = coord._build_calibrated_targets()
+
+        assert result[0][2] is True
+
+    def test_target_negative_coords_becomes_inactive(self, mock_hass, mock_entry):
+        """A target with negative y (behind sensor) is treated as inactive."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [True, False, False]
+        coord._target_x = [1500.0, 0.0, 0.0]
+        coord._target_y = [-500.0, 0.0, 0.0]
+
+        result = coord._build_calibrated_targets()
+
+        assert result[0][2] is False

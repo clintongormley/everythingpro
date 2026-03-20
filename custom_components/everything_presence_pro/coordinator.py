@@ -555,11 +555,14 @@ class EverythingPresenceProCoordinator:
 
     def _build_calibrated_targets(self) -> list[tuple[float, float, bool]]:
         """Build calibrated target list from current raw state."""
+        grid = self._zone_engine.grid
         calibrated: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
             if self._target_active[i]:
                 cx, cy = self._sensor_transform.apply(self._target_x[i], self._target_y[i])
-                calibrated.append((cx, cy, True))
+                cell = grid.xy_to_cell(cx, cy)
+                inside = cell is not None and grid.cell_is_room(cell)
+                calibrated.append((cx, cy, inside))
             else:
                 calibrated.append((self._target_x[i], self._target_y[i], False))
         return calibrated
