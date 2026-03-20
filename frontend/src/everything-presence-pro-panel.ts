@@ -1245,11 +1245,9 @@ export class EverythingPresenceProPanel extends LitElement {
         this._wizardCornerIndex = idx + 1;
       }
 
-      // If all 4 corners marked, compute dimensions and save immediately
+      // All 4 marked — compute dimensions but don't save yet (user can review)
       if (this._wizardCorners.every((c) => c !== null)) {
         this._autoComputeRoomDimensions();
-        this._computeWizardPerspective();
-        this._wizardFinish();
       }
     };
 
@@ -3202,62 +3200,76 @@ export class EverythingPresenceProPanel extends LitElement {
           )}
         </div>
 
-        ${allMarked
-          ? nothing
-          : html`
+        <div class="corner-offsets" key="${idx}">
+          <span class="offset-label">Distance from:</span>
+          <input
+            type="number"
+            class="offset-input"
+            min="0"
+            step="1"
+            placeholder="${sideLabel} (cm)"
+            .value=${this._wizardCorners[idx]?.offset_side ? String(this._wizardCorners[idx]!.offset_side / 10) : ""}
+            @change=${(e: Event) => {
+              const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
+              const corner = this._wizardCorners[idx];
+              if (corner) corner.offset_side = val;
+            }}
+          />
+          <input
+            type="number"
+            class="offset-input"
+            min="0"
+            step="1"
+            placeholder="${fbLabel} (cm)"
+            .value=${this._wizardCorners[idx]?.offset_fb ? String(this._wizardCorners[idx]!.offset_fb / 10) : ""}
+            @change=${(e: Event) => {
+              const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
+              const corner = this._wizardCorners[idx];
+              if (corner) corner.offset_fb = val;
+            }}
+          />
+        </div>
 
-            <div class="corner-offsets" key="${idx}">
-              <span class="offset-label">Distance from:</span>
-              <input
-                type="number"
-                class="offset-input"
-                min="0"
-                step="1"
-                placeholder="${sideLabel} (cm)"
-                .value=${this._wizardCorners[idx]?.offset_side ? String(this._wizardCorners[idx]!.offset_side / 10) : ""}
-                @change=${(e: Event) => {
-                  const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
-                  const corner = this._wizardCorners[idx];
-                  if (corner) corner.offset_side = val;
-                }}
-              />
-              <input
-                type="number"
-                class="offset-input"
-                min="0"
-                step="1"
-                placeholder="${fbLabel} (cm)"
-                .value=${this._wizardCorners[idx]?.offset_fb ? String(this._wizardCorners[idx]!.offset_fb / 10) : ""}
-                @change=${(e: Event) => {
-                  const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
-                  const corner = this._wizardCorners[idx];
-                  if (corner) corner.offset_fb = val;
-                }}
-              />
-            </div>
+        ${!allMarked ? html`
+          ${this._renderMiniSensorView()}
 
-            ${this._renderMiniSensorView()}
+          <p class="no-target-warning" style="visibility: ${!hasTarget || tooManyTargets ? "visible" : "hidden"};">
+            ${!hasTarget
+              ? "No target detected. Make sure you are visible to the sensor."
+              : "Multiple targets detected. Only one person should be in the room during calibration."}
+          </p>
 
-            <p class="no-target-warning" style="visibility: ${!hasTarget || tooManyTargets ? "visible" : "hidden"};">
-              ${!hasTarget
-                ? "No target detected. Make sure you are visible to the sensor."
-                : "Multiple targets detected. Only one person should be in the room during calibration."}
-            </p>
-
-            <div class="wizard-actions">
-              <button
-                class="wizard-btn wizard-btn-back"
-                @click=${() => { this._setupStep = null; }}
-              >Cancel</button>
-              <button
-                class="wizard-btn wizard-btn-primary"
-                ?disabled=${!hasTarget || tooManyTargets || this._wizardCapturing}
-                @click=${() => this._wizardStartCapture()}
-              >
-                Mark ${label}
-              </button>
-            </div>
-          `}
+          <div class="wizard-actions">
+            <button
+              class="wizard-btn wizard-btn-back"
+              @click=${() => { this._setupStep = null; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; }}
+            >Cancel</button>
+            <button
+              class="wizard-btn wizard-btn-primary"
+              ?disabled=${!hasTarget || tooManyTargets || this._wizardCapturing}
+              @click=${() => this._wizardStartCapture()}
+            >
+              Mark ${label}
+            </button>
+          </div>
+        ` : html`
+          <p style="font-size: 13px; color: var(--secondary-text-color); margin: 12px 0 4px;">
+            All corners marked. Click a corner above to re-mark it, or adjust the distances and save.
+          </p>
+          <div class="wizard-actions">
+            <button
+              class="wizard-btn wizard-btn-back"
+              @click=${() => { this._setupStep = null; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; }}
+            >Cancel</button>
+            <button
+              class="wizard-btn wizard-btn-primary"
+              ?disabled=${this._wizardSaving}
+              @click=${() => { this._computeWizardPerspective(); this._wizardFinish(); }}
+            >
+              ${this._wizardSaving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        `}
       </div>
     `;
   }
