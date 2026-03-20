@@ -249,6 +249,8 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _wizardRoomDepth = 0; // mm
   @state() private _wizardCapturing = false;
   @state() private _wizardCaptureProgress = 0; // 0..1
+  @state() private _wizardOffsetSide = "";
+  @state() private _wizardOffsetFb = "";
 
   // View mode: live (default), editor (grid/zones), or settings (configuration)
   @state() private _view: "live" | "editor" | "settings" = "live";
@@ -285,6 +287,12 @@ export class EverythingPresenceProPanel extends LitElement {
       (t as HTMLElement).style.display = 'none';
     });
   };
+
+  private _syncCornerOffsets(): void {
+    const corner = this._wizardCorners[this._wizardCornerIndex];
+    this._wizardOffsetSide = corner?.offset_side ? String(corner.offset_side / 10) : "";
+    this._wizardOffsetFb = corner?.offset_fb ? String(corner.offset_fb / 10) : "";
+  }
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -1243,6 +1251,13 @@ export class EverythingPresenceProPanel extends LitElement {
   }
 
   @state() private _wizardCapturePaused = false;
+  private _wizardCaptureCancelled = false;
+
+  private _wizardCancelCapture(): void {
+    this._wizardCaptureCancelled = true;
+    this._wizardCapturing = false;
+    this._wizardCapturePaused = false;
+  }
 
   private _wizardStartCapture(): void {
     const active = this._targets.find((t) => t.active);
@@ -1251,6 +1266,7 @@ export class EverythingPresenceProPanel extends LitElement {
     this._wizardCapturing = true;
     this._wizardCaptureProgress = 0;
     this._wizardCapturePaused = false;
+    this._wizardCaptureCancelled = false;
 
     const samples: { x: number; y: number }[] = [];
     let goodElapsed = 0;
@@ -1258,6 +1274,8 @@ export class EverythingPresenceProPanel extends LitElement {
     const duration = CAPTURE_DURATION_S * 1000;
 
     const tick = () => {
+      if (this._wizardCaptureCancelled) return;
+
       const now = Date.now();
       const dt = now - lastTick;
       lastTick = now;
@@ -1295,14 +1313,15 @@ export class EverythingPresenceProPanel extends LitElement {
       this._wizardCorners[idx] = {
         raw_x: medianX,
         raw_y: medianY,
-        offset_side: 0,
-        offset_fb: 0,
+        offset_side: 10 * (parseFloat(this._wizardOffsetSide) || 0),
+        offset_fb: 10 * (parseFloat(this._wizardOffsetFb) || 0),
       };
 
-      // Advance to next unmarked corner
+      // Advance to next unmarked corner and clear offset fields
       if (idx < 3) {
         this._wizardCornerIndex = idx + 1;
       }
+      this._syncCornerOffsets();
 
       // All 4 marked — compute dimensions but don't save yet (user can review)
       if (this._wizardCorners.every((c) => c !== null)) {
@@ -2993,6 +3012,8 @@ export class EverythingPresenceProPanel extends LitElement {
       this._setupStep = "guide";
       this._wizardCornerIndex = 0;
       this._wizardCorners = [null, null, null, null];
+      this._wizardOffsetSide = "";
+      this._wizardOffsetFb = "";
       this._wizardRoomWidth = this._roomWidth;
       this._wizardRoomDepth = this._roomDepth;
     });
@@ -3055,6 +3076,11 @@ export class EverythingPresenceProPanel extends LitElement {
               <p style="margin: 8px 0 0; font-size: 13px; color: ${this._wizardCapturePaused ? "var(--error-color, #e53935)" : "var(--secondary-text-color)"};">
                 ${this._wizardCapturePaused ? "Paused — need exactly one target visible" : "Stand still"}
               </p>
+              <button
+                class="wizard-btn wizard-btn-back"
+                style="margin-top: 12px;"
+                @click=${() => this._wizardCancelCapture()}
+              >Cancel</button>
             </div>
           </div>
         ` : nothing}
@@ -3201,7 +3227,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
         <div style="display: flex; justify-content: space-between; margin-top: 20px;">
           <button class="wizard-btn wizard-btn-back"
-            @click=${() => { this._setupStep = null; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; }}
+            @click=${() => { this._setupStep = null; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; this._wizardOffsetSide = ""; this._wizardOffsetFb = ""; }}
           >Cancel</button>
           <button class="wizard-btn wizard-btn-primary"
             @click=${() => { this._setupStep = "corners"; }}
@@ -3247,7 +3273,14 @@ export class EverythingPresenceProPanel extends LitElement {
               return html`
                 <span
                   class="corner-chip ${done ? "done" : ""} ${active ? "active" : ""}"
-                  @click=${() => { this._wizardCornerIndex = i; }}
+                  @click=${() => {
+                    const prev = this._wizardCorners[i];
+                    this._wizardCornerIndex = i;
+                    this._wizardCorners = [...this._wizardCorners];
+                    this._wizardCorners[i] = null;
+                    this._wizardOffsetSide = prev?.offset_side ? String(prev.offset_side / 10) : "";
+                    this._wizardOffsetFb = prev?.offset_fb ? String(prev.offset_fb / 10) : "";
+                  }}
                 >
                   ${name} ${done ? "\u2713" : ""}
                 </span>
@@ -3267,9 +3300,10 @@ export class EverythingPresenceProPanel extends LitElement {
             min="0"
             step="1"
             placeholder="${sideLabel} (cm)"
-            .value=${this._wizardCorners[idx]?.offset_side ? String(this._wizardCorners[idx]!.offset_side / 10) : ""}
-            @change=${(e: Event) => {
-              const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
+            .value=${this._wizardOffsetSide}
+            @input=${(e: Event) => {
+              this._wizardOffsetSide = (e.target as HTMLInputElement).value;
+              const val = 10 * (parseFloat(this._wizardOffsetSide) || 0);
               const corner = this._wizardCorners[idx];
               if (corner) corner.offset_side = val;
             }}
@@ -3280,46 +3314,36 @@ export class EverythingPresenceProPanel extends LitElement {
             min="0"
             step="1"
             placeholder="${fbLabel} (cm)"
-            .value=${this._wizardCorners[idx]?.offset_fb ? String(this._wizardCorners[idx]!.offset_fb / 10) : ""}
-            @change=${(e: Event) => {
-              const val = 10 * (parseFloat((e.target as HTMLInputElement).value) || 0);
+            .value=${this._wizardOffsetFb}
+            @input=${(e: Event) => {
+              this._wizardOffsetFb = (e.target as HTMLInputElement).value;
+              const val = 10 * (parseFloat(this._wizardOffsetFb) || 0);
               const corner = this._wizardCorners[idx];
               if (corner) corner.offset_fb = val;
             }}
           />
         </div>
 
-        ${!allMarked ? html`
-          ${this._renderMiniSensorView()}
+        ${this._renderMiniSensorView()}
 
+        ${!allMarked ? html`
           <p class="no-target-warning" style="visibility: ${!hasTarget || tooManyTargets ? "visible" : "hidden"};">
             ${!hasTarget
               ? "No target detected. Make sure you are visible to the sensor."
               : "Multiple targets detected. Only one person should be in the room during calibration."}
           </p>
-
-          <div class="wizard-actions">
-            <button
-              class="wizard-btn wizard-btn-back"
-              @click=${() => { this._setupStep = null; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; }}
-            >Cancel</button>
-            <button
-              class="wizard-btn wizard-btn-primary"
-              ?disabled=${!hasTarget || tooManyTargets || this._wizardCapturing}
-              @click=${() => this._wizardStartCapture()}
-            >
-              Mark ${label}
-            </button>
-          </div>
         ` : html`
           <p style="font-size: 13px; color: var(--secondary-text-color); margin: 12px 0 4px;">
-            All corners marked. Click a corner above to re-mark it, or adjust the distances and save.
+            Click Save to store this room's calibration, or click a corner above to re-mark it.
           </p>
-          <div class="wizard-actions">
-            <button
-              class="wizard-btn wizard-btn-back"
-              @click=${() => { this._setupStep = null; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; }}
-            >Cancel</button>
+        `}
+
+        <div class="wizard-actions">
+          <button
+            class="wizard-btn wizard-btn-back"
+            @click=${() => { this._setupStep = null; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; this._wizardOffsetSide = ""; this._wizardOffsetFb = ""; }}
+          >Cancel</button>
+          ${allMarked ? html`
             <button
               class="wizard-btn wizard-btn-primary"
               ?disabled=${this._wizardSaving}
@@ -3327,8 +3351,16 @@ export class EverythingPresenceProPanel extends LitElement {
             >
               ${this._wizardSaving ? "Saving..." : "Save"}
             </button>
-          </div>
-        `}
+          ` : html`
+            <button
+              class="wizard-btn wizard-btn-primary"
+              ?disabled=${!hasTarget || tooManyTargets || this._wizardCapturing}
+              @click=${() => this._wizardStartCapture()}
+            >
+              Mark ${label}
+            </button>
+          `}
+        </div>
       </div>
     `;
   }
@@ -3612,7 +3644,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
         <button
           class="live-nav-link" style="margin-top: 16px;"
-          @click=${() => { this._setupStep = "guide"; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; this._view = "live"; }}
+          @click=${() => { this._setupStep = "guide"; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; this._wizardOffsetSide = ""; this._wizardOffsetFb = ""; this._view = "live"; }}
         >
           <ha-icon icon="mdi:target" style="--mdc-icon-size: 16px;"></ha-icon>
           Calibrate room size
@@ -3767,7 +3799,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
             <button
               class="wizard-btn wizard-btn-primary"
-              @click=${() => { this._setupStep = "guide"; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; }}
+              @click=${() => { this._setupStep = "guide"; this._wizardCorners = [null, null, null, null]; this._wizardCornerIndex = 0; this._wizardOffsetSide = ""; this._wizardOffsetFb = ""; }}
             >
               Start room size calibration
             </button>
