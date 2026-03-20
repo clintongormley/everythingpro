@@ -39,9 +39,6 @@ class SensorTransform:
             return x, y
         rx = (a * x + b * y + c) / denom
         ry = (d * x + e * y + f) / denom
-        # Clamp to room bounds
-        rx = max(0.0, min(rx, self.room_width))
-        ry = max(0.0, min(ry, self.room_depth))
         return rx, ry
 
     def to_dict(self) -> dict[str, Any]:

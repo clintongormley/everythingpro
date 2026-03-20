@@ -1147,18 +1147,10 @@ export class EverythingPresenceProPanel extends LitElement {
     const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
     const startCol = Math.floor((GRID_COLS - roomCols) / 2);
 
-    // Use actual inside-cell bounds for clamping (no padding)
-    const raw = this._getRawRoomBounds();
-    const minMmX = (raw.minCol - startCol) * GRID_CELL_MM;
-    const maxMmX = (raw.maxCol - startCol + 1) * GRID_CELL_MM;
-    const maxMmY = (raw.maxRow + 1) * GRID_CELL_MM;
-
     // target.x/y are room-space mm (perspective applied server-side)
-    const rx = Math.max(minMmX, Math.min(target.x, maxMmX));
-    const ry = Math.max(0, Math.min(target.y, maxMmY));
-
-    const col = startCol + (rx / GRID_CELL_MM);
-    const row = ry / GRID_CELL_MM;
+    // No clamping — targets outside the calibrated room are shown on the grid
+    const col = startCol + (target.x / GRID_CELL_MM);
+    const row = target.y / GRID_CELL_MM;
 
     return { col, row };
   }
