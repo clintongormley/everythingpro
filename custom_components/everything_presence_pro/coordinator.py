@@ -520,14 +520,6 @@ class EverythingPresenceProCoordinator:
         result = self._zone_engine.feed_raw(calibrated, now)
 
         if result is not None:
-            # Debug: log calibrated target positions
-            for idx, (cx, cy, active) in enumerate(calibrated):
-                if active:
-                    _LOGGER.debug(
-                        "Target %d calibrated: room=(%.0f, %.0f) raw=(%.0f, %.0f)",
-                        idx, cx, cy,
-                        self._target_x[idx], self._target_y[idx],
-                    )
             # Window ticked — update state and dispatch
             self._last_result = result
             self._targets = calibrated

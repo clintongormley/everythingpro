@@ -271,9 +271,9 @@ class TumblingWindow:
 
         total = self._frame_count
         _LOGGER.debug(
-            "Window emit: %d frames, targets: %s",
+            "Window: %d frames, targets: %s",
             total,
-            [(t.frame_count, t.active) for t in targets],
+            " ".join(f"T{i}={t.frame_count}f" for i, t in enumerate(targets) if t.active) or "none",
         )
 
         output = WindowOutput(targets=targets, total_frames=total)
@@ -561,13 +561,24 @@ class ZoneEngine:
         # Room is occupied if any zone (including zone 0) is occupied
         result.device_tracking_present = any(result.zone_occupancy.values())
 
+        # Build readable log
+        parts = []
+        for i, tw in enumerate(window.targets):
+            if not tw.active:
+                continue
+            zid = target_zone_curr[i]
+            zname = self._zone_runtimes[zid].zone.name if zid is not None and zid in self._zone_runtimes else "outside"
+            confirmed = "Y" if zone_confirmed.get(zid) else "N"
+            sig = zone_signal.get(zid, 0) if zid is not None else 0
+            parts.append(f"T{i}: signal={sig} zone={zname!r} confirmed={confirmed}")
+        zone_parts = []
+        for zid, rt in self._zone_runtimes.items():
+            if rt.state != ZoneState.CLEAR:
+                zone_parts.append(f"{rt.zone.name}: {rt.state.value}")
         _LOGGER.debug(
-            "Tick: frames=%d, target_zones=%s, confirmed=%s, signal=%s, occupancy=%s",
-            frames,
-            {i: z for i, z in enumerate(target_zone_curr) if z is not None},
-            dict(zone_confirmed),
-            dict(zone_signal),
-            dict(result.zone_occupancy),
+            "%s | %s",
+            ", ".join(parts) if parts else "no targets",
+            ", ".join(zone_parts) if zone_parts else "all clear",
         )
 
         return result
