@@ -176,6 +176,12 @@ export class EverythingPresenceProPanel extends LitElement {
   @state() private _roomTimeout: number = ZONE_TYPE_DEFAULTS.normal.timeout;
   @state() private _roomTransferTimeout: number = ZONE_TYPE_DEFAULTS.normal.transfer_timeout;
   @state() private _roomEntryPoint = false;
+  @state() private _targetAutoRange = true;
+  @state() private _targetMaxDistance = 6.0;
+  @state() private _staticAutoRange = true;
+  @state() private _staticMinDistance = 0;
+  @state() private _staticMaxDistance = 6.0;
+  @state() private _staticTriggerDistance = 6.0;
   @state() private _sidebarTab: "zones" | "furniture" | "live" = "zones";
   @state() private _expandedSensorInfo: string | null = null;
   @state() private _showLiveMenu = false;
@@ -3776,44 +3782,57 @@ export class EverythingPresenceProPanel extends LitElement {
   private _renderDetectionRanges() {
     const autoRange = this._autoDetectionRange();
     const metrics = this._getGridRoomMetrics();
+    const targetVal = this._targetAutoRange ? Math.min(autoRange, 6) : this._targetMaxDistance;
+    const staticMaxVal = this._staticAutoRange ? Math.min(autoRange, 25) : this._staticMaxDistance;
+    const disabledStyle = "opacity: 0.5;";
     return html`
       <div class="settings-section">
         ${metrics ? html`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong style="color: var(--error-color, #e53935);">${metrics.furthestM}m</strong></p>` : nothing}
         <div class="setting-group">
           <h4>Target Sensor</h4>
           <div class="setting-row">
-            <label>Detection range</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="6" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span><span class="setting-unit">m</span></span>
-            ${this._infoTip("Maximum detection distance for the target sensor. Auto-set from room dimensions.")}
+            <label>Auto</label>
+            <label class="toggle-switch">
+              <input type="checkbox" ?checked=${this._targetAutoRange}
+                @change=${(e: Event) => { this._targetAutoRange = (e.target as HTMLInputElement).checked; }} />
+              <span class="toggle-slider"></span>
+            </label>
+            ${this._infoTip("Automatically set max distance from room dimensions.")}
           </div>
-          <div class="setting-row">
-            <label>Update rate</label>
-            <span class="setting-input-unit">
-              <select class="setting-input">
-                <option value="5" selected>5 Hz (default)</option>
-                <option value="10">10 Hz (fast)</option>
-                <option value="2">2 Hz (low power)</option>
-              </select>
-              <span class="setting-value"></span><span class="setting-unit"></span>
-            </span>
-            ${this._infoTip("How often the sensor reports target data.")}
+          <div class="setting-row" style="${this._targetAutoRange ? disabledStyle : ""}">
+            <label>Max distance</label>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(targetVal)} min="0.5" max="6" step="0.1" ?disabled=${this._targetAutoRange}
+              @input=${(e: Event) => { const el = e.target as HTMLInputElement; this._targetMaxDistance = Number(el.value); el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${targetVal}</span><span class="setting-unit">m</span></span>
+            ${this._infoTip("Maximum detection distance for the target sensor (LD2450). Hardware limit: 6m.")}
           </div>
         </div>
         <div class="setting-group">
           <h4>Static Sensor</h4>
           <div class="setting-row">
+            <label>Auto</label>
+            <label class="toggle-switch">
+              <input type="checkbox" ?checked=${this._staticAutoRange}
+                @change=${(e: Event) => { this._staticAutoRange = (e.target as HTMLInputElement).checked; }} />
+              <span class="toggle-slider"></span>
+            </label>
+            ${this._infoTip("Automatically set max distance from room dimensions.")}
+          </div>
+          <div class="setting-row" style="${this._staticAutoRange ? disabledStyle : ""}">
             <label>Min distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" value="0" min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">0</span><span class="setting-unit">m</span></span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticMinDistance)} min="0" max="25" step="0.1" ?disabled=${this._staticAutoRange}
+              @input=${(e: Event) => { const el = e.target as HTMLInputElement; this._staticMinDistance = Number(el.value); el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${this._staticMinDistance}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Minimum detection distance for the static sensor.")}
           </div>
-          <div class="setting-row">
+          <div class="setting-row" style="${this._staticAutoRange ? disabledStyle : ""}">
             <label>Max distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span><span class="setting-unit">m</span></span>
-            ${this._infoTip("Maximum detection distance for the static sensor. Auto-set from room dimensions.")}
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(staticMaxVal)} min="0.5" max="25" step="0.1" ?disabled=${this._staticAutoRange}
+              @input=${(e: Event) => { const el = e.target as HTMLInputElement; this._staticMaxDistance = Number(el.value); el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${staticMaxVal}</span><span class="setting-unit">m</span></span>
+            ${this._infoTip("Maximum detection distance for the static sensor. Hardware limit: 25m.")}
           </div>
-          <div class="setting-row">
+          <div class="setting-row" style="${this._staticAutoRange ? disabledStyle : ""}">
             <label>Trigger distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(autoRange)} min="0" max="25" step="0.1" @input=${(e: Event) => { const el = e.target as HTMLInputElement; el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${autoRange}</span><span class="setting-unit">m</span></span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticAutoRange ? staticMaxVal : this._staticTriggerDistance)} min="0.5" max="25" step="0.1" ?disabled=${this._staticAutoRange}
+              @input=${(e: Event) => { const el = e.target as HTMLInputElement; this._staticTriggerDistance = Number(el.value); el.nextElementSibling!.textContent = el.value; }} /><span class="setting-value">${this._staticAutoRange ? staticMaxVal : this._staticTriggerDistance}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Distance at which the static sensor triggers presence.")}
           </div>
         </div>
