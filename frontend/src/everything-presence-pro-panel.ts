@@ -1019,29 +1019,65 @@ export class EverythingPresenceProPanel extends LitElement {
     };
   }
 
+  /** Compute the inverse perspective (room→sensor) from the forward perspective. */
+  private _getInversePerspective(): number[] | null {
+    const h = this._perspective;
+    if (!h || h.length < 8) return null;
+    // Forward: rx = (h0*sx + h1*sy + h2)/(h6*sx + h7*sy + 1)
+    //          ry = (h3*sx + h4*sy + h5)/(h6*sx + h7*sy + 1)
+    // This is a 3x3 homography matrix:
+    // [h0 h1 h2]
+    // [h3 h4 h5]
+    // [h6 h7  1]
+    // Inverse is the matrix inverse, then normalize so H[2][2]=1
+    const H = [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+    // 3x3 matrix inverse
+    const det = H[0]*(H[4]*H[8]-H[5]*H[7]) - H[1]*(H[3]*H[8]-H[5]*H[6]) + H[2]*(H[3]*H[7]-H[4]*H[6]);
+    if (Math.abs(det) < 1e-10) return null;
+    const inv = [
+      (H[4]*H[8]-H[5]*H[7])/det, (H[2]*H[7]-H[1]*H[8])/det, (H[1]*H[5]-H[2]*H[4])/det,
+      (H[5]*H[6]-H[3]*H[8])/det, (H[0]*H[8]-H[2]*H[6])/det, (H[2]*H[3]-H[0]*H[5])/det,
+      (H[3]*H[7]-H[4]*H[6])/det, (H[1]*H[6]-H[0]*H[7])/det, (H[0]*H[4]-H[1]*H[3])/det,
+    ];
+    // Normalize so inv[8] = 1
+    const s = inv[8];
+    if (Math.abs(s) < 1e-10) return null;
+    return [inv[0]/s, inv[1]/s, inv[2]/s, inv[3]/s, inv[4]/s, inv[5]/s, inv[6]/s, inv[7]/s];
+  }
+
+  /** Apply a perspective transform (8 coefficients) to a point. */
+  private _applyPerspective(h: number[], x: number, y: number): { x: number; y: number } {
+    const w = h[6]*x + h[7]*y + 1;
+    return { x: (h[0]*x + h[1]*y + h[2]) / w, y: (h[3]*x + h[4]*y + h[5]) / w };
+  }
+
   /** Check if a grid cell (col, row) is within the sensor's FOV and range. */
   private _isCellInSensorRange(col: number, row: number): boolean {
     if (!this._perspective) return true; // no calibration — allow all
-    const raw = this._getRawRoomBounds();
-    if (raw.minCol > raw.maxCol) return true;
 
-    // Sensor is at top-centre of room
-    const sensorCol = (raw.minCol + raw.maxCol) / 2;
-    const sensorRow = raw.minRow;
+    const inv = this._getInversePerspective();
+    if (!inv) return true;
 
-    // Cell centre relative to sensor, in mm
-    const dx = (col + 0.5 - sensorCol) * GRID_CELL_MM;
-    const dy = (row + 0.5 - sensorRow) * GRID_CELL_MM;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Cell centre in room-space mm
+    const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
+    const startCol = Math.floor((GRID_COLS - roomCols) / 2);
+    const rx = (col + 0.5 - startCol) * GRID_CELL_MM;
+    const ry = (row + 0.5) * GRID_CELL_MM;
+
+    // Transform room-space → sensor-space
+    const sensor = this._applyPerspective(inv, rx, ry);
+
+    // Distance from sensor origin
+    const dist = Math.sqrt(sensor.x * sensor.x + sensor.y * sensor.y);
 
     // Max range from current target sensor setting
     const autoRange = this._autoDetectionRange();
     const maxRange = (this._targetAutoRange ? (autoRange > 0 ? Math.min(autoRange, 6) : 6) : this._targetMaxDistance) * 1000;
     if (dist > maxRange) return false;
 
-    // 120° FOV: angle from centreline (straight down = positive dy)
-    if (dy <= 0) return false; // behind the sensor
-    const angle = Math.abs(Math.atan2(dx, dy));
+    // 120° FOV: sensor looks along +Y axis, angle from centreline
+    if (sensor.y <= 0) return false; // behind the sensor
+    const angle = Math.abs(Math.atan2(sensor.x, sensor.y));
     return angle <= Math.PI / 3; // 60° half-angle
   }
 
