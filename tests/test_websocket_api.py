@@ -1,56 +1,288 @@
 """Tests for the WebSocket API."""
 
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
+from homeassistant.core import HomeAssistant
 
-from custom_components.everything_presence_pro.websocket_api import websocket_get_config
+from custom_components.everything_presence_pro.const import DOMAIN
+from custom_components.everything_presence_pro.const import MAX_ZONES
+
+
+@pytest.fixture(autouse=True)
+def _clear_ws_registered():
+    """Clear the global WS registration guard between tests.
+
+    The websocket_api module uses a module-level ``_REGISTERED`` set to
+    avoid double-registering commands. Each test gets a fresh ``hass``
+    instance, so we must reset the guard so commands are registered on
+    the new instance.
+    """
+    from custom_components.everything_presence_pro import websocket_api
+
+    websocket_api._REGISTERED.discard(DOMAIN)
+    yield
+    websocket_api._REGISTERED.discard(DOMAIN)
 
 
 @pytest.fixture
-def mock_coordinator():
-    """Create a mock coordinator."""
-    coordinator = MagicMock()
-    coordinator.entry = MagicMock()
-    coordinator.entry.entry_id = "test_entry"
-    coordinator.get_config_data.return_value = {
-        "zones": [],
-        "calibration": {},
-        "room_cells": [],
-        "furniture": [],
-    }
-    return coordinator
+async def setup_integration(hass: HomeAssistant, mock_config_entry, mock_esphome_client):
+    """Set up the integration for WS tests and return the entry."""
+    mock_http = MagicMock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http
+
+    with patch(
+        "custom_components.everything_presence_pro.panel_custom.async_register_panel",
+        new_callable=AsyncMock,
+    ):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+    return mock_config_entry
 
 
-def test_websocket_get_config_returns_data(mock_coordinator):
-    """Test get_config returns coordinator config."""
-    hass = MagicMock()
-    entry = MagicMock()
-    entry.runtime_data = mock_coordinator
-    hass.config_entries.async_get_entry.return_value = entry
+# ---------------------------------------------------------------------------
+# list_entries
+# ---------------------------------------------------------------------------
 
-    connection = MagicMock()
-    msg = {"id": 1, "type": "everything_presence_pro/get_config", "entry_id": "test_entry"}
 
-    websocket_get_config(hass, connection, msg)
-    connection.send_result.assert_called_once_with(
-        1,
+async def test_list_entries(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """list_entries returns configured entries with metadata."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json({"id": 1, "type": "everything_presence_pro/list_entries"})
+    msg = await ws_client.receive_json()
+
+    assert msg["id"] == 1
+    assert msg["success"] is True
+    result = msg["result"]
+    assert len(result) == 1
+    assert result[0]["entry_id"] == entry.entry_id
+    assert result[0]["title"] == "Test EP Pro"
+    assert "has_perspective" in result[0]
+    assert "has_layout" in result[0]
+
+
+# ---------------------------------------------------------------------------
+# get_config
+# ---------------------------------------------------------------------------
+
+
+async def test_get_config(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """get_config returns the coordinator's config data."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
         {
+            "id": 1,
+            "type": "everything_presence_pro/get_config",
+            "entry_id": entry.entry_id,
+        }
+    )
+    msg = await ws_client.receive_json()
+
+    assert msg["success"] is True
+    result = msg["result"]
+    assert "zones" in result
+    assert "calibration" in result
+    assert "grid" in result
+    assert "offsets" in result
+
+
+async def test_get_config_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """get_config with invalid entry_id returns an error."""
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/get_config",
+            "entry_id": "nonexistent_id",
+        }
+    )
+    msg = await ws_client.receive_json()
+
+    assert msg["success"] is False
+    assert msg["error"]["code"] == "not_found"
+
+
+# ---------------------------------------------------------------------------
+# set_zones
+# ---------------------------------------------------------------------------
+
+
+async def test_set_zones(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_zones persists zones to the coordinator and entry options."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_zones",
+            "entry_id": entry.entry_id,
+            "zones": [
+                {"id": 1, "name": "Desk", "type": "normal"},
+                {"id": 2, "name": "Bed", "type": "rest"},
+            ],
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+
+    # Verify coordinator state
+    coordinator = entry.runtime_data
+    assert len(coordinator.zones) == 2
+    assert coordinator.zones[0].name == "Desk"
+    assert coordinator.zones[1].name == "Bed"
+
+    # Verify persistence in entry options
+    config = entry.options.get("config", {})
+    assert len(config["zones"]) == 2
+
+
+async def test_set_zones_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_zones with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_zones",
+            "entry_id": "bad_id",
             "zones": [],
-            "calibration": {},
-            "room_cells": [],
-            "furniture": [],
-        },
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# set_room_layout
+# ---------------------------------------------------------------------------
+
+
+async def test_set_room_layout(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_room_layout updates grid, zones, and persists to options."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    # Create grid_bytes: 400 bytes (20x20), with some room + zone cells
+    grid_bytes = [0] * 400
+    grid_bytes[0] = 0x01  # room bit set
+
+    zone_slots = [None] * MAX_ZONES
+    zone_slots[0] = {"name": "Desk", "color": "#ff0000", "type": "normal"}
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_room_layout",
+            "entry_id": entry.entry_id,
+            "grid_bytes": grid_bytes,
+            "zone_slots": zone_slots,
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+
+    # Verify coordinator has the zone
+    coordinator = entry.runtime_data
+    assert len(coordinator.zones) == 1
+    assert coordinator.zones[0].name == "Desk"
+
+    # Verify persistence
+    config = entry.options.get("config", {})
+    assert "room_layout" in config
+
+
+async def test_set_room_layout_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_room_layout with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_room_layout",
+            "entry_id": "bad_id",
+            "grid_bytes": [0] * 400,
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# subscribe_targets
+# ---------------------------------------------------------------------------
+
+
+async def test_subscribe_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_targets sends initial state and receives updates."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_targets",
+            "entry_id": entry.entry_id,
+        }
     )
 
+    # First message: result (subscription acknowledgment)
+    msg = await ws_client.receive_json()
+    assert msg["id"] == 1
+    assert msg["success"] is True
 
-def test_websocket_get_config_not_found():
-    """Test get_config with invalid entry_id."""
-    hass = MagicMock()
-    hass.config_entries.async_get_entry.return_value = None
+    # Second message: initial state event
+    msg = await ws_client.receive_json()
+    assert msg["id"] == 1
+    assert msg["type"] == "event"
+    event = msg["event"]
+    assert "targets" in event
+    assert "sensors" in event
+    assert "zones" in event
+    assert "pending_targets" in event
 
-    connection = MagicMock()
-    msg = {"id": 1, "type": "everything_presence_pro/get_config", "entry_id": "bad_id"}
+    # Verify target structure
+    assert len(event["targets"]) == 3  # MAX_TARGETS = 3
+    for t in event["targets"]:
+        assert "x" in t
+        assert "y" in t
+        assert "active" in t
+        assert "raw_x" in t
+        assert "raw_y" in t
+        assert "signal" in t
 
-    websocket_get_config(hass, connection, msg)
-    connection.send_error.assert_called_once()
+    # Verify sensor structure
+    sensors = event["sensors"]
+    assert "occupancy" in sensors
+    assert "static_presence" in sensors
+    assert "pir_motion" in sensors
+    assert "illuminance" in sensors
+    assert "temperature" in sensors
+    assert "humidity" in sensors
+    assert "co2" in sensors
+
+
+async def test_subscribe_targets_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_targets with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_targets",
+            "entry_id": "bad_id",
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
+    assert msg["error"]["code"] == "not_found"

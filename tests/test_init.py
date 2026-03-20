@@ -1,89 +1,157 @@
 """Tests for integration setup and teardown."""
 
-from unittest.mock import MagicMock
+from __future__ import annotations
 
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
+import pytest
+from homeassistant.core import HomeAssistant
+
+from custom_components.everything_presence_pro.const import DOMAIN
 from custom_components.everything_presence_pro.coordinator import EverythingPresenceProCoordinator
 
 
-def test_coordinator_full_lifecycle():
-    """Test coordinator creation, zone config, and teardown."""
-    hass = MagicMock()
-    entry = MagicMock()
-    entry.entry_id = "test_entry_id"
-    entry.data = {"host": "192.168.1.100", "noise_psk": "key"}
-    entry.options = {}
+@pytest.fixture(autouse=True)
+def _patch_frontend(hass: HomeAssistant):
+    """Patch hass.http and panel_custom so setup_entry doesn't fail on frontend registration."""
+    mock_http = MagicMock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http
 
-    coordinator = EverythingPresenceProCoordinator(hass, entry)
-    assert coordinator.connected is False
-    assert coordinator.device_occupied is False
-
-    # Configure zones
-    from custom_components.everything_presence_pro.zone_engine import Zone
-
-    zones = [
-        Zone(id=1, name="Desk", type="normal"),
-        Zone(id=2, name="Bed", type="rest"),
-    ]
-    coordinator.set_zones(zones)
-    assert len(coordinator.zones) == 2
-
-    # Verify config roundtrip
-    data = coordinator.get_config_data()
-    assert len(data["zones"]) == 2
-
-    coordinator2 = EverythingPresenceProCoordinator(hass, entry)
-    coordinator2.load_config_data(data)
-    assert len(coordinator2.zones) == 2
-    assert coordinator2.zones[0].name == "Desk"
-    assert coordinator2.zones[1].name == "Bed"
+    with patch(
+        "custom_components.everything_presence_pro.panel_custom.async_register_panel",
+        new_callable=AsyncMock,
+    ) as mock_panel:
+        yield mock_panel
 
 
-def test_zone_engine_full_pipeline():
-    """Test the full target processing pipeline."""
-    from custom_components.everything_presence_pro.zone_engine import Zone
-    from custom_components.everything_presence_pro.zone_engine import ZoneEngine
+async def test_setup_creates_coordinator(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_esphome_client,
+):
+    """Setting up the entry creates a coordinator stored in runtime_data."""
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
-    engine = ZoneEngine()
-
-    # Set up a zone
-    cell = engine.grid.xy_to_cell(0, 3000)
-    assert cell is not None
-
-    zone = Zone(id=1, name="Center", type="normal", trigger=9, renew=9)
-    engine.set_zones([zone])
-
-    # Process target at zone location
-    result = engine.process_targets([(0, 3000, True)])
-    assert result.device_tracking_present is True
-    assert result.zone_occupancy[1] is True  # High sensitivity = immediate
-    assert result.zone_target_counts[1] == 1
-
-    # Process with no active targets
-    result = engine.process_targets([(0, 0, False)])
-    assert result.device_tracking_present is False
-    assert result.zone_occupancy[1] is False
-
-    # Test calibration integration
-    from custom_components.everything_presence_pro.calibration import SensorTransform
-
-    transform = SensorTransform()
-    x, y = transform.apply(0, 3000)
-    assert abs(x - 0) < 1  # Identity transform (ld2450_correct at angle=0 is identity)
-    assert abs(y - 3000) < 1
+    assert mock_config_entry.runtime_data is not None
+    assert isinstance(mock_config_entry.runtime_data, EverythingPresenceProCoordinator)
 
 
-def test_calibration_full_pipeline():
-    """Test calibration transform serialization roundtrip."""
-    from custom_components.everything_presence_pro.calibration import SensorTransform
+async def test_setup_forwards_platforms(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_esphome_client,
+):
+    """Setup forwards binary_sensor and sensor platforms."""
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
-    transform = SensorTransform(sensor_angle=0.5, offset_x=100.0, offset_y=200.0)
+    entity_ids = [e.entity_id for e in hass.states.async_all()]
+    has_binary = any(eid.startswith("binary_sensor.") for eid in entity_ids)
+    has_sensor = any(eid.startswith("sensor.") for eid in entity_ids)
+    assert has_binary, f"Expected binary_sensor entities, got: {entity_ids}"
+    assert has_sensor, f"Expected sensor entities, got: {entity_ids}"
 
-    # Apply to a point
-    x, y = transform.apply(0, 3000)
 
-    # Verify serialization roundtrip
-    data = transform.to_dict()
-    restored = SensorTransform.from_dict(data)
-    x2, y2 = restored.apply(0, 3000)
-    assert abs(x - x2) < 0.001
-    assert abs(y - y2) < 0.001
+async def test_setup_registers_panel(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_esphome_client,
+    _patch_frontend,
+):
+    """Setup registers the frontend panel once."""
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    hass.http.async_register_static_paths.assert_called_once()
+    _patch_frontend.assert_called_once()
+    assert hass.data.get(f"{DOMAIN}_panel_registered") is True
+
+
+async def test_setup_panel_registered_only_once(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_esphome_client,
+    _patch_frontend,
+):
+    """If panel is already registered, skip re-registration."""
+    hass.data[f"{DOMAIN}_panel_registered"] = True
+
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    hass.http.async_register_static_paths.assert_not_called()
+    _patch_frontend.assert_not_called()
+
+
+async def test_setup_creates_device(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_esphome_client,
+):
+    """Setup creates a device in the device registry."""
+    from homeassistant.helpers import device_registry as dr
+
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get_device(identifiers={(DOMAIN, mock_config_entry.entry_id)})
+    assert device is not None
+    assert device.name == "Test EP Pro"
+    assert device.manufacturer == "Everything Smart Technology"
+    assert device.model == "Everything Presence Pro"
+
+
+async def test_unload_entry(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_esphome_client,
+):
+    """Unloading the entry disconnects the coordinator."""
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    with patch.object(coordinator, "async_disconnect", new_callable=AsyncMock) as mock_disconnect:
+        result = await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert result is True
+    mock_disconnect.assert_called_once()
+
+
+async def test_setup_loads_config_data(
+    hass: HomeAssistant,
+    mock_esphome_client,
+):
+    """Setup calls load_config_data with config from entry options."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test EP Pro",
+        data={
+            "host": "192.168.1.100",
+            "mac": "AA:BB:CC:DD:EE:FF",
+            "device_name": "Test EP Pro",
+        },
+        options={
+            "config": {
+                "zones": [
+                    {"id": 1, "name": "Desk", "type": "normal"},
+                ],
+            }
+        },
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    coordinator = entry.runtime_data
+    assert len(coordinator.zones) == 1
+    assert coordinator.zones[0].name == "Desk"
