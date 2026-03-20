@@ -1058,13 +1058,15 @@ export class EverythingPresenceProPanel extends LitElement {
   private _isCellInSensorRange(col: number, row: number): boolean {
     if (!this._perspective) return true; // no calibration — allow all
 
+    // Cells inside the room boundary are always in range by definition
+    // (the room was calibrated by walking to its corners)
+    const idx = row * GRID_COLS + col;
+    if (idx >= 0 && idx < GRID_CELL_COUNT && cellIsInside(this._grid[idx])) return true;
+
     const inv = this._getInversePerspective();
     if (!inv) return true;
 
-    // Cell centre in room-space mm.
-    // The frontend grid is centred horizontally: startCol is the first room column.
-    // Room-space x=0 corresponds to grid column startCol.
-    // Room-space y=0 corresponds to grid row 0.
+    // Cell centre in room-space mm
     const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
     const startCol = Math.floor((GRID_COLS - roomCols) / 2);
     const rx = (col - startCol + 0.5) * GRID_CELL_MM;
@@ -1073,7 +1075,7 @@ export class EverythingPresenceProPanel extends LitElement {
     // Transform room-space → sensor-space via inverse perspective
     const sensor = this._applyPerspective(inv, rx, ry);
 
-    // 120° FOV: LD2450 sensor looks along +Y axis in sensor-space.
+    // 120° FOV: LD2450 sensor looks along +Y axis in sensor-space
     if (sensor.y <= 0) return false; // behind the sensor
     const angle = Math.abs(Math.atan2(sensor.x, sensor.y));
     if (angle > Math.PI / 3) return false; // 60° half-angle
