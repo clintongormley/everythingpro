@@ -4,16 +4,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.everything_presence_pro.binary_sensor import (
-    EverythingPresenceProOccupancySensor,
-    EverythingPresenceProMotionSensor,
-    EverythingPresenceProStaticPresenceSensor,
-    EverythingPresenceProZoneOccupancySensor,
-)
-from custom_components.everything_presence_pro.zone_engine import (
-    Zone,
-    ProcessingResult,
-)
+from custom_components.everything_presence_pro.binary_sensor import EverythingPresenceProMotionSensor
+from custom_components.everything_presence_pro.binary_sensor import EverythingPresenceProOccupancySensor
+from custom_components.everything_presence_pro.binary_sensor import EverythingPresenceProStaticPresenceSensor
+from custom_components.everything_presence_pro.binary_sensor import EverythingPresenceProZoneOccupancySensor
+from custom_components.everything_presence_pro.zone_engine import ProcessingResult
+from custom_components.everything_presence_pro.zone_engine import Zone
 
 
 @pytest.fixture
@@ -32,8 +28,10 @@ def mock_coordinator():
     )
     # Slot 1 has a zone, slot 2 has a zone, others empty
     coordinator.get_zone_by_slot = lambda slot: (
-        Zone(id=1, name="Desk", type="normal") if slot == 1
-        else Zone(id=2, name="Sofa", type="normal") if slot == 2
+        Zone(id=1, name="Desk", type="normal")
+        if slot == 1
+        else Zone(id=2, name="Sofa", type="normal")
+        if slot == 2
         else None
     )
     return coordinator

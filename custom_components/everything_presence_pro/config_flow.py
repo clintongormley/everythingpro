@@ -6,15 +6,14 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from aioesphomeapi import (
-    APIClient,
-    APIConnectionError,
-    InvalidAuthAPIError,
-)
+from aioesphomeapi import APIClient
+from aioesphomeapi import APIConnectionError
+from aioesphomeapi import InvalidAuthAPIError
+from homeassistant.config_entries import ConfigFlow
+from homeassistant.config_entries import ConfigFlowResult
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
-
-from .const import DEFAULT_PORT, DOMAIN
+from .const import DEFAULT_PORT
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,9 +35,7 @@ class EverythingPresenceProConfigFlow(ConfigFlow, domain=DOMAIN):
         self._mac: str = ""
         self._esphome_name: str = ""
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Step 1: Ask for the host IP address."""
         errors: dict[str, str] = {}
 
@@ -66,9 +63,7 @@ class EverythingPresenceProConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
 
                 self._mac = device_info.mac_address
-                self._esphome_name = (
-                    device_info.friendly_name or device_info.name
-                )
+                self._esphome_name = device_info.friendly_name or device_info.name
                 return await self.async_step_name()
             finally:
                 await client.disconnect()
@@ -79,9 +74,7 @@ class EverythingPresenceProConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_name(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_name(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Step 2: Ask for the sensor name."""
         if user_input is not None:
             name = user_input["name"].strip()

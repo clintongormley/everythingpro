@@ -5,23 +5,27 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.components import websocket_api
-from homeassistant.core import HomeAssistant, callback
-
-from homeassistant.helpers import device_registry as dr, entity_registry
+from homeassistant.core import HomeAssistant
+from homeassistant.core import callback
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry
 
 from .calibration import SensorTransform
-from .const import DOMAIN, MAX_TARGETS, MAX_ZONES, ZONE_TYPE_DEFAULTS, ZONE_TYPE_NORMAL
-from .coordinator import EverythingPresenceProCoordinator, SIGNAL_SENSORS_UPDATED, SIGNAL_TARGETS_UPDATED
+from .const import DOMAIN
+from .const import MAX_TARGETS
+from .const import MAX_ZONES
+from .const import ZONE_TYPE_DEFAULTS
+from .const import ZONE_TYPE_NORMAL
+from .coordinator import SIGNAL_SENSORS_UPDATED
+from .coordinator import SIGNAL_TARGETS_UPDATED
+from .coordinator import EverythingPresenceProCoordinator
 from .zone_engine import Zone
 
 _REGISTERED: set[str] = set()
 
 
-def _get_coordinator(
-    hass: HomeAssistant, entry_id: str
-) -> EverythingPresenceProCoordinator | None:
+def _get_coordinator(hass: HomeAssistant, entry_id: str) -> EverythingPresenceProCoordinator | None:
     """Look up the coordinator for a config entry."""
     entry = hass.config_entries.async_get_entry(entry_id)
     if entry is None:
@@ -68,14 +72,8 @@ def websocket_list_entries(
             {
                 "entry_id": e.entry_id,
                 "title": device_name or e.title,
-                "has_perspective": bool(
-                    e.options.get("config", {})
-                    .get("calibration", {})
-                    .get("perspective")
-                ),
-                "has_layout": bool(
-                    e.options.get("config", {}).get("room_layout")
-                ),
+                "has_perspective": bool(e.options.get("config", {}).get("calibration", {}).get("perspective")),
+                "has_layout": bool(e.options.get("config", {}).get("room_layout")),
             }
         )
     connection.send_result(msg["id"], result)
@@ -85,9 +83,7 @@ def websocket_list_entries(
     {
         vol.Required("type"): "everything_presence_pro/set_setup",
         vol.Required("entry_id"): str,
-        vol.Required("perspective"): vol.All(
-            [vol.Coerce(float)], vol.Length(min=8, max=8)
-        ),
+        vol.Required("perspective"): vol.All([vol.Coerce(float)], vol.Length(min=8, max=8)),
         vol.Required("room_width"): vol.Coerce(float),
         vol.Required("room_depth"): vol.Coerce(float),
     }
@@ -133,9 +129,7 @@ async def websocket_set_setup(
     config["grid_cols"] = grid.cols
     config["grid_rows"] = grid.rows
 
-    hass.config_entries.async_update_entry(
-        entry, options={**entry.options, "config": config}
-    )
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "config": config})
 
     connection.send_result(msg["id"])
 
@@ -196,17 +190,19 @@ async def websocket_set_zones(
     for z in msg["zones"]:
         ztype = z.get("type", ZONE_TYPE_NORMAL)
         defaults = ZONE_TYPE_DEFAULTS.get(ztype, ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL])
-        zones.append(Zone(
-            id=z["id"],
-            name=z["name"],
-            type=ztype,
-            color=z.get("color", ""),
-            trigger=z.get("trigger", defaults["trigger"]),
-            renew=z.get("renew", defaults["renew"]),
-            timeout=z.get("timeout", defaults["timeout"]),
-            handoff_timeout=z.get("handoff_timeout", defaults["handoff_timeout"]),
-            entry_point=z.get("entry_point", False),
-        ))
+        zones.append(
+            Zone(
+                id=z["id"],
+                name=z["name"],
+                type=ztype,
+                color=z.get("color", ""),
+                trigger=z.get("trigger", defaults["trigger"]),
+                renew=z.get("renew", defaults["renew"]),
+                timeout=z.get("timeout", defaults["timeout"]),
+                handoff_timeout=z.get("handoff_timeout", defaults["handoff_timeout"]),
+                entry_point=z.get("entry_point", False),
+            )
+        )
 
     coordinator.set_zones(zones)
 
@@ -228,9 +224,7 @@ async def websocket_set_zones(
             }
             for z in zones
         ]
-        hass.config_entries.async_update_entry(
-            entry, options={**entry.options, "config": config}
-        )
+        hass.config_entries.async_update_entry(entry, options={**entry.options, "config": config})
 
     connection.send_result(msg["id"])
 
@@ -299,17 +293,19 @@ async def websocket_set_room_layout(
             continue
         ztype = z.get("type", ZONE_TYPE_NORMAL)
         defaults = ZONE_TYPE_DEFAULTS.get(ztype, ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL])
-        zones.append(Zone(
-            id=i + 1,
-            name=z["name"],
-            type=ztype,
-            color=z.get("color", ""),
-            trigger=z.get("trigger", defaults["trigger"]),
-            renew=z.get("renew", defaults["renew"]),
-            timeout=z.get("timeout", defaults["timeout"]),
-            handoff_timeout=z.get("handoff_timeout", defaults["handoff_timeout"]),
-            entry_point=z.get("entry_point", False),
-        ))
+        zones.append(
+            Zone(
+                id=i + 1,
+                name=z["name"],
+                type=ztype,
+                color=z.get("color", ""),
+                trigger=z.get("trigger", defaults["trigger"]),
+                renew=z.get("renew", defaults["renew"]),
+                timeout=z.get("timeout", defaults["timeout"]),
+                handoff_timeout=z.get("handoff_timeout", defaults["handoff_timeout"]),
+                entry_point=z.get("entry_point", False),
+            )
+        )
     coordinator.set_zones(zones)
 
     layout = {
@@ -331,9 +327,7 @@ async def websocket_set_room_layout(
     if entry is not None:
         config = dict(entry.options.get("config", {}))
         config["room_layout"] = layout
-        hass.config_entries.async_update_entry(
-            entry, options={**entry.options, "config": config}
-        )
+        hass.config_entries.async_update_entry(entry, options={**entry.options, "config": config})
 
     # Enable/disable zone entities based on slot occupancy AND reporting toggles
     registry = entity_registry.async_get(hass)
@@ -400,22 +394,20 @@ async def websocket_set_room_layout(
                     slug = zone_name.lower().replace(" ", "_")
                     # Get device name for entity_id prefix
                     dev_reg = dr.async_get(hass)
-                    device_entry = (
-                        dev_reg.async_get(ent_entry.device_id)
-                        if ent_entry.device_id
-                        else None
-                    )
+                    device_entry = dev_reg.async_get(ent_entry.device_id) if ent_entry.device_id else None
                     device_slug = (
-                        device_entry.name_by_user or device_entry.name or "epp"
-                    ).lower().replace(" ", "_") if device_entry else "epp"
-                    desired_id = (
-                        f"{platform}.{device_slug}_{slug}_{entity_suffix}"
+                        (device_entry.name_by_user or device_entry.name or "epp").lower().replace(" ", "_")
+                        if device_entry
+                        else "epp"
                     )
+                    desired_id = f"{platform}.{device_slug}_{slug}_{entity_suffix}"
                     if ent != desired_id:
-                        entity_id_renames.append({
-                            "old_entity_id": ent,
-                            "new_entity_id": desired_id,
-                        })
+                        entity_id_renames.append(
+                            {
+                                "old_entity_id": ent,
+                                "new_entity_id": desired_id,
+                            }
+                        )
             else:
                 # Disable: slot empty or reporting toggle off
                 if ent_entry.disabled_by is None:
@@ -424,9 +416,12 @@ async def websocket_set_room_layout(
                         disabled_by=entity_registry.RegistryEntryDisabler.INTEGRATION,
                     )
 
-    connection.send_result(msg["id"], {
-        "entity_id_renames": entity_id_renames,
-    })
+    connection.send_result(
+        msg["id"],
+        {
+            "entity_id_renames": entity_id_renames,
+        },
+    )
 
 
 @websocket_api.websocket_command(
@@ -467,7 +462,7 @@ async def websocket_subscribe_targets(
                             "raw_y": r[1],
                             "signal": signals[i] if i < len(signals) else 0,
                         }
-                        for i, (t, r) in enumerate(zip(targets, raw_targets))
+                        for i, (t, r) in enumerate(zip(targets, raw_targets, strict=True))
                     ],
                     "sensors": {
                         "occupancy": coordinator.device_occupied,
@@ -567,27 +562,13 @@ _REPORTING_ENTITIES: dict[str, list[tuple[str, str]]] = {
     "room_target_count": [("_target_count", "sensor")],
     # Zone level (handled separately per slot)
     # Target level (expanded per target index)
-    "target_xy_sensor": [
-        (f"_target_{i + 1}_xy_sensor", "sensor") for i in range(MAX_TARGETS)
-    ],
-    "target_xy_grid": [
-        (f"_target_{i + 1}_xy_grid", "sensor") for i in range(MAX_TARGETS)
-    ],
-    "target_active": [
-        (f"_target_{i + 1}_active", "binary_sensor") for i in range(MAX_TARGETS)
-    ],
-    "target_distance": [
-        (f"_target_{i + 1}_distance", "sensor") for i in range(MAX_TARGETS)
-    ],
-    "target_angle": [
-        (f"_target_{i + 1}_angle", "sensor") for i in range(MAX_TARGETS)
-    ],
-    "target_speed": [
-        (f"_target_{i + 1}_speed", "sensor") for i in range(MAX_TARGETS)
-    ],
-    "target_resolution": [
-        (f"_target_{i + 1}_resolution", "sensor") for i in range(MAX_TARGETS)
-    ],
+    "target_xy_sensor": [(f"_target_{i + 1}_xy_sensor", "sensor") for i in range(MAX_TARGETS)],
+    "target_xy_grid": [(f"_target_{i + 1}_xy_grid", "sensor") for i in range(MAX_TARGETS)],
+    "target_active": [(f"_target_{i + 1}_active", "binary_sensor") for i in range(MAX_TARGETS)],
+    "target_distance": [(f"_target_{i + 1}_distance", "sensor") for i in range(MAX_TARGETS)],
+    "target_angle": [(f"_target_{i + 1}_angle", "sensor") for i in range(MAX_TARGETS)],
+    "target_speed": [(f"_target_{i + 1}_speed", "sensor") for i in range(MAX_TARGETS)],
+    "target_resolution": [(f"_target_{i + 1}_resolution", "sensor") for i in range(MAX_TARGETS)],
     # Environmental
     "env_illuminance": [("_illuminance", "sensor")],
     "env_humidity": [("_humidity", "sensor")],
@@ -636,9 +617,7 @@ def websocket_set_reporting(
     config["reporting"] = reporting
     if offsets:
         config["offsets"] = offsets
-    hass.config_entries.async_update_entry(
-        entry, options={**entry.options, "config": config}
-    )
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "config": config})
 
     # Apply offsets to coordinator immediately
     coordinator = _get_coordinator(hass, entry_id)
@@ -667,7 +646,10 @@ def websocket_set_reporting(
         # Zone-level entities: zone 0 (rest of room) + slots 1-7
         if key in _ZONE_REPORTING:
             # Zone 0 "rest of room"
-            zone0_map = {"zone_presence": ("_rest_of_room", "binary_sensor"), "zone_target_count": ("_rest_of_room_count", "sensor")}
+            zone0_map = {
+                "zone_presence": ("_rest_of_room", "binary_sensor"),
+                "zone_target_count": ("_rest_of_room_count", "sensor"),
+            }
             if key in zone0_map:
                 uid_suffix, platform = zone0_map[key]
                 unique_id = f"{entry_id}{uid_suffix}"
@@ -692,9 +674,7 @@ def websocket_set_reporting(
                 for uid_template, platform in _ZONE_REPORTING[key]:
                     uid_suffix = uid_template.format(slot=slot)
                     unique_id = f"{entry_id}{uid_suffix}"
-                    ent = registry.async_get_entity_id(
-                        platform, DOMAIN, unique_id
-                    )
+                    ent = registry.async_get_entity_id(platform, DOMAIN, unique_id)
                     if ent is None:
                         continue
                     ent_entry = registry.async_get(ent)

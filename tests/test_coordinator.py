@@ -1,12 +1,10 @@
 """Tests for the data coordinator."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.everything_presence_pro.coordinator import (
-    EverythingPresenceProCoordinator,
-)
+from custom_components.everything_presence_pro.coordinator import EverythingPresenceProCoordinator
 from custom_components.everything_presence_pro.zone_engine import Zone
 
 

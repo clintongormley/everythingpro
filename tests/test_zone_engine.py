@@ -1,23 +1,18 @@
 """Tests for the zone engine."""
 
-from custom_components.everything_presence_pro.const import (
-    CELL_ROOM_BIT,
-    CELL_ZONE_SHIFT,
-    RAW_FPS,
-    ZONE_TYPE_DEFAULTS,
-    ZONE_TYPE_ENTRANCE,
-    ZONE_TYPE_NORMAL,
-    threshold_to_frame_count,
-)
-from custom_components.everything_presence_pro.zone_engine import (
-    Grid,
-    TargetWindow,
-    TumblingWindow,
-    WindowOutput,
-    Zone,
-    ZoneEngine,
-)
-
+from custom_components.everything_presence_pro.const import CELL_ROOM_BIT
+from custom_components.everything_presence_pro.const import CELL_ZONE_SHIFT
+from custom_components.everything_presence_pro.const import RAW_FPS
+from custom_components.everything_presence_pro.const import ZONE_TYPE_DEFAULTS
+from custom_components.everything_presence_pro.const import ZONE_TYPE_ENTRANCE
+from custom_components.everything_presence_pro.const import ZONE_TYPE_NORMAL
+from custom_components.everything_presence_pro.const import threshold_to_frame_count
+from custom_components.everything_presence_pro.zone_engine import Grid
+from custom_components.everything_presence_pro.zone_engine import TargetWindow
+from custom_components.everything_presence_pro.zone_engine import TumblingWindow
+from custom_components.everything_presence_pro.zone_engine import WindowOutput
+from custom_components.everything_presence_pro.zone_engine import Zone
+from custom_components.everything_presence_pro.zone_engine import ZoneEngine
 
 # --- Grid tests (new bit encoding) ---
 
@@ -153,7 +148,10 @@ def test_state_machine_clear_to_occupied():
     state machine transition in a single tick.
     """
     engine, _ = _make_engine_with_zone(
-        zone_type=ZONE_TYPE_ENTRANCE, trigger=5, renew=3, timeout=5.0,
+        zone_type=ZONE_TYPE_ENTRANCE,
+        trigger=5,
+        renew=3,
+        timeout=5.0,
     )
     # trigger=5 => need 5 frames
 
@@ -188,7 +186,10 @@ def test_state_machine_clear_stays_clear_below_threshold():
 def test_state_machine_occupied_to_pending():
     """Test OCCUPIED -> PENDING when no target confirmed in zone."""
     engine, _ = _make_engine_with_zone(
-        zone_type=ZONE_TYPE_ENTRANCE, trigger=3, renew=3, timeout=5.0,
+        zone_type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=5.0,
     )
 
     t = 100.0
@@ -210,7 +211,10 @@ def test_state_machine_occupied_to_pending():
 def test_state_machine_pending_to_clear():
     """Test PENDING -> CLEAR when timeout expires."""
     engine, _ = _make_engine_with_zone(
-        zone_type=ZONE_TYPE_ENTRANCE, trigger=3, renew=3, timeout=2.0,
+        zone_type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=2.0,
     )
 
     t = 100.0
@@ -233,7 +237,10 @@ def test_state_machine_pending_to_clear():
 def test_state_machine_pending_to_occupied():
     """Test PENDING -> OCCUPIED when renew threshold met during timeout."""
     engine, _ = _make_engine_with_zone(
-        zone_type=ZONE_TYPE_ENTRANCE, trigger=3, renew=3, timeout=10.0,
+        zone_type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
 
     t = 100.0
@@ -264,12 +271,22 @@ def test_state_machine_sparse_zone_ids():
     grid.cells[cell3] = CELL_ROOM_BIT | (3 << CELL_ZONE_SHIFT)
 
     zone1 = Zone(
-        id=1, name="Desk", type=ZONE_TYPE_ENTRANCE,
-        color="", trigger=3, renew=3, timeout=10.0,
+        id=1,
+        name="Desk",
+        type=ZONE_TYPE_ENTRANCE,
+        color="",
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     zone3 = Zone(
-        id=3, name="Bed", type=ZONE_TYPE_ENTRANCE,
-        color="", trigger=3, renew=3, timeout=10.0,
+        id=3,
+        name="Bed",
+        type=ZONE_TYPE_ENTRANCE,
+        color="",
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone1, zone3])
 
@@ -290,8 +307,13 @@ def test_device_tracking_present():
     """
     grid = _make_grid(cols=4, rows=4)
     zone = Zone(
-        id=1, name="Z", type=ZONE_TYPE_NORMAL,
-        color="", trigger=3, renew=3, timeout=10.0,
+        id=1,
+        name="Z",
+        type=ZONE_TYPE_NORMAL,
+        color="",
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     grid.cells[0] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
     engine = ZoneEngine(grid=grid, zones=[zone])
@@ -324,9 +346,14 @@ def _make_window(
     """Build a WindowOutput from (x, y, frame_count) tuples."""
     tw_list: list[TargetWindow] = []
     for x, y, fc in targets:
-        tw_list.append(TargetWindow(
-            median_x=x, median_y=y, frame_count=fc, active=fc > 0,
-        ))
+        tw_list.append(
+            TargetWindow(
+                median_x=x,
+                median_y=y,
+                frame_count=fc,
+                active=fc > 0,
+            )
+        )
     return WindowOutput(targets=tw_list, total_frames=total_frames)
 
 
@@ -343,8 +370,12 @@ def test_entry_point_gating_new_target_non_entry_point():
     grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
 
     zone = Zone(
-        id=1, name="Normal", type=ZONE_TYPE_NORMAL,
-        trigger=3, renew=3, timeout=10.0,
+        id=1,
+        name="Normal",
+        type=ZONE_TYPE_NORMAL,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone])
 
@@ -377,8 +408,12 @@ def test_entry_point_zone_accepts_new_target():
     grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
 
     zone = Zone(
-        id=1, name="Entrance", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=10.0,
+        id=1,
+        name="Entrance",
+        type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone])
 
@@ -406,12 +441,20 @@ def test_continuous_movement_no_gating():
     grid.cells[cell2] = CELL_ROOM_BIT | (2 << CELL_ZONE_SHIFT)
 
     zone1 = Zone(
-        id=1, name="Entrance", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=10.0,
+        id=1,
+        name="Entrance",
+        type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     zone2 = Zone(
-        id=2, name="Normal", type=ZONE_TYPE_NORMAL,
-        trigger=3, renew=3, timeout=10.0,
+        id=2,
+        name="Normal",
+        type=ZONE_TYPE_NORMAL,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone1, zone2])
 
@@ -445,12 +488,21 @@ def test_target_handoff_accelerates_timeout():
     grid.cells[cell2] = CELL_ROOM_BIT | (2 << CELL_ZONE_SHIFT)
 
     zone1 = Zone(
-        id=1, name="Entrance", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=10.0, handoff_timeout=2.0,
+        id=1,
+        name="Entrance",
+        type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
+        handoff_timeout=2.0,
     )
     zone2 = Zone(
-        id=2, name="Normal", type=ZONE_TYPE_NORMAL,
-        trigger=3, renew=3, timeout=10.0,
+        id=2,
+        name="Normal",
+        type=ZONE_TYPE_NORMAL,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone1, zone2])
 
@@ -494,8 +546,12 @@ def test_pending_targets_appear_when_target_disappears():
     grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
 
     zone = Zone(
-        id=1, name="Desk", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=10.0,
+        id=1,
+        name="Desk",
+        type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone])
 
@@ -526,8 +582,12 @@ def test_pending_targets_clear_when_zone_clears():
     grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
 
     zone = Zone(
-        id=1, name="Desk", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=2.0,
+        id=1,
+        name="Desk",
+        type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=2.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone])
 
@@ -565,12 +625,21 @@ def test_no_pending_target_for_handoff():
     grid.cells[cell2] = CELL_ROOM_BIT | (2 << CELL_ZONE_SHIFT)
 
     zone1 = Zone(
-        id=1, name="Entrance", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=10.0, handoff_timeout=2.0,
+        id=1,
+        name="Entrance",
+        type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
+        handoff_timeout=2.0,
     )
     zone2 = Zone(
-        id=2, name="Normal", type=ZONE_TYPE_NORMAL,
-        trigger=3, renew=3, timeout=10.0,
+        id=2,
+        name="Normal",
+        type=ZONE_TYPE_NORMAL,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone1, zone2])
 
@@ -600,8 +669,12 @@ def test_pending_targets_disappear_when_target_returns():
     grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
 
     zone = Zone(
-        id=1, name="Desk", type=ZONE_TYPE_ENTRANCE,
-        trigger=3, renew=3, timeout=10.0,
+        id=1,
+        name="Desk",
+        type=ZONE_TYPE_ENTRANCE,
+        trigger=3,
+        renew=3,
+        timeout=10.0,
     )
     engine = ZoneEngine(grid=grid, zones=[zone])
 

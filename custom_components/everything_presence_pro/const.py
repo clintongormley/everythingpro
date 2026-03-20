@@ -5,7 +5,7 @@ DOMAIN = "everything_presence_pro"
 # Grid
 GRID_COLS = 20
 GRID_ROWS = 20
-GRID_CELL_SIZE_MM = 300  # Fixed 300mm × 300mm cells
+GRID_CELL_SIZE_MM = 300  # Fixed 300mm x 300mm cells
 
 # LD2450 sensor limits
 MAX_TARGETS = 3
@@ -57,6 +57,7 @@ def threshold_to_frame_count(threshold: int) -> int:
     Threshold N = need N frames to confirm presence.
     """
     return max(1, threshold)
+
 
 # ESPHome entity name patterns for EP Pro
 TARGET_X_PATTERN = "target_{n}_x"

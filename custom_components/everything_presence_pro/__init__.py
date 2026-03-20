@@ -29,32 +29,29 @@ def _hash_file(path: str) -> str:
     with open(path, "rb") as f:
         return hashlib.md5(f.read()).hexdigest()[:8]
 
-type EverythingPresenceProConfigEntry = ConfigEntry[
-    EverythingPresenceProCoordinator
-]
+
+type EverythingPresenceProConfigEntry = ConfigEntry[EverythingPresenceProCoordinator]
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: EverythingPresenceProConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: EverythingPresenceProConfigEntry) -> bool:
     """Set up Everything Presence Pro from a config entry."""
     async_register_websocket_commands(hass)
 
     # Register frontend panel once (shared across all entries)
     if not hass.data.get(f"{DOMAIN}_panel_registered"):
-        await hass.http.async_register_static_paths([
-            StaticPathConfig(
-                url_path=f"/{DOMAIN}_static",
-                path=FRONTEND_DIR,
-                cache_headers=False,
-            )
-        ])
+        await hass.http.async_register_static_paths(
+            [
+                StaticPathConfig(
+                    url_path=f"/{DOMAIN}_static",
+                    path=FRONTEND_DIR,
+                    cache_headers=False,
+                )
+            ]
+        )
         # Cache-bust: hash the JS file so browser reloads on rebuild
         js_path = os.path.join(FRONTEND_DIR, "everything-presence-pro-panel.js")
         try:
-            js_hash = await hass.async_add_executor_job(
-                _hash_file, js_path
-            )
+            js_hash = await hass.async_add_executor_job(_hash_file, js_path)
         except OSError:
             js_hash = "0"
         await panel_custom.async_register_panel(
@@ -91,9 +88,7 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: EverythingPresenceProConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: EverythingPresenceProConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:

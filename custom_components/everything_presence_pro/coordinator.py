@@ -7,38 +7,35 @@ import math
 import time
 from typing import Any
 
-from aioesphomeapi import (
-    APIClient,
-    BinarySensorInfo,
-    BinarySensorState,
-    ReconnectLogic,
-    SensorInfo,
-    SensorState,
-)
-
+from aioesphomeapi import APIClient
+from aioesphomeapi import BinarySensorInfo
+from aioesphomeapi import BinarySensorState
+from aioesphomeapi import ReconnectLogic
+from aioesphomeapi import SensorInfo
+from aioesphomeapi import SensorState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .calibration import SensorTransform
-from .const import (
-    CELL_ROOM_BIT,
-    DEFAULT_PORT,
-    DOMAIN,
-    GRID_CELL_SIZE_MM,
-    GRID_COLS,
-    GRID_ROWS,
-    MAX_TARGETS,
-    ZONE_TYPE_DEFAULTS,
-    ZONE_TYPE_NORMAL,
-)
-from .zone_engine import Grid, ProcessingResult, Zone, ZoneEngine
+from .const import CELL_ROOM_BIT
+from .const import DEFAULT_PORT
+from .const import DOMAIN
+from .const import GRID_CELL_SIZE_MM
+from .const import GRID_COLS
+from .const import GRID_ROWS
+from .const import MAX_TARGETS
+from .const import ZONE_TYPE_DEFAULTS
+from .const import ZONE_TYPE_NORMAL
+from .zone_engine import Grid
+from .zone_engine import ProcessingResult
+from .zone_engine import Zone
+from .zone_engine import ZoneEngine
 
 _LOGGER = logging.getLogger(__name__)
 
 SIGNAL_ZONES_UPDATED = f"{DOMAIN}_zones_updated"
 SIGNAL_TARGETS_UPDATED = f"{DOMAIN}_targets_updated"
 SIGNAL_SENSORS_UPDATED = f"{DOMAIN}_sensors_updated"
-
 
 
 class EverythingPresenceProCoordinator:
@@ -72,9 +69,7 @@ class EverythingPresenceProCoordinator:
         self._room_layout: dict[str, Any] = {}
 
         # Target state: list of (x, y, active) tuples
-        self._targets: list[tuple[float, float, bool]] = [
-            (0.0, 0.0, False) for _ in range(MAX_TARGETS)
-        ]
+        self._targets: list[tuple[float, float, bool]] = [(0.0, 0.0, False) for _ in range(MAX_TARGETS)]
         self._target_x: list[float] = [0.0] * MAX_TARGETS
         self._target_y: list[float] = [0.0] * MAX_TARGETS
         self._target_speed: list[float] = [0.0] * MAX_TARGETS
@@ -162,11 +157,7 @@ class EverythingPresenceProCoordinator:
     @property
     def device_occupied(self) -> bool:
         """Return whether the room is occupied (PIR or static or tracking)."""
-        return (
-            self._pir_motion
-            or self._static_present
-            or self._last_result.device_tracking_present
-        )
+        return self._pir_motion or self._static_present or self._last_result.device_tracking_present
 
     @property
     def pending_targets(self) -> list[dict]:
@@ -207,6 +198,7 @@ class EverythingPresenceProCoordinator:
         if index >= len(self._targets) or not self._targets[index][2]:
             return None
         import math
+
         x, y, _ = self._targets[index]
         if x == 0 and y == 0:
             return None
@@ -225,10 +217,7 @@ class EverythingPresenceProCoordinator:
     @property
     def raw_targets(self) -> list[tuple[float, float, bool]]:
         """Return the raw (untransformed) target positions."""
-        return [
-            (self._target_x[i], self._target_y[i], self._target_active[i])
-            for i in range(MAX_TARGETS)
-        ]
+        return [(self._target_x[i], self._target_y[i], self._target_active[i]) for i in range(MAX_TARGETS)]
 
     @property
     def sensor_transform(self) -> SensorTransform:
@@ -278,21 +267,27 @@ class EverythingPresenceProCoordinator:
         cell_size = GRID_CELL_SIZE_MM
         # Room is centered horizontally in the 20-col grid
         t = self._sensor_transform
-        room_cols = max(1, int(math.ceil(t.room_width / cell_size))) if t.room_width > 0 else cols
+        room_cols = max(1, math.ceil(t.room_width / cell_size)) if t.room_width > 0 else cols
         start_col = (cols - room_cols) // 2
         # Grid origin: room x=0 is at start_col, room y=0 is at row 0
         origin_x = -start_col * cell_size
         origin_y = 0.0
         grid = Grid(
-            origin_x=origin_x, origin_y=origin_y,
-            cols=cols, rows=rows, cell_size=cell_size,
+            origin_x=origin_x,
+            origin_y=origin_y,
+            cols=cols,
+            rows=rows,
+            cell_size=cell_size,
         )
         grid.load_from_bytes(bytes(grid_bytes))
         _LOGGER.debug(
-            "Loaded frontend grid: %dx%d, origin=(%.0f, %.0f), "
-            "room_width=%.0f, start_col=%d",
-            cols, rows, origin_x, origin_y,
-            t.room_width, start_col,
+            "Loaded frontend grid: %dx%d, origin=(%.0f, %.0f), room_width=%.0f, start_col=%d",
+            cols,
+            rows,
+            origin_x,
+            origin_y,
+            t.room_width,
+            start_col,
         )
         self._zone_engine.set_grid(grid)
 
@@ -301,9 +296,7 @@ class EverythingPresenceProCoordinator:
         t = self._sensor_transform
         if t.perspective is None:
             return
-        origin_x, origin_y, cols, rows = Grid.compute_extent(
-            t.perspective, t.room_width, t.room_depth
-        )
+        origin_x, origin_y, cols, rows = Grid.compute_extent(t.perspective, t.room_width, t.room_depth)
         grid = Grid(origin_x=origin_x, origin_y=origin_y, cols=cols, rows=rows)
         # Mark cells inside the room rectangle as room
         for r in range(rows):
@@ -390,13 +383,17 @@ class EverythingPresenceProCoordinator:
                 self._binary_sensor_key_map[key] = name
                 _LOGGER.debug(
                     "Mapped binary sensor %s (key=%s) -> %s",
-                    object_id, key, name,
+                    object_id,
+                    key,
+                    name,
                 )
             elif isinstance(entity_info, SensorInfo):
                 self._sensor_key_map[key] = name
                 _LOGGER.debug(
                     "Mapped sensor %s (key=%s) -> %s",
-                    object_id, key, name,
+                    object_id,
+                    key,
+                    name,
                 )
 
         self._client.subscribe_states(self._on_state)
@@ -508,9 +505,7 @@ class EverythingPresenceProCoordinator:
 
     def _dispatch_sensor_update(self) -> None:
         """Dispatch a signal for environment sensor updates only."""
-        async_dispatcher_send(
-            self.hass, f"{SIGNAL_SENSORS_UPDATED}_{self.entry.entry_id}"
-        )
+        async_dispatcher_send(self.hass, f"{SIGNAL_SENSORS_UPDATED}_{self.entry.entry_id}")
 
     def _schedule_rebuild(self) -> None:
         """Feed raw target data to the zone engine on each state update."""
@@ -523,9 +518,7 @@ class EverythingPresenceProCoordinator:
             # Window ticked — update state and dispatch
             self._last_result = result
             self._targets = calibrated
-            async_dispatcher_send(
-                self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
-            )
+            async_dispatcher_send(self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}")
         elif not self._rebuild_scheduled:
             # Dispatch at throttled rate for live display even between window ticks
             self._rebuild_scheduled = True
@@ -556,9 +549,7 @@ class EverythingPresenceProCoordinator:
         if result is not None:
             self._last_result = result
             self._targets = empty
-            async_dispatcher_send(
-                self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
-            )
+            async_dispatcher_send(self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}")
         # If more zones are still pending, schedule the next expiry
         self._schedule_expiry_tick()
 
@@ -567,9 +558,7 @@ class EverythingPresenceProCoordinator:
         calibrated: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
             if self._target_active[i]:
-                cx, cy = self._sensor_transform.apply(
-                    self._target_x[i], self._target_y[i]
-                )
+                cx, cy = self._sensor_transform.apply(self._target_x[i], self._target_y[i])
                 calibrated.append((cx, cy, True))
             else:
                 calibrated.append((self._target_x[i], self._target_y[i], False))
@@ -579,9 +568,7 @@ class EverythingPresenceProCoordinator:
         """Dispatch a display update for live target positions (between window ticks)."""
         self._rebuild_scheduled = False
         self._targets = self._build_calibrated_targets()
-        async_dispatcher_send(
-            self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}"
-        )
+        async_dispatcher_send(self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}")
 
     def _target_index(self, name: str) -> int | None:
         """Extract the 0-based target index from a name like target_1_x."""

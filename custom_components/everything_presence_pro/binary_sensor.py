@@ -2,22 +2,21 @@
 
 from __future__ import annotations
 
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EverythingPresenceProConfigEntry
-from .const import DOMAIN, MAX_TARGETS, MAX_ZONES
-from .coordinator import (
-    EverythingPresenceProCoordinator,
-    SIGNAL_SENSORS_UPDATED,
-    SIGNAL_TARGETS_UPDATED,
-)
+from .const import DOMAIN
+from .const import MAX_TARGETS
+from .const import MAX_ZONES
+from .coordinator import SIGNAL_SENSORS_UPDATED
+from .coordinator import SIGNAL_TARGETS_UPDATED
+from .coordinator import EverythingPresenceProCoordinator
 
 
 async def async_setup_entry(
@@ -37,20 +36,14 @@ async def async_setup_entry(
 
     # Pre-create per-target active sensors (disabled by default)
     for idx in range(MAX_TARGETS):
-        entities.append(
-            EverythingPresenceProTargetActiveSensor(coordinator, idx)
-        )
+        entities.append(EverythingPresenceProTargetActiveSensor(coordinator, idx))
 
     # Zone 0 = "rest of room" occupancy (disabled by default)
-    entities.append(
-        EverythingPresenceProZoneOccupancySensor(coordinator, 0)
-    )
+    entities.append(EverythingPresenceProZoneOccupancySensor(coordinator, 0))
 
     # Pre-create all 7 zone occupancy entities (disabled by default)
     for slot in range(1, MAX_ZONES + 1):
-        entities.append(
-            EverythingPresenceProZoneOccupancySensor(coordinator, slot)
-        )
+        entities.append(EverythingPresenceProZoneOccupancySensor(coordinator, slot))
 
     async_add_entities(entities)
 
@@ -214,15 +207,11 @@ class EverythingPresenceProTargetActiveSensor(BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.OCCUPANCY
     _attr_entity_registry_enabled_default = False
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, index: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, index: int) -> None:
         """Initialize the per-target active sensor."""
         self._coordinator = coordinator
         self._index = index
-        self._attr_unique_id = (
-            f"{coordinator.entry.entry_id}_target_{index + 1}_active"
-        )
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_target_{index + 1}_active"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
         )
@@ -264,9 +253,7 @@ class EverythingPresenceProZoneOccupancySensor(BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.OCCUPANCY
     _attr_entity_registry_enabled_default = False
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, slot: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, slot: int) -> None:
         """Initialize the zone occupancy sensor."""
         self._coordinator = coordinator
         self._slot = slot
@@ -289,18 +276,12 @@ class EverythingPresenceProZoneOccupancySensor(BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         """Return true if zone is occupied."""
-        return self._coordinator.last_result.zone_occupancy.get(
-            self._slot, False
-        )
+        return self._coordinator.last_result.zone_occupancy.get(self._slot, False)
 
     @property
     def extra_state_attributes(self) -> dict[str, int]:
         """Return extra state attributes including target count."""
-        return {
-            "target_count": self._coordinator.last_result.zone_target_counts.get(
-                self._slot, 0
-            )
-        }
+        return {"target_count": self._coordinator.last_result.zone_target_counts.get(self._slot, 0)}
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to target updates when added to hass."""

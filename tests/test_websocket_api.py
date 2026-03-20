@@ -4,10 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.everything_presence_pro.websocket_api import (
-    websocket_get_config,
-    websocket_set_zones,
-)
+from custom_components.everything_presence_pro.websocket_api import websocket_get_config
 
 
 @pytest.fixture
@@ -36,12 +33,15 @@ def test_websocket_get_config_returns_data(mock_coordinator):
     msg = {"id": 1, "type": "everything_presence_pro/get_config", "entry_id": "test_entry"}
 
     websocket_get_config(hass, connection, msg)
-    connection.send_result.assert_called_once_with(1, {
-        "zones": [],
-        "calibration": {},
-        "room_cells": [],
-        "furniture": [],
-    })
+    connection.send_result.assert_called_once_with(
+        1,
+        {
+            "zones": [],
+            "calibration": {},
+            "room_cells": [],
+            "furniture": [],
+        },
+    )
 
 
 def test_websocket_get_config_not_found():

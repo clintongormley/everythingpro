@@ -12,27 +12,26 @@ import base64
 import enum
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 from statistics import median
 
-_LOGGER = logging.getLogger(__name__)
+from .const import CELL_ROOM_BIT
+from .const import CELL_ZONE_MASK
+from .const import CELL_ZONE_SHIFT
+from .const import ENTRY_POINT_ZONE_TYPES
+from .const import FOV_DEGREES
+from .const import GRID_CELL_SIZE_MM
+from .const import MAX_MOVEMENT_CELLS
+from .const import MAX_RANGE_MM
+from .const import MAX_TARGETS
+from .const import RAW_FPS
+from .const import ZONE_TYPE_CUSTOM
+from .const import ZONE_TYPE_DEFAULTS
+from .const import ZONE_TYPE_NORMAL
+from .const import threshold_to_frame_count
 
-from .const import (
-    CELL_ROOM_BIT,
-    CELL_ZONE_MASK,
-    CELL_ZONE_SHIFT,
-    ENTRY_POINT_ZONE_TYPES,
-    FOV_DEGREES,
-    GRID_CELL_SIZE_MM,
-    MAX_MOVEMENT_CELLS,
-    MAX_RANGE_MM,
-    MAX_TARGETS,
-    RAW_FPS,
-    ZONE_TYPE_CUSTOM,
-    ZONE_TYPE_DEFAULTS,
-    ZONE_TYPE_NORMAL,
-    threshold_to_frame_count,
-)
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -140,7 +139,11 @@ class Grid:
 
     @staticmethod
     def from_base64(
-        data: str, cols: int, rows: int, origin_x: float, origin_y: float,
+        data: str,
+        cols: int,
+        rows: int,
+        origin_x: float,
+        origin_y: float,
     ) -> Grid:
         """Deserialize grid from base64 cell data."""
         grid = Grid(origin_x=origin_x, origin_y=origin_y, cols=cols, rows=rows)
@@ -157,8 +160,8 @@ class Grid:
     ) -> tuple[float, float, int, int]:
         """Compute grid origin and dimensions from FOV projected through perspective."""
         if not perspective or len(perspective) != 8:
-            cols = max(1, int(math.ceil(room_width / cell_size)))
-            rows = max(1, int(math.ceil(room_depth / cell_size)))
+            cols = max(1, math.ceil(room_width / cell_size))
+            rows = max(1, math.ceil(room_depth / cell_size))
             return 0.0, 0.0, cols, rows
 
         a, b, c, d, e, f, g, h = perspective
@@ -226,7 +229,9 @@ class TumblingWindow:
             self._target_ys[i].clear()
 
     def feed(
-        self, targets: list[tuple[float, float, bool]], timestamp: float,
+        self,
+        targets: list[tuple[float, float, bool]],
+        timestamp: float,
     ) -> WindowOutput | None:
         """Feed a raw frame. Returns WindowOutput when the window completes."""
         if self._window_start is None:
@@ -260,12 +265,14 @@ class TumblingWindow:
             xs = self._target_xs[i]
             ys = self._target_ys[i]
             if xs:
-                targets.append(TargetWindow(
-                    median_x=median(xs),
-                    median_y=median(ys),
-                    frame_count=len(xs),
-                    active=True,
-                ))
+                targets.append(
+                    TargetWindow(
+                        median_x=median(xs),
+                        median_y=median(ys),
+                        frame_count=len(xs),
+                        active=True,
+                    )
+                )
             else:
                 targets.append(TargetWindow())
 
@@ -330,7 +337,9 @@ class ZoneEngine:
         """
         defaults = ZONE_TYPE_DEFAULTS[ZONE_TYPE_NORMAL]
         room_zone = Zone(
-            id=0, name="Room", type=ZONE_TYPE_NORMAL,
+            id=0,
+            name="Room",
+            type=ZONE_TYPE_NORMAL,
             trigger=defaults["trigger"],
             renew=defaults["renew"],
             timeout=defaults["timeout"],
@@ -354,7 +363,9 @@ class ZoneEngine:
         return soonest
 
     def feed_raw(
-        self, targets: list[tuple[float, float, bool]], timestamp: float,
+        self,
+        targets: list[tuple[float, float, bool]],
+        timestamp: float,
     ) -> ProcessingResult | None:
         """Feed a raw frame. Returns ProcessingResult when the window ticks."""
         window_output = self._window.feed(targets, timestamp)
@@ -363,7 +374,9 @@ class ZoneEngine:
         return self._tick(window_output, timestamp)
 
     def _tick(
-        self, window: WindowOutput, timestamp: float,
+        self,
+        window: WindowOutput,
+        timestamp: float,
     ) -> ProcessingResult:
         """Run one tick of the state machine for all zones.
 
@@ -494,7 +507,10 @@ class ZoneEngine:
                 continue
             # Target i moved from prev_zid to curr_zid
             _LOGGER.debug(
-                "Handoff: target %d moved zone %d→%d", i, prev_zid, curr_zid,
+                "Handoff: target %d moved zone %d→%d",
+                i,
+                prev_zid,
+                curr_zid,
             )
             if prev_zid in self._zone_runtimes:
                 src_rt = self._zone_runtimes[prev_zid]
@@ -502,15 +518,13 @@ class ZoneEngine:
                 src_rt.confirmed_targets.discard(i)
                 # If this was the last confirmed target in the source zone
                 # and the zone is occupied, accelerate its pending timeout
-                if (
-                    not src_rt.confirmed_targets
-                    and src_rt.state == ZoneState.OCCUPIED
-                ):
+                if not src_rt.confirmed_targets and src_rt.state == ZoneState.OCCUPIED:
                     src_rt.state = ZoneState.PENDING
                     src_rt.pending_since = timestamp - (src_rt.zone.timeout - src_rt.zone.handoff_timeout)
                     _LOGGER.debug(
                         "Handoff: zone %d → PENDING, handoff_timeout=%.1f",
-                        prev_zid, src_rt.zone.handoff_timeout,
+                        prev_zid,
+                        src_rt.zone.handoff_timeout,
                     )
 
         # Run state machine per zone
@@ -533,10 +547,7 @@ class ZoneEngine:
                     if confirmed:
                         rt.state = ZoneState.OCCUPIED
                         rt.pending_since = None
-                    elif (
-                        rt.pending_since is not None
-                        and timestamp - rt.pending_since >= rt.zone.timeout
-                    ):
+                    elif rt.pending_since is not None and timestamp - rt.pending_since >= rt.zone.timeout:
                         rt.state = ZoneState.CLEAR
                         rt.pending_since = None
                         rt.confirmed_targets.clear()
@@ -549,9 +560,7 @@ class ZoneEngine:
         # are still in a zone's confirmed_targets while that zone is PENDING.
         # Handoff targets are already removed from confirmed_targets, so they
         # won't appear here.
-        active_targets = {
-            i for i, tw in enumerate(window.targets) if tw.active
-        }
+        active_targets = {i for i, tw in enumerate(window.targets) if tw.active}
         for zone_id, rt in self._zone_runtimes.items():
             if rt.state != ZoneState.PENDING:
                 continue
@@ -561,12 +570,14 @@ class ZoneEngine:
                 xy = self._target_prev_xy[target_idx]
                 if xy is None:
                     continue
-                result.pending_targets.append({
-                    "x": xy[0],
-                    "y": xy[1],
-                    "target_index": target_idx,
-                    "zone_id": zone_id,
-                })
+                result.pending_targets.append(
+                    {
+                        "x": xy[0],
+                        "y": xy[1],
+                        "target_index": target_idx,
+                        "zone_id": zone_id,
+                    }
+                )
 
         # Room is occupied if any zone (including zone 0) is occupied
         result.device_tracking_present = any(result.zone_occupancy.values())
@@ -582,7 +593,7 @@ class ZoneEngine:
             sig = zone_signal.get(zid, 0) if zid is not None else 0
             parts.append(f"T{i}: signal={sig} zone={zname!r} confirmed={confirmed}")
         zone_parts = []
-        for zid, rt in self._zone_runtimes.items():
+        for _zid, rt in self._zone_runtimes.items():
             if rt.state != ZoneState.CLEAR:
                 zone_parts.append(f"{rt.zone.name}: {rt.state.value}")
         _LOGGER.debug(

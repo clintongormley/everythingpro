@@ -1,7 +1,9 @@
 """Fixtures for Everything Presence Pro tests."""
 
+from unittest.mock import AsyncMock
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 @pytest.fixture

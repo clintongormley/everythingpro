@@ -4,30 +4,27 @@ from __future__ import annotations
 
 from math import isfinite
 
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorStateClass,
-)
-from homeassistant.const import (
-    LIGHT_LUX,
-    PERCENTAGE,
-    CONCENTRATION_PARTS_PER_MILLION,
-    UnitOfLength,
-    UnitOfTemperature,
-)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorStateClass
+from homeassistant.const import CONCENTRATION_PARTS_PER_MILLION
+from homeassistant.const import LIGHT_LUX
+from homeassistant.const import PERCENTAGE
+from homeassistant.const import UnitOfLength
+from homeassistant.const import UnitOfTemperature
+from homeassistant.core import HomeAssistant
+from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EverythingPresenceProConfigEntry
-from .const import DOMAIN, MAX_TARGETS, MAX_ZONES
-from .coordinator import (
-    EverythingPresenceProCoordinator,
-    SIGNAL_SENSORS_UPDATED,
-    SIGNAL_TARGETS_UPDATED,
-)
+from .const import DOMAIN
+from .const import MAX_TARGETS
+from .const import MAX_ZONES
+from .coordinator import SIGNAL_SENSORS_UPDATED
+from .coordinator import SIGNAL_TARGETS_UPDATED
+from .coordinator import EverythingPresenceProCoordinator
 
 
 async def async_setup_entry(
@@ -61,15 +58,11 @@ async def async_setup_entry(
         entities.append(EverythingPresenceProTargetResolutionSensor(coordinator, idx))
 
     # Zone 0 = "rest of room" target count (disabled by default)
-    entities.append(
-        EverythingPresenceProZoneTargetCountSensor(coordinator, 0)
-    )
+    entities.append(EverythingPresenceProZoneTargetCountSensor(coordinator, 0))
 
     # Pre-create all 7 zone target count entities (disabled by default)
     for slot in range(1, MAX_ZONES + 1):
-        entities.append(
-            EverythingPresenceProZoneTargetCountSensor(coordinator, slot)
-        )
+        entities.append(EverythingPresenceProZoneTargetCountSensor(coordinator, slot))
 
     async_add_entities(entities)
 
@@ -274,15 +267,11 @@ class _PerTargetSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_entity_registry_enabled_default = False
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, index: int, key: str
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, index: int, key: str) -> None:
         """Initialize the per-target sensor."""
         self._coordinator = coordinator
         self._index = index
-        self._attr_unique_id = (
-            f"{coordinator.entry.entry_id}_target_{index + 1}_{key}"
-        )
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_target_{index + 1}_{key}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
         )
@@ -306,9 +295,7 @@ class _PerTargetSensor(SensorEntity):
 class EverythingPresenceProTargetXYSensorSensor(_PerTargetSensor):
     """Per-target XY position relative to sensor (mm)."""
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, index: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, index: int) -> None:
         """Initialize."""
         super().__init__(coordinator, index, "xy_sensor")
 
@@ -339,9 +326,7 @@ class EverythingPresenceProTargetXYSensorSensor(_PerTargetSensor):
 class EverythingPresenceProTargetXYGridSensor(_PerTargetSensor):
     """Per-target XY position relative to grid (mm)."""
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, index: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, index: int) -> None:
         """Initialize."""
         super().__init__(coordinator, index, "xy_grid")
 
@@ -377,9 +362,7 @@ class EverythingPresenceProTargetDistanceSensor(_PerTargetSensor):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 0
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, index: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, index: int) -> None:
         """Initialize."""
         super().__init__(coordinator, index, "distance")
 
@@ -401,9 +384,7 @@ class EverythingPresenceProTargetAngleSensor(_PerTargetSensor):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 1
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, index: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, index: int) -> None:
         """Initialize."""
         super().__init__(coordinator, index, "angle")
 
@@ -426,9 +407,7 @@ class EverythingPresenceProTargetSpeedSensor(_PerTargetSensor):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 0
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, index: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, index: int) -> None:
         """Initialize."""
         super().__init__(coordinator, index, "speed")
 
@@ -450,9 +429,7 @@ class EverythingPresenceProTargetResolutionSensor(_PerTargetSensor):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 0
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, index: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, index: int) -> None:
         """Initialize."""
         super().__init__(coordinator, index, "resolution")
 
@@ -474,9 +451,7 @@ class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_registry_enabled_default = False
 
-    def __init__(
-        self, coordinator: EverythingPresenceProCoordinator, slot: int
-    ) -> None:
+    def __init__(self, coordinator: EverythingPresenceProCoordinator, slot: int) -> None:
         """Initialize the zone target count sensor."""
         self._coordinator = coordinator
         self._slot = slot
@@ -499,9 +474,7 @@ class EverythingPresenceProZoneTargetCountSensor(SensorEntity):
     @property
     def native_value(self) -> int:
         """Return the target count for this zone."""
-        return self._coordinator.last_result.zone_target_counts.get(
-            self._slot, 0
-        )
+        return self._coordinator.last_result.zone_target_counts.get(self._slot, 0)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to target updates when added to hass."""

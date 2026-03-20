@@ -2,10 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from custom_components.everything_presence_pro.const import DOMAIN
-from custom_components.everything_presence_pro.coordinator import (
-    EverythingPresenceProCoordinator,
-)
+from custom_components.everything_presence_pro.coordinator import EverythingPresenceProCoordinator
 
 
 def test_coordinator_full_lifecycle():
@@ -43,10 +40,8 @@ def test_coordinator_full_lifecycle():
 
 def test_zone_engine_full_pipeline():
     """Test the full target processing pipeline."""
-    from custom_components.everything_presence_pro.zone_engine import (
-        Zone,
-        ZoneEngine,
-    )
+    from custom_components.everything_presence_pro.zone_engine import Zone
+    from custom_components.everything_presence_pro.zone_engine import ZoneEngine
 
     engine = ZoneEngine()
 
@@ -69,9 +64,8 @@ def test_zone_engine_full_pipeline():
     assert result.zone_occupancy[1] is False
 
     # Test calibration integration
-    from custom_components.everything_presence_pro.calibration import (
-        SensorTransform,
-    )
+    from custom_components.everything_presence_pro.calibration import SensorTransform
+
     transform = SensorTransform()
     x, y = transform.apply(0, 3000)
     assert abs(x - 0) < 1  # Identity transform (ld2450_correct at angle=0 is identity)
@@ -80,9 +74,7 @@ def test_zone_engine_full_pipeline():
 
 def test_calibration_full_pipeline():
     """Test calibration transform serialization roundtrip."""
-    from custom_components.everything_presence_pro.calibration import (
-        SensorTransform,
-    )
+    from custom_components.everything_presence_pro.calibration import SensorTransform
 
     transform = SensorTransform(sensor_angle=0.5, offset_x=100.0, offset_y=200.0)
 

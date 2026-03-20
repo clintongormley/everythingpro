@@ -2,10 +2,8 @@
 
 import math
 
-from custom_components.everything_presence_pro.calibration import (
-    ld2450_correct,
-    SensorTransform,
-)
+from custom_components.everything_presence_pro.calibration import SensorTransform
+from custom_components.everything_presence_pro.calibration import ld2450_correct
 
 # -- Diagnostic test vectors (from real sensor capture) --
 # Room: 3500mm x 4450mm, sensor in left corner
@@ -31,9 +29,7 @@ def test_ld2450_correct_preserves_distance():
         cx, cy = ld2450_correct(sx, sy)
         original_dist = math.sqrt(sx**2 + sy**2)
         corrected_dist = math.sqrt(cx**2 + cy**2)
-        assert abs(corrected_dist - original_dist) < 1, (
-            f"Distance changed: {original_dist:.0f} -> {corrected_dist:.0f}"
-        )
+        assert abs(corrected_dist - original_dist) < 1, f"Distance changed: {original_dist:.0f} -> {corrected_dist:.0f}"
 
 
 def test_ld2450_correct_reduces_angle():
@@ -43,8 +39,7 @@ def test_ld2450_correct_reduces_angle():
         reported = abs(math.atan2(sx, sy))
         corrected = abs(math.atan2(cx, cy))
         assert corrected < reported, (
-            f"Corrected angle {math.degrees(corrected):.1f}° >= "
-            f"reported {math.degrees(reported):.1f}°"
+            f"Corrected angle {math.degrees(corrected):.1f}° >= reported {math.degrees(reported):.1f}°"
         )
 
 
