@@ -3,7 +3,7 @@
   "name": "Everything Presence Pro",
   "codeowners": ["@clintongormley"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["http"],
   "documentation": "https://github.com/clintongormley/everythingpro",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/clintongormley/everythingpro/issues",
