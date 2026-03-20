@@ -629,7 +629,7 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
       </div>
     `}_infoTip(t){return O`<span class="setting-info"
       @click=${t=>{t.stopPropagation();const e=t.currentTarget,i=e.querySelector(".setting-info-tooltip");if(!i)return;const o="block"===i.style.display;if(this.shadowRoot.querySelectorAll(".setting-info-tooltip").forEach(t=>{t.style.display="none"}),o)return;const r=e.getBoundingClientRect();i.style.display="block",i.style.left=`${Math.max(8,Math.min(r.right-240,window.innerWidth-256))}px`,i.style.top=`${r.bottom+6}px`}}
-    ><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${t}</span></span>`}_renderDetectionRanges(){const t=this._autoDetectionRange(),e=this._getGridRoomMetrics(),i=this._targetAutoRange?Math.min(t,6):this._targetMaxDistance,o=this._staticAutoRange?Math.min(t,25):this._staticMaxDistance,r="opacity: 0.5;";return O`
+    ><ha-icon icon="mdi:help-circle-outline"></ha-icon><span class="setting-info-tooltip">${t}</span></span>`}_renderDetectionRanges(){const t=this._autoDetectionRange(),e=this._getGridRoomMetrics(),i=this._targetAutoRange?Math.min(t,6):this._targetMaxDistance,o=this._staticAutoRange?Math.min(t,25):this._staticMaxDistance,r="opacity: 0.5; pointer-events: none;";return O`
       <div class="settings-section">
         ${e?O`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong style="color: var(--error-color, #e53935);">${e.furthestM}m</strong></p>`:V}
         <div class="setting-group">
@@ -645,7 +645,7 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
           </div>
           <div class="setting-row" style="${this._targetAutoRange?r:""}">
             <label>Max distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(i)} min="0.5" max="6" step="0.1" ?disabled=${this._targetAutoRange}
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(i)} min="0.5" max="6" step="0.1"
               @input=${t=>{const e=t.target;this._targetMaxDistance=Number(e.value),e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${i}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Maximum detection distance for the target sensor (LD2450). Hardware limit: 6m.")}
           </div>
@@ -663,19 +663,19 @@ class vt extends mt{}vt.directiveName="unsafeSVG",vt.resultType=2;const xt=(t=>(
           </div>
           <div class="setting-row" style="${this._staticAutoRange?r:""}">
             <label>Min distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticMinDistance)} min="0" max="25" step="0.1" ?disabled=${this._staticAutoRange}
-              @input=${t=>{const e=t.target;this._staticMinDistance=Number(e.value),e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${this._staticMinDistance}</span><span class="setting-unit">m</span></span>
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticAutoRange?0:this._staticMinDistance)} min="0" max="25" step="0.1"
+              @input=${t=>{const e=t.target;this._staticMinDistance=Number(e.value),e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${this._staticAutoRange?0:this._staticMinDistance}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Minimum detection distance for the static sensor.")}
           </div>
           <div class="setting-row" style="${this._staticAutoRange?r:""}">
             <label>Max distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(o)} min="0.5" max="25" step="0.1" ?disabled=${this._staticAutoRange}
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(o)} min="0.5" max="25" step="0.1"
               @input=${t=>{const e=t.target;this._staticMaxDistance=Number(e.value),e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${o}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Maximum detection distance for the static sensor. Hardware limit: 25m.")}
           </div>
           <div class="setting-row" style="${this._staticAutoRange?r:""}">
             <label>Trigger distance</label>
-            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticAutoRange?o:this._staticTriggerDistance)} min="0.5" max="25" step="0.1" ?disabled=${this._staticAutoRange}
+            <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticAutoRange?o:this._staticTriggerDistance)} min="0.5" max="25" step="0.1"
               @input=${t=>{const e=t.target;this._staticTriggerDistance=Number(e.value),e.nextElementSibling.textContent=e.value}} /><span class="setting-value">${this._staticAutoRange?o:this._staticTriggerDistance}</span><span class="setting-unit">m</span></span>
             ${this._infoTip("Distance at which the static sensor triggers presence.")}
           </div>
