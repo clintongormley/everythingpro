@@ -1055,11 +1055,29 @@ export class EverythingPresenceProPanel extends LitElement {
    *  Works in sensor-space: transform cell's room-space position back to
    *  sensor-space via the inverse perspective, then check distance and FOV angle.
    */
-  private _isCellInSensorRange(col: number, row: number): boolean {
-    if (!this._perspective) return true; // no calibration — allow all
+  /** Cache sensor FOV geometry in room-space (recomputed when perspective changes). */
+  private _fovCache: { sensorPos: {x: number; y: number}; dirX: number; dirY: number } | null = null;
+  private _fovPerspective: number[] | null = null;
 
-    const inv = this._getInversePerspective();
-    if (!inv) return true;
+  private _getSensorFov(): { sensorPos: {x: number; y: number}; dirX: number; dirY: number } | null {
+    if (!this._perspective) return null;
+    if (this._fovCache && this._fovPerspective === this._perspective) return this._fovCache;
+
+    // Sensor position in room-space: forward transform of origin (0,0)
+    const origin = this._applyPerspective(this._perspective, 0, 0);
+    // Sensor look direction: forward transform of (0, 1000) - origin
+    const ahead = this._applyPerspective(this._perspective, 0, 1000);
+    const dx = ahead.x - origin.x;
+    const dy = ahead.y - origin.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    this._fovCache = { sensorPos: origin, dirX: dx / len, dirY: dy / len };
+    this._fovPerspective = this._perspective;
+    return this._fovCache;
+  }
+
+  private _isCellInSensorRange(col: number, row: number): boolean {
+    const fov = this._getSensorFov();
+    if (!fov) return true; // no calibration — allow all
 
     // Cell centre in room-space mm
     const roomCols = Math.ceil(this._roomWidth / GRID_CELL_MM);
@@ -1067,18 +1085,18 @@ export class EverythingPresenceProPanel extends LitElement {
     const rx = (col - startCol + 0.5) * GRID_CELL_MM;
     const ry = (row + 0.5) * GRID_CELL_MM;
 
-    // FOV angle check in sensor-space (projective transform preserves angles at origin)
-    const sensor = this._applyPerspective(inv, rx, ry);
-    if (sensor.y <= 0) return false; // behind the sensor
-    const angle = Math.abs(Math.atan2(sensor.x, sensor.y));
+    // Vector from sensor to cell in room-space
+    const dx = rx - fov.sensorPos.x;
+    const dy = ry - fov.sensorPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 1) return true; // at sensor position
+
+    // Angle between sensor direction and cell direction (both in room-space)
+    const dot = (dx / dist) * fov.dirX + (dy / dist) * fov.dirY;
+    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
     if (angle > Math.PI / 3) return false; // 120° FOV = 60° half-angle
 
-    // Distance check in room-space: compute physical distance from sensor position
-    // to the cell. The sensor position in room-space is the forward transform of (0,0).
-    const sensorRoom = this._applyPerspective(this._perspective!, 0, 0);
-    const dx = rx - sensorRoom.x;
-    const dy = ry - sensorRoom.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Distance check
     const autoRange = this._autoDetectionRange();
     const maxRange = (this._targetAutoRange ? (autoRange > 0 ? Math.min(autoRange, 6) : 6) : this._targetMaxDistance) * 1000;
     if (dist > maxRange) return false;
