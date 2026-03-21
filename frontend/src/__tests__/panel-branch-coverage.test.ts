@@ -15,6 +15,7 @@ import {
 	initGridFromRoom,
 } from "../lib/grid.js";
 import { ZONE_COLORS, ZONE_TYPE_DEFAULTS } from "../lib/zone-defaults.js";
+import { setupLocalize } from "../localize.js";
 
 function createPanel() {
 	const el = document.createElement(
@@ -102,6 +103,7 @@ function createPanel() {
 	a._templateName = "";
 	a._fovCache = null;
 	a._fovPerspective = null;
+	a._localize = setupLocalize();
 	return el;
 }
 
