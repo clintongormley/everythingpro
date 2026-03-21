@@ -26,6 +26,8 @@ from .const import GRID_ROWS
 from .const import MAX_TARGETS
 from .const import ZONE_TYPE_DEFAULTS
 from .const import ZONE_TYPE_NORMAL
+from .zone_engine import DisplayBuffer
+from .zone_engine import DisplaySnapshot
 from .zone_engine import Grid
 from .zone_engine import ProcessingResult
 from .zone_engine import TargetResult
@@ -38,6 +40,7 @@ _LOGGER = logging.getLogger(__name__)
 SIGNAL_ZONES_UPDATED = f"{DOMAIN}_zones_updated"
 SIGNAL_TARGETS_UPDATED = f"{DOMAIN}_targets_updated"
 SIGNAL_SENSORS_UPDATED = f"{DOMAIN}_sensors_updated"
+SIGNAL_DISPLAY_UPDATED = f"{DOMAIN}_display_updated"
 
 
 class EverythingPresenceProCoordinator:
@@ -96,6 +99,13 @@ class EverythingPresenceProCoordinator:
         self._window_timer: object | None = None
         self._stale_timer: object | None = None
 
+        # Display buffer (5 Hz rolling median for live UI)
+        self._display_buffer = DisplayBuffer()
+        self._last_display_snapshot: DisplaySnapshot | None = None
+        self._last_display_time: float = 0.0
+        self._display_subscriber_count: int = 0
+        self._display_flush_scheduled: bool = False
+
         # ESPHome entity key mapping (populated during subscription)
         self._sensor_key_map: dict[int, str] = {}
         self._binary_sensor_key_map: dict[int, str] = {}
@@ -118,6 +128,24 @@ class EverythingPresenceProCoordinator:
     def last_result(self) -> ProcessingResult:
         """Return the last processing result."""
         return self._last_result
+
+    @property
+    def display_subscriber_count(self) -> int:
+        """Return the number of active display subscribers."""
+        return self._display_subscriber_count
+
+    @property
+    def last_display_snapshot(self) -> DisplaySnapshot | None:
+        """Return the last display snapshot."""
+        return self._last_display_snapshot
+
+    def increment_display_subscribers(self) -> None:
+        """Increment the display subscriber count."""
+        self._display_subscriber_count += 1
+
+    def decrement_display_subscribers(self) -> None:
+        """Decrement the display subscriber count."""
+        self._display_subscriber_count = max(0, self._display_subscriber_count - 1)
 
     @property
     def static_present(self) -> bool:
@@ -509,6 +537,10 @@ class EverythingPresenceProCoordinator:
         """Feed raw target data to the zone engine on each state update."""
         now = time.monotonic()
         calibrated = self._build_calibrated_targets()
+        raw = [
+            (self._target_x[i], self._target_y[i], self._target_active[i])
+            for i in range(MAX_TARGETS)
+        ]
 
         result = self._zone_engine.feed_raw(calibrated, now)
 
@@ -516,6 +548,11 @@ class EverythingPresenceProCoordinator:
             # Window ticked — update state and dispatch
             self._last_result = result
             async_dispatcher_send(self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}")
+
+        # Always feed the display buffer so smoothed raw positions are
+        # available to subscribe_targets (FOV overlay) even when nobody
+        # is subscribed to subscribe_display.
+        self._last_display_snapshot = self._display_buffer.feed(calibrated, raw)
 
         # Schedule a single callback at the soonest pending zone expiry
         self._schedule_expiry_tick()
@@ -526,6 +563,24 @@ class EverythingPresenceProCoordinator:
         if self._stale_timer is not None:
             self._stale_timer.cancel()
         self._stale_timer = self.hass.loop.call_later(1.5, self._stale_tick)
+
+        # Coalesce display signal — schedule at most one per event-loop iteration
+        if self._display_subscriber_count > 0 and not self._display_flush_scheduled:
+            self._display_flush_scheduled = True
+            self.hass.loop.call_soon(self._flush_display)
+
+    def _flush_display(self) -> None:
+        """Emit display signal (coalesced, max 5 Hz)."""
+        self._display_flush_scheduled = False
+        if self._display_subscriber_count <= 0:
+            return
+
+        now = time.monotonic()
+        if now - self._last_display_time < 0.2:
+            return
+
+        self._last_display_time = now
+        async_dispatcher_send(self.hass, f"{SIGNAL_DISPLAY_UPDATED}_{self.entry.entry_id}")
 
     def _stale_tick(self) -> None:
         """Feed current sensor state after sensor updates stopped flowing."""
@@ -558,7 +613,12 @@ class EverythingPresenceProCoordinator:
         self._schedule_expiry_tick()
 
     def _build_calibrated_targets(self) -> list[tuple[float, float, bool]]:
-        """Build calibrated target list from current raw state."""
+        """Build calibrated target list from current raw state.
+
+        The third element indicates the target is active AND inside the
+        room grid.  This drives the zone engine's tumbling window and the
+        subscribe_targets API (live overview).
+        """
         grid = self._zone_engine.grid
         calibrated: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
@@ -568,7 +628,7 @@ class EverythingPresenceProCoordinator:
                 inside = cell is not None and grid.cell_is_room(cell)
                 calibrated.append((cx, cy, inside))
             else:
-                calibrated.append((self._target_x[i], self._target_y[i], False))
+                calibrated.append((0.0, 0.0, False))
         return calibrated
 
     def _target_index(self, name: str) -> int | None:

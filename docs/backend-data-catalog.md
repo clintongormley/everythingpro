@@ -61,18 +61,20 @@ All data comes from ESPHome API subscriptions via the coordinator.
 
 ## 2. Live Overview
 
-Single websocket subscription (`subscribe_targets`) pushes this message structure.
+Websocket subscription `subscribe_targets` (~1 Hz) pushes this message structure. See [section 5](#subscribe_targets--live-overview) for API details.
 
 ### `targets[]` (up to 3)
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `x` | float (mm) | calibrated room-space |
-| `y` | float (mm) | calibrated room-space |
-| `raw_x` | float (mm) | sensor-space (for FOV overlay) |
-| `raw_y` | float (mm) | sensor-space |
-| `status` | string | `"active"`, `"pending"`, or `"inactive"` |
+| `x` | float (mm) | calibrated room-space (1s tumbling window median), 0 if outside room |
+| `y` | float (mm) | calibrated room-space, 0 if outside room |
+| `raw_x` | float (mm) | sensor-space, rolling median smoothed (for FOV overlay), 0 if outside room |
+| `raw_y` | float (mm) | sensor-space, rolling median smoothed, 0 if outside room |
+| `status` | string | `"active"`, `"pending"`, or `"inactive"` — room-gated by backend grid |
 | `signal` | int 0-9 | min(frames_in_window, 9) |
+
+Targets outside the room grid are reported as `"inactive"` with zeroed positions. The backend fully owns room gating and zone assignment for this API.
 
 ### `sensors`
 
@@ -96,19 +98,21 @@ Single websocket subscription (`subscribe_targets`) pushes this message structur
 | `frame_count` | int | max(window_total, 10) |
 | `debug_log` | string | human-readable tick summary for debug panel |
 
-Update cadence: zone engine ticks every ~1s (tumbling window). No inter-tick display updates.
+Update cadence: zone engine ticks every ~1s (tumbling window).
 
 ---
 
 ## 3. Room Calibration
 
-### From firmware (live during wizard)
+The calibration wizard uses `subscribe_display` (5 Hz) for smoothed raw target positions. See [section 5](#subscribe_display--calibration--smooth-display) for API details. Calibration results are saved via `set_setup`.
+
+### From sensor (live during wizard, via `subscribe_display`)
 
 | Data | Type | Notes |
 |------|------|-------|
-| `raw_x` | float (mm) | per-target, range +/-6000 |
-| `raw_y` | float (mm) | per-target, range 0-6000 |
-| `active` | bool | per-target |
+| `raw_x` | float (mm) | per-target, range +/-6000, rolling median smoothed |
+| `raw_y` | float (mm) | per-target, range 0-6000, rolling median smoothed |
+| `signal` | int 0-9 | 0 = no target, >0 = sensor is tracking |
 | target count | int | must be exactly 1 for capture |
 
 ### Wizard captures (frontend-computed)
@@ -189,6 +193,153 @@ This area requires strict Python/JS sync. The frontend replicates the backend mo
 | `width`, `height` | float (mm) |
 | `rotation` | float (degrees) |
 | `lockAspect` | bool |
+
+---
+
+## 5. WebSocket API
+
+All frontend-backend communication uses HA websocket commands under the `everything_presence_pro/` namespace. Defined in `websocket_api.py`.
+
+### Subscriptions (live data)
+
+#### `subscribe_targets` — live overview
+
+Used by the grid view / live overview screen. Pushes on zone engine tick (~1 Hz) and on sensor changes.
+
+**Request:** `{ "type": "everything_presence_pro/subscribe_targets", "entry_id": str }`
+
+**Event payload:** see [section 2 (Live Overview)](#2-live-overview) for full field listing.
+
+Both subscriptions use the same DisplayBuffer rolling median for `raw_x`/`raw_y`, so raw positions are always smoothed and consistent. The `x`/`y` fields are calibrated room-space coordinates from the zone engine's 1s tumbling window median.
+
+#### `subscribe_display` — calibration & smooth display
+
+Used by the calibration wizard and any screen needing smooth target positions. Pushes at up to 5 Hz via the DisplayBuffer rolling median. Only active when at least one subscriber is connected (opt-in to avoid unnecessary work).
+
+**Request:** `{ "type": "everything_presence_pro/subscribe_display", "entry_id": str }`
+
+**Event payload:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `targets[].x` | float (mm) | calibrated room-space, rolling median (only when inside room grid) |
+| `targets[].y` | float (mm) | calibrated room-space, rolling median |
+| `targets[].raw_x` | float (mm) | sensor-space, rolling median (always available when sensor is tracking) |
+| `targets[].raw_y` | float (mm) | sensor-space, rolling median |
+| `targets[].signal` | int 0-9 | frame count in deque, capped at 9 |
+
+The key difference from `subscribe_targets`: raw positions are smoothed with a rolling median and are always available when the sensor detects a target, even if the target falls outside the calibrated room grid. This is what makes room calibration work — targets are visible before/during calibration when no room grid exists yet.
+
+### Commands (one-shot)
+
+#### `list_entries`
+
+Returns all configured EPP devices with setup status flags.
+
+**Request:** `{ "type": "everything_presence_pro/list_entries" }`
+
+**Response:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `[].entry_id` | str | config entry ID |
+| `[].title` | str | device name (user-set or default) |
+| `[].has_perspective` | bool | calibration completed |
+| `[].has_layout` | bool | room layout saved |
+
+#### `get_config`
+
+Returns the full config for a device (calibration, zones, grid, layout, reporting, offsets).
+
+**Request:** `{ "type": "everything_presence_pro/get_config", "entry_id": str }`
+
+**Response:** the coordinator's `get_config_data()` dict — contains calibration, grid, zones, room_layout, reporting, and offsets.
+
+#### `set_setup`
+
+Saves perspective transform + room dimensions. Clears existing room layout and zones (grid dimensions change). Called at the end of the calibration wizard.
+
+**Request:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `entry_id` | str | |
+| `perspective` | float[8] | homography coefficients [a,b,c,d,e,f,g,h] |
+| `room_width` | float (mm) | |
+| `room_depth` | float (mm) | |
+
+**Side effects:** clears room_layout, zones; rebuilds grid; persists to config entry options.
+
+#### `set_room_layout`
+
+Saves the grid cell painting, zone slot definitions, room-level settings, and furniture. This is the primary way zones are configured (replaces the older `set_zones`).
+
+**Request:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `entry_id` | str | |
+| `grid_bytes` | int[] | 400 cell bytes (20x20) |
+| `zone_slots` | (object\|null)[8] | zone config per slot, null = empty |
+| `room_type` | str | zone type for "rest of room" (default: "normal") |
+| `room_trigger` | int 0-9 | optional |
+| `room_renew` | int 0-9 | optional |
+| `room_timeout` | float | optional |
+| `room_handoff_timeout` | float | optional |
+| `room_entry_point` | bool | optional |
+| `furniture` | object[] | visual-only furniture stickers |
+
+**Response:** `{ "entity_id_renames": [{ "old_entity_id", "new_entity_id" }] }` — suggested entity ID renames based on zone names.
+
+**Side effects:** updates zone engine, persists layout, enables/disables zone entities based on slot occupancy and reporting toggles.
+
+#### `set_zones`
+
+Sets zone definitions directly (without grid painting). Simpler than `set_room_layout` but doesn't handle grid cells or entity management.
+
+**Request:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `entry_id` | str | |
+| `zones` | object[] | zone configs with id, name, type, thresholds |
+
+#### `set_reporting`
+
+Enables/disables reporting entities and saves sensor offsets.
+
+**Request:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `entry_id` | str | |
+| `reporting` | dict[str, bool] | 18 toggle keys (see [Reporting Toggles](#reporting-toggles)) |
+| `offsets` | dict | optional: `illuminance`, `temperature`, `humidity` floats |
+
+**Side effects:** enables/disables entities in the entity registry, applies offsets to coordinator immediately.
+
+#### `rename_zone_entities`
+
+Batch-renames zone entity IDs via the entity registry.
+
+**Request:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `entry_id` | str | |
+| `renames` | object[] | `[{ "old_entity_id": str, "new_entity_id": str }]` |
+
+**Response:** `{ "errors": str[] }` — any rename failures.
+
+### Frontend screen -> API mapping
+
+| Screen | Subscriptions | Commands |
+|--------|---------------|----------|
+| Device picker | — | `list_entries` |
+| Room calibration wizard | `subscribe_display` | `set_setup` |
+| Live overview / grid view | `subscribe_targets` | `get_config` |
+| Zone editor | `subscribe_targets` | `set_room_layout`, `rename_zone_entities` |
+| Reporting settings | — | `get_config`, `set_reporting` |
 
 ---
 

@@ -1,6 +1,7 @@
 name: Hassfest
 
 on:
+  push:
   pull_request:
 
 jobs:
@@ -8,5 +9,5 @@ jobs:
     runs-on: ubuntu-latest
     name: Hassfest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - uses: home-assistant/actions/hassfest@master

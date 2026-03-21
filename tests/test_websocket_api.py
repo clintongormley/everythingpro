@@ -256,9 +256,9 @@ async def test_subscribe_targets(hass: HomeAssistant, hass_ws_client, setup_inte
     for t in event["targets"]:
         assert "x" in t
         assert "y" in t
-        assert "status" in t
         assert "raw_x" in t
         assert "raw_y" in t
+        assert "status" in t
         assert "signal" in t
         assert t["status"] in ("active", "pending", "inactive")
 
@@ -468,3 +468,71 @@ async def test_set_setup_not_found(hass: HomeAssistant, hass_ws_client, setup_in
     )
     msg = await ws_client.receive_json()
     assert msg["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# subscribe_display
+# ---------------------------------------------------------------------------
+
+
+async def test_subscribe_display(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_display sends initial state and lightweight updates."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_display",
+            "entry_id": entry.entry_id,
+        }
+    )
+
+    # First message: subscription acknowledgment
+    msg = await ws_client.receive_json()
+    assert msg["id"] == 1
+    assert msg["success"] is True
+
+    # Second message: initial state event
+    msg = await ws_client.receive_json()
+    assert msg["id"] == 1
+    assert msg["type"] == "event"
+    event = msg["event"]
+    assert "targets" in event
+    # Display messages have NO sensors or zones
+    assert "sensors" not in event
+    assert "zones" not in event
+    # Verify target structure
+    for t in event["targets"]:
+        assert "x" in t
+        assert "y" in t
+        assert "raw_x" in t
+        assert "raw_y" in t
+        assert "signal" in t
+
+
+async def test_subscribe_display_tracks_subscriber_count(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_display increments/decrements the coordinator subscriber count."""
+    entry = setup_integration
+    coordinator = entry.runtime_data
+    assert coordinator.display_subscriber_count == 0
+
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_display",
+            "entry_id": entry.entry_id,
+        }
+    )
+    await ws_client.receive_json()  # result
+    await ws_client.receive_json()  # initial event
+
+    assert coordinator.display_subscriber_count == 1
+
+    # Unsubscribe
+    await ws_client.send_json({"id": 2, "type": "unsubscribe_events", "subscription": 1})
+    await ws_client.receive_json()
+
+    assert coordinator.display_subscriber_count == 0

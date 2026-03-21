@@ -29,8 +29,6 @@ from custom_components.everything_presence_pro.sensor import EverythingPresenceP
 from custom_components.everything_presence_pro.sensor import EverythingPresenceProTemperatureSensor
 from custom_components.everything_presence_pro.sensor import EverythingPresenceProZoneTargetCountSensor
 from custom_components.everything_presence_pro.zone_engine import ProcessingResult
-from custom_components.everything_presence_pro.zone_engine import TargetResult
-from custom_components.everything_presence_pro.zone_engine import TargetStatus
 from custom_components.everything_presence_pro.zone_engine import Zone
 
 
@@ -49,11 +47,7 @@ def mock_coordinator():
     coordinator.target_speed = lambda idx: 100.0 if idx == 0 else None
     coordinator.target_angle = lambda idx: 45.0 if idx == 0 else None
     coordinator.target_resolution = lambda idx: 75.0 if idx == 0 else None
-    coordinator.targets = [
-        TargetResult(x=3000, y=4000, status=TargetStatus.ACTIVE, signal=5),
-        TargetResult(),
-        TargetResult(),
-    ]
+    coordinator.targets = [(3000, 4000, True), (0, 0, False), (0, 0, False)]
     coordinator.raw_targets = [(3000, 4000, True), (0, 0, False), (0, 0, False)]
     coordinator.last_result = ProcessingResult(
         device_tracking_present=True,

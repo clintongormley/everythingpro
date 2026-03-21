@@ -503,6 +503,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	// Target subscription
 	private _unsubTargets?: () => void;
+	private _unsubDisplay?: () => void;
 
 	private _beforeUnloadHandler = (e: BeforeUnloadEvent) => {
 		if (this._dirty) {
@@ -749,14 +750,57 @@ export class EverythingPresenceProPanel extends LitElement {
 			.then((unsub: () => void) => {
 				this._unsubTargets = unsub;
 			});
+		this._subscribeDisplay(entryId);
 	}
 
 	private _unsubscribeTargets(): void {
+		this._unsubscribeDisplay();
 		if (this._unsubTargets) {
 			this._unsubTargets();
 			this._unsubTargets = undefined;
 		}
 		this._targets = [];
+	}
+
+	private _subscribeDisplay(entryId: string): void {
+		this._unsubscribeDisplay();
+		if (!this.hass || !entryId) return;
+
+		const conn = this.hass.connection;
+
+		conn
+			.subscribeMessage(
+				(event: any) => {
+					const displayTargets: Array<{
+						x: number;
+						y: number;
+						raw_x: number;
+						raw_y: number;
+						signal: number;
+					}> = event.targets || [];
+
+					// Merge display positions into existing targets
+					this._targets = this._targets.map((t, i) => {
+						const d = displayTargets[i];
+						if (!d) return t;
+						return { ...t, x: d.x, y: d.y, raw_x: d.raw_x, raw_y: d.raw_y, signal: d.signal };
+					});
+				},
+				{
+					type: "everything_presence_pro/subscribe_display",
+					entry_id: entryId,
+				},
+			)
+			.then((unsub: () => void) => {
+				this._unsubDisplay = unsub;
+			});
+	}
+
+	private _unsubscribeDisplay(): void {
+		if (this._unsubDisplay) {
+			this._unsubDisplay();
+			this._unsubDisplay = undefined;
+		}
 	}
 
 	// -- Grid cell painting --
@@ -3648,8 +3692,7 @@ export class EverythingPresenceProPanel extends LitElement {
       <div class="panel" @click=${(e: Event) => {
 				if (
 					this._showLiveMenu &&
-					(!(e.target instanceof Element) ||
-						!e.target.closest(".sidebar-menu-wrapper"))
+					!(e.target as HTMLElement).closest(".sidebar-menu-wrapper")
 				) {
 					this._showLiveMenu = false;
 				}

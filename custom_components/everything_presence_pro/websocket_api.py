@@ -17,9 +17,12 @@ from .const import MAX_TARGETS
 from .const import MAX_ZONES
 from .const import ZONE_TYPE_DEFAULTS
 from .const import ZONE_TYPE_NORMAL
+from .coordinator import SIGNAL_DISPLAY_UPDATED
 from .coordinator import SIGNAL_SENSORS_UPDATED
 from .coordinator import SIGNAL_TARGETS_UPDATED
 from .coordinator import EverythingPresenceProCoordinator
+from .zone_engine import DisplaySnapshot
+from .zone_engine import DisplayTarget
 from .zone_engine import TargetResult
 from .zone_engine import Zone
 
@@ -47,6 +50,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_set_room_layout)
     websocket_api.async_register_command(hass, websocket_set_setup)
     websocket_api.async_register_command(hass, websocket_subscribe_targets)
+    websocket_api.async_register_command(hass, websocket_subscribe_display)
     websocket_api.async_register_command(hass, websocket_rename_zone_entities)
     websocket_api.async_register_command(hass, websocket_set_reporting)
 
@@ -447,11 +451,12 @@ async def websocket_subscribe_targets(
     def _forward_state() -> None:
         """Forward targets, sensors, and zone state to the WebSocket subscriber."""
         result = coordinator.last_result
-        raw_targets = coordinator.raw_targets
+        snap = coordinator.last_display_snapshot
         # Pad targets to MAX_TARGETS if zone engine hasn't ticked yet
         targets = list(result.targets) if result else []
-        while len(targets) < len(raw_targets):
+        while len(targets) < MAX_TARGETS:
             targets.append(TargetResult())
+        display = snap.targets if snap else [DisplayTarget()] * MAX_TARGETS
         connection.send_message(
             websocket_api.event_message(
                 msg["id"],
@@ -460,12 +465,12 @@ async def websocket_subscribe_targets(
                         {
                             "x": t.x,
                             "y": t.y,
+                            "raw_x": d.raw_x,
+                            "raw_y": d.raw_y,
                             "status": t.status.value,
-                            "raw_x": r[0],
-                            "raw_y": r[1],
                             "signal": t.signal,
                         }
-                        for t, r in zip(targets, raw_targets, strict=True)
+                        for t, d in zip(targets, display, strict=False)
                     ],
                     "sensors": {
                         "occupancy": coordinator.device_occupied,
@@ -509,6 +514,79 @@ async def websocket_subscribe_targets(
     def _unsub_all() -> None:
         unsub_targets()
         unsub_sensors()
+
+    connection.subscriptions[msg["id"]] = _unsub_all
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "everything_presence_pro/subscribe_display",
+        vol.Required("entry_id"): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_subscribe_display(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle subscribe_display command — lightweight 5 Hz position updates."""
+    coordinator = _get_coordinator(hass, msg["entry_id"])
+    if coordinator is None:
+        connection.send_error(msg["id"], "not_found", "Config entry not found")
+        return
+
+    def _build_payload(snap: DisplaySnapshot | None) -> dict[str, Any]:
+        """Build the display payload from a snapshot."""
+        targets = snap.targets if snap else [DisplayTarget()] * MAX_TARGETS
+        return {
+            "targets": [
+                {
+                    "x": t.x,
+                    "y": t.y,
+                    "raw_x": t.raw_x,
+                    "raw_y": t.raw_y,
+                    "signal": min(t.frame_count, 9),
+                }
+                for t in targets
+            ],
+        }
+
+    @callback
+    def _forward_display() -> None:
+        """Forward display snapshot to subscriber."""
+        connection.send_message(
+            websocket_api.event_message(
+                msg["id"],
+                _build_payload(coordinator.last_display_snapshot),
+            )
+        )
+
+    # Track subscriber
+    coordinator.increment_display_subscribers()
+
+    # Send initial state
+    connection.send_result(msg["id"])
+    connection.send_message(
+        websocket_api.event_message(
+            msg["id"],
+            _build_payload(coordinator.last_display_snapshot),
+        )
+    )
+
+    # Subscribe to display updates
+    from homeassistant.helpers.dispatcher import async_dispatcher_connect
+
+    unsub = async_dispatcher_connect(
+        hass,
+        f"{SIGNAL_DISPLAY_UPDATED}_{msg['entry_id']}",
+        _forward_display,
+    )
+
+    @callback
+    def _unsub_all() -> None:
+        unsub()
+        coordinator.decrement_display_subscribers()
 
     connection.subscriptions[msg["id"]] = _unsub_all
 
