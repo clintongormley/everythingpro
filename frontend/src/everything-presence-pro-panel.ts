@@ -3563,17 +3563,7 @@ export class EverythingPresenceProPanel extends LitElement {
           </div>
           <div class="zone-sidebar">
             <div class="sidebar-header">
-              <span class="sidebar-title">Live overview</span>
-              <button
-                class="sidebar-menu-btn"
-                title="Show signal strength"
-                style="margin-right: auto; opacity: ${this._showHitCounts ? 1 : 0.4};"
-                @click=${() => {
-									this._showHitCounts = !this._showHitCounts;
-								}}
-              >
-                <ha-icon icon="mdi:signal-cellular-3" style="--mdc-icon-size: 18px;"></ha-icon>
-              </button>
+              <span class="sidebar-title" style="margin-right: auto;">Live overview</span>
               <div class="sidebar-menu-wrapper">
                 <button class="sidebar-menu-btn" @click=${() => {
 									this._showLiveMenu = !this._showLiveMenu;
@@ -3670,7 +3660,7 @@ export class EverythingPresenceProPanel extends LitElement {
         class="grid"
         style="grid-template-columns: repeat(${visCols}, ${cellPx}px); grid-template-rows: repeat(${visRows}, ${cellPx}px);"
       >
-        ${this._renderVisibleCells(minCol, maxCol, minRow, maxRow, cellPx)}
+        ${this._renderVisibleCells(minCol, maxCol, minRow, maxRow, cellPx, true)}
       </div>
       ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
       <div class="targets-overlay" style="pointer-events: none;">
@@ -3685,15 +3675,6 @@ export class EverythingPresenceProPanel extends LitElement {
               class="target-dot"
               style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]};"
             ></div>
-            ${
-							this._showHitCounts && t.signal > 0
-								? html`
-              <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -280%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
-                ${t.signal}
-              </div>
-            `
-								: nothing
-						}
           `;
 				})}
       </div>
@@ -4614,13 +4595,66 @@ export class EverythingPresenceProPanel extends LitElement {
 		minRow: number,
 		maxRow: number,
 		cellPx: number,
+		useBackendOccupancy = false,
 	) {
 		// Pre-compute heatmap colours per zone if enabled
 		const heatmap = this._showHitCounts ? this._computeHeatmapColors() : null;
-		// Local zone occupancy with trigger/renew thresholds and timeout
-		const now = Date.now() / 1000;
 
-		// Per-target evaluation (matches backend zone_engine._tick)
+		let occupancy: Record<number, boolean>;
+
+		if (useBackendOccupancy) {
+			// Use zone occupancy from backend websocket data
+			occupancy = {};
+			for (const [k, v] of Object.entries(this._zoneState.occupancy)) {
+				occupancy[Number(k)] = v as boolean;
+			}
+		} else {
+			// Run local zone engine replica (matches backend zone_engine._tick)
+			occupancy = this._runLocalZoneEngine();
+		}
+
+		const cells = [];
+		for (let r = minRow; r <= maxRow; r++) {
+			for (let c = minCol; c <= maxCol; c++) {
+				const idx = r * GRID_COLS + c;
+				const cellVal = this._grid[idx];
+				// FOV blackout disabled — needs calibration refinement
+				// const inRange = this._isCellInSensorRange(c, r);
+				const inRange = true;
+				let bg = inRange ? this._getCellColor(idx) : "#1a1a1a";
+				let border = "";
+				if (inRange && cellIsInside(cellVal)) {
+					const zoneId = cellZone(cellVal);
+					if (heatmap) {
+						const overlay = heatmap.get(zoneId);
+						if (overlay) {
+							bg = `linear-gradient(${overlay}, ${overlay}), linear-gradient(${bg}, ${bg})`;
+						}
+					}
+					if (occupancy[zoneId]) {
+						border = `box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);`;
+					}
+				}
+				cells.push(html`
+          <div
+            class="cell"
+            style="background: ${bg}; width: ${cellPx}px; height: ${cellPx}px; ${border}"
+            @mousedown=${() => {
+							if (inRange) this._onCellMouseDown(idx);
+						}}
+            @mouseenter=${() => {
+							if (inRange) this._onCellMouseEnter(idx);
+						}}
+          ></div>
+        `);
+			}
+		}
+		return cells;
+	}
+
+	/** Run local zone engine replica (matches backend zone_engine._tick). */
+	private _runLocalZoneEngine(): Record<number, boolean> {
+		const now = Date.now() / 1000;
 		const MAX_MOVEMENT_CELLS = 5;
 		const MAX_TARGETS = 3;
 
@@ -4633,7 +4667,6 @@ export class EverythingPresenceProPanel extends LitElement {
 			const t = this._targets[i];
 
 			if (!t.active || t.pending) {
-				// Target gone: clear tracking
 				this._targetPrev[i] = null;
 				this._targetGateCount[i] = 0;
 				continue;
@@ -4642,7 +4675,6 @@ export class EverythingPresenceProPanel extends LitElement {
 			const signal = t.signal;
 			if (signal <= 0) continue;
 
-			// Map to grid cell
 			const pos = this._mapTargetToGridCell(t);
 			if (!pos) {
 				this._targetPrev[i] = null;
@@ -4667,7 +4699,6 @@ export class EverythingPresenceProPanel extends LitElement {
 			const zid = cellZone(cellVal);
 			targetZoneCurr[i] = zid;
 
-			// Determine previous zone from previous position
 			const prev = this._targetPrev[i];
 			if (prev !== null) {
 				const prevIdx = prev.row * GRID_COLS + prev.col;
@@ -4680,7 +4711,6 @@ export class EverythingPresenceProPanel extends LitElement {
 				}
 			}
 
-			// Continuity check: Chebyshev distance
 			let continuous = false;
 			if (prev !== null) {
 				const dist = Math.max(
@@ -4690,10 +4720,8 @@ export class EverythingPresenceProPanel extends LitElement {
 				continuous = dist <= MAX_MOVEMENT_CELLS;
 			}
 
-			// Track best signal per zone
 			zoneSignal.set(zid, Math.max(zoneSignal.get(zid) ?? 0, signal));
 
-			// Get zone thresholds
 			const { trigger, renew, entryPoint } = this._getZoneThresholds(zid);
 			const st = this._localZoneState.get(zid);
 			const isOccupied = st?.occupied ?? false;
@@ -4703,7 +4731,6 @@ export class EverythingPresenceProPanel extends LitElement {
 			const needsGating = !entryPoint && !continuous;
 
 			if (needsGating && isClear) {
-				// Entry point gating: double threshold, cap at 9
 				const gatedThresh = Math.min(baseTrigger * 2, 9);
 				if (signal >= gatedThresh) {
 					this._targetGateCount[i]++;
@@ -4713,16 +4740,13 @@ export class EverythingPresenceProPanel extends LitElement {
 						this._targetPrev[i] = { col, row };
 						this._targetGateCount[i] = 0;
 					} else {
-						// Record position for next tick's continuity check
 						this._targetPrev[i] = { col, row };
 					}
 				} else {
-					// Below gated threshold: reset
 					this._targetPrev[i] = null;
 					this._targetGateCount[i] = 0;
 				}
 			} else {
-				// Not gated: entry point, continuous, or already occupied/pending
 				if (signal >= baseTrigger) {
 					zoneConfirmed.set(zid, true);
 					if (st) st.confirmedTargets.add(i);
@@ -4734,7 +4758,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			}
 		}
 
-		// Handoff detection: targets that moved between zones
+		// Handoff detection
 		for (let i = 0; i < MAX_TARGETS; i++) {
 			const prevZid = targetZonePrev[i];
 			const currZid = targetZoneCurr[i];
@@ -4775,20 +4799,17 @@ export class EverythingPresenceProPanel extends LitElement {
 			const confirmed = zoneConfirmed.get(zid) ?? false;
 
 			if (!st.occupied) {
-				// CLEAR
 				if (confirmed) {
 					st.occupied = true;
 					st.pendingSince = null;
 					st.isHandoff = false;
 				}
 			} else if (st.pendingSince === null) {
-				// OCCUPIED
 				if (!confirmed) {
 					st.pendingSince = now;
 					st.isHandoff = false;
 				}
 			} else {
-				// PENDING
 				if (confirmed) {
 					st.pendingSince = null;
 					st.isHandoff = false;
@@ -4806,44 +4827,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			}
 			occupancy[zid] = st.occupied;
 		}
-
-		const cells = [];
-		for (let r = minRow; r <= maxRow; r++) {
-			for (let c = minCol; c <= maxCol; c++) {
-				const idx = r * GRID_COLS + c;
-				const cellVal = this._grid[idx];
-				// FOV blackout disabled — needs calibration refinement
-				// const inRange = this._isCellInSensorRange(c, r);
-				const inRange = true;
-				let bg = inRange ? this._getCellColor(idx) : "#1a1a1a";
-				let border = "";
-				if (inRange && cellIsInside(cellVal)) {
-					const zoneId = cellZone(cellVal);
-					if (heatmap) {
-						const overlay = heatmap.get(zoneId);
-						if (overlay) {
-							bg = `linear-gradient(${overlay}, ${overlay}), linear-gradient(${bg}, ${bg})`;
-						}
-					}
-					if (occupancy[zoneId]) {
-						border = `box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);`;
-					}
-				}
-				cells.push(html`
-          <div
-            class="cell"
-            style="background: ${bg}; width: ${cellPx}px; height: ${cellPx}px; ${border}"
-            @mousedown=${() => {
-							if (inRange) this._onCellMouseDown(idx);
-						}}
-            @mouseenter=${() => {
-							if (inRange) this._onCellMouseEnter(idx);
-						}}
-          ></div>
-        `);
-			}
-		}
-		return cells;
+		return occupancy;
 	}
 
 	/** Compute rgba overlay colour per zone based on hit counts. */
