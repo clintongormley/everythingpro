@@ -1463,7 +1463,7 @@ describe("_onFurniturePointerDown onUp callback", () => {
 
 		// Call onUp to trigger cleanup
 		if (onUp) {
-			onUp();
+			(onUp as Function)();
 			expect(a._dragState).toBeNull();
 			expect(removeSpy).toHaveBeenCalled();
 		}
