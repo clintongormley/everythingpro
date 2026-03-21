@@ -61,20 +61,23 @@ All data comes from ESPHome API subscriptions via the coordinator.
 
 ## 2. Live Overview
 
-Websocket subscription `subscribe_targets` (~1 Hz) pushes this message structure. See [section 5](#subscribe_targets--live-overview) for API details.
+The live overview uses two websocket subscriptions at 5 Hz:
 
-### `targets[]` (up to 3)
+- `subscribe_grid_targets` — grid view with calibrated room-space positions and zone state
+- `subscribe_raw_targets` — FOV overlay with smoothed sensor-space positions
+
+See [section 5](#subscriptions-live-data) for API details.
+
+### `targets[]` (up to 3, from `subscribe_grid_targets`)
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `x` | float (mm) | calibrated room-space (1s tumbling window median), 0 if outside room |
-| `y` | float (mm) | calibrated room-space, 0 if outside room |
-| `raw_x` | float (mm) | sensor-space, rolling median smoothed (for FOV overlay), 0 if outside room |
-| `raw_y` | float (mm) | sensor-space, rolling median smoothed, 0 if outside room |
-| `status` | string | `"active"`, `"pending"`, or `"inactive"` — room-gated by backend grid |
-| `signal` | int 0-9 | min(frames_in_window, 9) |
+| `x` | float (mm) | calibrated room-space, rolling median smoothed (from `subscribe_grid_targets`) |
+| `y` | float (mm) | calibrated room-space, rolling median smoothed |
+| `signal` | int 0-9 | from zone engine (cached, updates at 1Hz) |
+| `status` | string | `"active"`, `"pending"`, or `"inactive"` — room-gated (cached, 1Hz) |
 
-Targets outside the room grid are reported as `"inactive"` with zeroed positions. The backend fully owns room gating and zone assignment for this API.
+Raw positions for the FOV overlay come from `subscribe_raw_targets`.
 
 ### `sensors`
 
@@ -82,7 +85,7 @@ Targets outside the room grid are reported as `"inactive"` with zeroed positions
 |-------|------|-------|
 | `occupancy` | bool | combined PIR OR static OR tracking |
 | `static_presence` | bool | mmWave |
-| `pir_motion` | bool | PIR |
+| `motion_presence` | bool | PIR |
 | `target_presence` | bool | any target actively tracked |
 | `illuminance` | float\|null | with offset, clamped >= 0 |
 | `temperature` | float\|null | with offset |
@@ -98,15 +101,15 @@ Targets outside the room grid are reported as `"inactive"` with zeroed positions
 | `frame_count` | int | max(window_total, 10) |
 | `debug_log` | string | human-readable tick summary for debug panel |
 
-Update cadence: zone engine ticks every ~1s (tumbling window).
+Update cadence: zone engine ticks every ~1s (tumbling window); `x`/`y` positions push at 5 Hz.
 
 ---
 
 ## 3. Room Calibration
 
-The calibration wizard uses `subscribe_display` (5 Hz) for smoothed raw target positions. See [section 5](#subscribe_display--calibration--smooth-display) for API details. Calibration results are saved via `set_setup`.
+The calibration wizard uses `subscribe_raw_targets` (5 Hz) for smoothed raw target positions. See [section 5](#subscriptions-live-data) for API details. Calibration results are saved via `set_setup`.
 
-### From sensor (live during wizard, via `subscribe_display`)
+### From sensor (live during wizard, via `subscribe_raw_targets`)
 
 | Data | Type | Notes |
 |------|------|-------|
@@ -202,33 +205,44 @@ All frontend-backend communication uses HA websocket commands under the `everyth
 
 ### Subscriptions (live data)
 
-#### `subscribe_targets` — live overview
+#### `subscribe_raw_targets` — calibration & FOV overlay
 
-Used by the grid view / live overview screen. Pushes on zone engine tick (~1 Hz) and on sensor changes.
+Used by the room calibration wizard and the FOV overlay on the live overview screen. Pushes at up to 5 Hz via the DisplayBuffer rolling median. Only active when at least one subscriber is connected (opt-in to avoid unnecessary work).
 
-**Request:** `{ "type": "everything_presence_pro/subscribe_targets", "entry_id": str }`
-
-**Event payload:** see [section 2 (Live Overview)](#2-live-overview) for full field listing.
-
-Both subscriptions use the same DisplayBuffer rolling median for `raw_x`/`raw_y`, so raw positions are always smoothed and consistent. The `x`/`y` fields are calibrated room-space coordinates from the zone engine's 1s tumbling window median.
-
-#### `subscribe_display` — calibration & smooth display
-
-Used by the calibration wizard and any screen needing smooth target positions. Pushes at up to 5 Hz via the DisplayBuffer rolling median. Only active when at least one subscriber is connected (opt-in to avoid unnecessary work).
-
-**Request:** `{ "type": "everything_presence_pro/subscribe_display", "entry_id": str }`
+**Request:** `{ "type": "everything_presence_pro/subscribe_raw_targets", "entry_id": str }`
 
 **Event payload:**
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `targets[].x` | float (mm) | calibrated room-space, rolling median (only when inside room grid) |
-| `targets[].y` | float (mm) | calibrated room-space, rolling median |
-| `targets[].raw_x` | float (mm) | sensor-space, rolling median (always available when sensor is tracking) |
-| `targets[].raw_y` | float (mm) | sensor-space, rolling median |
-| `targets[].signal` | int 0-9 | frame count in deque, capped at 9 |
+| `target_count` | int 0-3 | number of targets the sensor is currently tracking |
+| `targets[].raw_x` | float (mm) | sensor-space, rolling median smoothed (always available when sensor is tracking) |
+| `targets[].raw_y` | float (mm) | sensor-space, rolling median smoothed |
 
-The key difference from `subscribe_targets`: raw positions are smoothed with a rolling median and are always available when the sensor detects a target, even if the target falls outside the calibrated room grid. This is what makes room calibration work — targets are visible before/during calibration when no room grid exists yet.
+Raw positions are always available when the sensor detects a target, even if the target falls outside the calibrated room grid. This is what makes room calibration work — targets are visible before/during calibration when no room grid exists yet.
+
+**Used by:** room calibration wizard, FOV overlay.
+
+#### `subscribe_grid_targets` — live overview grid & zone editor
+
+Used by the live overview grid view and the detection zone editor. Pushes positions at up to 5 Hz; zone state (`signal`, `status`) is cached from the zone engine and updates at ~1 Hz.
+
+**Request:** `{ "type": "everything_presence_pro/subscribe_grid_targets", "entry_id": str }`
+
+**Event payload:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `targets[].x` | float (mm) | calibrated room-space, rolling median smoothed — NOT room-gated (always populated when sensor tracks) |
+| `targets[].y` | float (mm) | calibrated room-space, rolling median smoothed — NOT room-gated |
+| `targets[].signal` | int 0-9 | from zone engine (cached, updates at 1 Hz) |
+| `targets[].status` | string | `"active"`, `"pending"`, or `"inactive"` — room-gated by backend (cached, 1 Hz) |
+| `sensors` | object | see [section 2 sensors table](#sensors) |
+| `zones` | object | see [section 2 zones table](#zones) |
+
+`x`/`y` are always populated when the sensor is tracking, regardless of room gating. `status` is room-gated by the backend zone engine.
+
+**Used by:** live overview grid, detection zone editor.
 
 ### Commands (one-shot)
 
@@ -333,13 +347,14 @@ Batch-renames zone entity IDs via the entity registry.
 
 ### Frontend screen -> API mapping
 
-| Screen | Subscriptions | Commands |
-|--------|---------------|----------|
-| Device picker | — | `list_entries` |
-| Room calibration wizard | `subscribe_display` | `set_setup` |
-| Live overview / grid view | `subscribe_targets` | `get_config` |
-| Zone editor | `subscribe_targets` | `set_room_layout`, `rename_zone_entities` |
-| Reporting settings | — | `get_config`, `set_reporting` |
+| Screen | Subscriptions | Fields used | Commands |
+|--------|---------------|-------------|----------|
+| Device picker | — | — | `list_entries` |
+| Room calibration | `subscribe_raw_targets` | `target_count`, `raw_x`, `raw_y` | `set_setup` |
+| Live overview (FOV) | `subscribe_raw_targets` | `target_count`, `raw_x`, `raw_y` | — |
+| Live overview (grid) | `subscribe_grid_targets` | all fields | `get_config` |
+| Detection zone editor | `subscribe_grid_targets` | `x`, `y`, `signal` (ignores `status`) | `set_room_layout`, `rename_zone_entities` |
+| Reporting settings | — | — | `get_config`, `set_reporting` |
 
 ---
 
