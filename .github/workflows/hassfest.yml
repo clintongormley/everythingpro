@@ -1,7 +1,6 @@
 name: Hassfest
 
 on:
-  push:
   pull_request:
 
 jobs:
