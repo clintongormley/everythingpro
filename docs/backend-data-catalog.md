@@ -81,6 +81,7 @@ Single websocket subscription (`subscribe_targets`) pushes this message structur
 | `occupancy` | bool | combined PIR OR static OR tracking |
 | `static_presence` | bool | mmWave |
 | `pir_motion` | bool | PIR |
+| `target_presence` | bool | any target actively tracked |
 | `illuminance` | float\|null | with offset, clamped >= 0 |
 | `temperature` | float\|null | with offset |
 | `humidity` | float\|null | with offset |
@@ -93,6 +94,7 @@ Single websocket subscription (`subscribe_targets`) pushes this message structur
 | `occupancy` | dict[zone_id -> bool] | state != CLEAR |
 | `target_counts` | dict[zone_id -> int 0-9] | best signal in zone |
 | `frame_count` | int | max(window_total, 10) |
+| `debug_log` | string | human-readable tick summary for debug panel |
 
 ### `pending_targets[]`
 
@@ -169,7 +171,7 @@ This area requires strict Python/JS sync. The frontend replicates the backend mo
 | Tumbling window | 1s window, median position per target |
 | Target -> cell mapping | `xy_to_cell()` with origin offset |
 | Continuity check | Chebyshev distance <= 5 cells |
-| Entry point gating | 2 consecutive ticks at doubled threshold for non-entry zones |
+| Entry point gating | 2 consecutive ticks at `min(threshold + 2, 8)` for non-entry zones |
 | Threshold conversion | `max(1, threshold)` -> frame count |
 | State machine | CLEAR/OCCUPIED/PENDING with trigger/renew/timeout |
 | Handoff | pending_since adjusted by `timeout - handoff_timeout` |
