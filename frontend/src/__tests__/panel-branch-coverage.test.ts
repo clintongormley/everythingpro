@@ -1451,3 +1451,606 @@ describe("_onFurniturePointerDown onUp callback", () => {
 		removeSpy.mockRestore();
 	});
 });
+
+// =========================================================
+// willUpdate / updated: language-change and debug-log-scroll branches
+// =========================================================
+describe("willUpdate language change branch", () => {
+	it("rebuilds localize when language changes", () => {
+		const a = createPanel() as any;
+		a._currentLang = "en";
+
+		// Simulate willUpdate with a new language
+		const changed = new Map([["hass", true]]);
+		a.hass = {
+			callWS: vi.fn(),
+			locale: { language: "fr" },
+			language: "fr",
+		};
+		a.willUpdate(changed);
+
+		expect(a._currentLang).toBe("fr");
+	});
+
+	it("does not rebuild localize when language is unchanged", () => {
+		const a = createPanel() as any;
+		a._currentLang = "en";
+		a.hass = {
+			callWS: vi.fn(),
+			locale: { language: "en" },
+			language: "en",
+		};
+		const localizeBefore = a._localize;
+
+		const changed = new Map([["hass", true]]);
+		a.willUpdate(changed);
+
+		// _localize reference should not change
+		expect(a._localize).toBe(localizeBefore);
+	});
+
+	it("does not rebuild when hass not in changed keys", () => {
+		const a = createPanel() as any;
+		a._currentLang = "en";
+		a.hass = {
+			callWS: vi.fn(),
+			locale: { language: "fr" },
+			language: "fr",
+		};
+
+		const changed = new Map<string, any>(); // hass not in changed
+		a.willUpdate(changed);
+
+		// Language should remain "en" because hass key wasn't changed
+		expect(a._currentLang).toBe("en");
+	});
+});
+
+describe("updated debug-log-scroll branch", () => {
+	it("scrolls debug-log-scroll when _showDebugLog is true", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		// Prevent _initialize from triggering subscriptions
+		a._loading = false;
+		a._entries = [
+			{
+				entry_id: "e1",
+				title: "T",
+				room_name: "",
+				has_perspective: true,
+				has_layout: true,
+			},
+		];
+
+		const mockEl = { scrollTop: 0, scrollHeight: 500 };
+		const shadowRootSpy = vi.spyOn(a, "shadowRoot", "get").mockReturnValue({
+			getElementById: (id: string) =>
+				id === "debug-log-scroll" ? mockEl : null,
+		} as any);
+
+		// Call updated() directly without attaching to DOM
+		const changed = new Map<string, any>([["other", true]]);
+		a.updated(changed);
+
+		expect(mockEl.scrollTop).toBe(500);
+		shadowRootSpy.mockRestore();
+	});
+
+	it("scrolls backend-debug-log-scroll when _showBackendDebugLog is true", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._loading = false;
+		a._entries = [
+			{
+				entry_id: "e1",
+				title: "T",
+				room_name: "",
+				has_perspective: true,
+				has_layout: true,
+			},
+		];
+
+		const mockEl = { scrollTop: 0, scrollHeight: 300 };
+		const shadowRootSpy = vi.spyOn(a, "shadowRoot", "get").mockReturnValue({
+			getElementById: (id: string) =>
+				id === "backend-debug-log-scroll" ? mockEl : null,
+		} as any);
+
+		const changed = new Map<string, any>([["other", true]]);
+		a.updated(changed);
+
+		expect(mockEl.scrollTop).toBe(300);
+		shadowRootSpy.mockRestore();
+	});
+
+	it("handles missing debug-log-scroll element gracefully", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._showBackendDebugLog = true;
+		a._loading = false;
+		a._entries = [
+			{
+				entry_id: "e1",
+				title: "T",
+				room_name: "",
+				has_perspective: true,
+				has_layout: true,
+			},
+		];
+
+		const shadowRootSpy = vi.spyOn(a, "shadowRoot", "get").mockReturnValue({
+			getElementById: (_id: string) => null,
+		} as any);
+
+		// Should not throw even if elements are not found
+		const changed = new Map<string, any>([["other", true]]);
+		expect(() => a.updated(changed)).not.toThrow();
+
+		shadowRootSpy.mockRestore();
+	});
+});
+
+// =========================================================
+// _subscribeTargets: backend debug log branches (lines 720-742)
+// =========================================================
+describe("_subscribeTargets backend debug log", () => {
+	it("appends to backend debug log when _showBackendDebugLog is true and debug_log present", async () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = [];
+		a._backendDebugLogPrev = null;
+		let targetsHandler: (event: any) => void;
+		let callCount = 0;
+		a.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					if (callCount++ === 0) targetsHandler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		a._subscribeTargets("e1");
+
+		targetsHandler!({
+			targets: [],
+			zones: {
+				occupancy: {},
+				target_counts: {},
+				frame_count: 1,
+				debug_log: "zone tick: no targets",
+			},
+		});
+
+		expect(a._backendDebugLogLines).toHaveLength(1);
+		expect(a._backendDebugLogLines[0]).toContain("zone tick: no targets");
+		expect(a._backendDebugLogPrev).toBe("zone tick: no targets");
+	});
+
+	it("does not append duplicate backend debug log lines", async () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = [];
+		a._backendDebugLogPrev = "zone tick: no targets";
+		let targetsHandler: (event: any) => void;
+		let callCount = 0;
+		a.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					if (callCount++ === 0) targetsHandler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		a._subscribeTargets("e1");
+
+		targetsHandler!({
+			targets: [],
+			zones: {
+				occupancy: {},
+				target_counts: {},
+				frame_count: 1,
+				debug_log: "zone tick: no targets",
+			},
+		});
+
+		// Same log as prev — should not append
+		expect(a._backendDebugLogLines).toHaveLength(0);
+	});
+
+	it("does not append when _showBackendDebugLog is false", async () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = false;
+		a._backendDebugLogLines = [];
+		let targetsHandler: (event: any) => void;
+		let callCount = 0;
+		a.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					if (callCount++ === 0) targetsHandler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		a._subscribeTargets("e1");
+
+		targetsHandler!({
+			targets: [],
+			zones: {
+				occupancy: {},
+				target_counts: {},
+				frame_count: 1,
+				debug_log: "zone tick: no targets",
+			},
+		});
+
+		expect(a._backendDebugLogLines).toHaveLength(0);
+	});
+
+	it("trims backend debug log when it exceeds max", async () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		// Fill log to exactly _DEBUG_LOG_MAX
+		a._backendDebugLogLines = new Array(100).fill("old line");
+		a._backendDebugLogPrev = null;
+		let targetsHandler: (event: any) => void;
+		let callCount = 0;
+		a.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					if (callCount++ === 0) targetsHandler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		a._subscribeTargets("e1");
+
+		targetsHandler!({
+			targets: [],
+			zones: {
+				occupancy: {},
+				target_counts: {},
+				frame_count: 1,
+				debug_log: "new line",
+			},
+		});
+
+		// After adding one more, it should be trimmed to 100
+		expect(a._backendDebugLogLines.length).toBe(100);
+		expect(a._backendDebugLogLines[99]).toContain("new line");
+	});
+});
+
+// =========================================================
+// _renderVisibleCells: _showDebugLog branches (lines 4994-5042)
+// =========================================================
+describe("_renderVisibleCells debug log branches", () => {
+	it("builds debug log line when _showDebugLog is true with active targets", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		// Paint zone 1 on all room cells
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = {
+			name: "Living Room",
+			color: ZONE_COLORS[0],
+			type: "normal",
+		};
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		// Active target with positive signal inside the zone
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 5,
+			},
+		];
+		a._targetPrev = [null, null, null];
+		a._targetGateCount = [0, 0, 0];
+		a._localZoneState = new Map();
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+
+		// Debug log should have been populated
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+	});
+
+	it("returns occupancy early when body equals _debugLogPrev", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		// Set prev to "no targets | all clear" so the next call with no targets returns early
+		a._debugLogPrev = "no targets | all clear";
+		a._targets = [];
+		a._targetPrev = [null, null, null];
+		a._targetGateCount = [0, 0, 0];
+		a._localZoneState = new Map();
+
+		const result = a._renderVisibleCells(
+			0,
+			GRID_COLS - 1,
+			0,
+			GRID_ROWS - 1,
+			10,
+		);
+
+		// Should not add another log line since body matches prev
+		expect(a._debugLogLines).toHaveLength(0);
+		// Still returns occupancy
+		expect(result).toBeDefined();
+	});
+
+	it("builds zone parts when zone is occupied with pending", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = {
+			name: "Entry",
+			color: ZONE_COLORS[0],
+			type: "normal",
+		};
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+		a._targets = [];
+		a._targetPrev = [null, null, null];
+		a._targetGateCount = [0, 0, 0];
+		a._localZoneState = new Map([
+			[
+				1,
+				{
+					occupied: true,
+					pendingSince: Date.now() / 1000,
+					confirmedTargets: new Set([0]),
+				},
+			],
+		]);
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("Entry");
+	});
+
+	it("zone name falls back to Zone N for unconfigured zones", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = null; // null config for zone slot 1
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+		a._targets = [];
+		a._targetPrev = [null, null, null];
+		a._targetGateCount = [0, 0, 0];
+		a._localZoneState = new Map([
+			[
+				1,
+				{
+					occupied: true,
+					pendingSince: null,
+					confirmedTargets: new Set(),
+				},
+			],
+		]);
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("Zone 1");
+	});
+
+	it("trims debug log when it exceeds max", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._showDebugLog = true;
+		a._debugLogLines = new Array(100).fill("old");
+		a._debugLogPrev = null;
+		a._targets = [];
+		a._targetPrev = [null, null, null];
+		a._targetGateCount = [0, 0, 0];
+		a._localZoneState = new Map();
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+
+		expect(a._debugLogLines.length).toBe(100);
+	});
+
+	it("does not build debug log when _showDebugLog is false", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._showDebugLog = false;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+		a._targets = [];
+		a._targetPrev = [null, null, null];
+		a._targetGateCount = [0, 0, 0];
+		a._localZoneState = new Map();
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+
+		expect(a._debugLogLines).toHaveLength(0);
+	});
+
+	it("target with zero signal is skipped in debug log", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = { name: "Z1", color: ZONE_COLORS[0], type: "normal" };
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 0, // zero signal — skipped
+			},
+		];
+		a._targetPrev = [null, null, null];
+		a._targetGateCount = [0, 0, 0];
+		a._localZoneState = new Map();
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+
+		// Log should show "no targets" since signal=0 is skipped
+		expect(a._debugLogLines[0]).toContain("no targets");
+	});
+});
+
+// =========================================================
+// _renderBackendDebugLog: render branches
+// =========================================================
+describe("_renderBackendDebugLog render branches", () => {
+	it("renders with _showBackendDebugLog=false (collapsed state)", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = false;
+		a._backendDebugLogLines = [];
+
+		const tpl = a._renderBackendDebugLog();
+		expect(tpl).toBeDefined();
+	});
+
+	it("renders with _showBackendDebugLog=true and empty log lines", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = [];
+
+		const tpl = a._renderBackendDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		// Should contain the "waiting" placeholder
+		expect(c.textContent).toContain("Waiting for events");
+		document.body.removeChild(c);
+	});
+
+	it("renders with _showBackendDebugLog=true and log lines present", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = ["12:00:00.0 zone tick: occupied"];
+
+		const tpl = a._renderBackendDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		expect(c.textContent).toContain("zone tick: occupied");
+		document.body.removeChild(c);
+	});
+
+	it("toggle button sets _showBackendDebugLog to false and clears lines", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = ["line 1"];
+		a._backendDebugLogPrev = "line 1";
+
+		const tpl = a._renderBackendDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const btn = c.querySelector(
+			"button.live-section-header",
+		) as HTMLButtonElement;
+		btn?.click();
+
+		expect(a._showBackendDebugLog).toBe(false);
+		expect(a._backendDebugLogLines).toHaveLength(0);
+		expect(a._backendDebugLogPrev).toBeNull();
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// _renderDebugLog: render branches
+// =========================================================
+describe("_renderDebugLog render branches", () => {
+	it("renders with _showDebugLog=false (collapsed state)", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = false;
+		a._debugLogLines = [];
+
+		const tpl = a._renderDebugLog();
+		expect(tpl).toBeDefined();
+	});
+
+	it("renders with _showDebugLog=true and empty log lines", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+
+		const tpl = a._renderDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		expect(c.textContent).toContain("Waiting for events");
+		document.body.removeChild(c);
+	});
+
+	it("renders with _showDebugLog=true and log lines present", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._debugLogLines = [
+			"12:00:00.0 T0: signal=5 zone='Room' confirmed=N | all clear",
+		];
+
+		const tpl = a._renderDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		expect(c.textContent).toContain("T0: signal=5");
+		document.body.removeChild(c);
+	});
+
+	it("toggle button sets _showDebugLog to false and clears lines", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._debugLogLines = ["line 1"];
+		a._debugLogPrev = "line 1";
+
+		const tpl = a._renderDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const btn = c.querySelector(
+			"button.live-section-header",
+		) as HTMLButtonElement;
+		btn?.click();
+
+		expect(a._showDebugLog).toBe(false);
+		expect(a._debugLogLines).toHaveLength(0);
+		expect(a._debugLogPrev).toBeNull();
+		document.body.removeChild(c);
+	});
+});

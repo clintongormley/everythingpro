@@ -382,6 +382,264 @@ describe("_getGridRoomMetrics", () => {
 	});
 });
 
+describe("_subscribeDisplay", () => {
+	it("returns early when hass is not set", () => {
+		const el = createPanel();
+		const a = el as any;
+		el.hass = null;
+		a._unsubDisplay = undefined;
+
+		a._subscribeDisplay("e1");
+
+		expect(a._unsubDisplay).toBeUndefined();
+	});
+
+	it("returns early when entryId is empty", () => {
+		const el = createPanel();
+		const a = el as any;
+		const subscribeMock = vi.fn().mockResolvedValue(() => {});
+		el.hass = {
+			callWS: vi.fn(),
+			connection: { subscribeMessage: subscribeMock },
+		};
+
+		a._subscribeDisplay("");
+
+		expect(subscribeMock).not.toHaveBeenCalled();
+	});
+
+	it("calls unsubscribeDisplay before subscribing", () => {
+		const el = createPanel();
+		const a = el as any;
+		const oldUnsub = vi.fn();
+		a._unsubDisplay = oldUnsub;
+
+		el.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockResolvedValue(() => {}),
+			},
+		};
+
+		a._subscribeDisplay("e1");
+
+		expect(oldUnsub).toHaveBeenCalled();
+	});
+
+	it("subscribes to display topic and stores unsub", async () => {
+		const el = createPanel();
+		const a = el as any;
+		const unsubFn = vi.fn();
+		el.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockResolvedValue(unsubFn),
+			},
+		};
+
+		a._subscribeDisplay("e1");
+
+		expect(el.hass.connection.subscribeMessage).toHaveBeenCalledWith(
+			expect.any(Function),
+			{
+				type: "everything_presence_pro/subscribe_display",
+				entry_id: "e1",
+			},
+		);
+
+		// Wait for the promise to resolve so _unsubDisplay is set
+		await Promise.resolve();
+
+		expect(a._unsubDisplay).toBe(unsubFn);
+	});
+
+	it("merges display positions into existing targets", async () => {
+		const el = createPanel();
+		const a = el as any;
+		let displayHandler: (event: any) => void;
+		let callCount = 0;
+		el.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					callCount++;
+					displayHandler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		// Set up existing targets
+		a._targets = [
+			{
+				x: 100,
+				y: 200,
+				raw_x: 100,
+				raw_y: 200,
+				speed: 1,
+				status: "active",
+				signal: 3,
+			},
+			{
+				x: 300,
+				y: 400,
+				raw_x: 300,
+				raw_y: 400,
+				speed: 0,
+				status: "inactive",
+				signal: 0,
+			},
+		];
+
+		a._subscribeDisplay("e1");
+
+		// Fire a display event with updated positions
+		displayHandler!({
+			targets: [
+				{ x: 110, y: 210, raw_x: 111, raw_y: 211, signal: 4 },
+				{ x: 310, y: 410, raw_x: 311, raw_y: 411, signal: 1 },
+			],
+		});
+
+		expect(a._targets[0].x).toBe(110);
+		expect(a._targets[0].y).toBe(210);
+		expect(a._targets[0].raw_x).toBe(111);
+		expect(a._targets[0].raw_y).toBe(211);
+		expect(a._targets[0].signal).toBe(4);
+		// Non-display fields remain unchanged
+		expect(a._targets[0].status).toBe("active");
+		expect(a._targets[0].speed).toBe(1);
+
+		expect(a._targets[1].x).toBe(310);
+		expect(a._targets[1].signal).toBe(1);
+	});
+
+	it("skips merge when display target index has no match", async () => {
+		const el = createPanel();
+		const a = el as any;
+		let displayHandler: (event: any) => void;
+		el.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					displayHandler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		// Two targets but display only provides one
+		a._targets = [
+			{
+				x: 100,
+				y: 200,
+				raw_x: 100,
+				raw_y: 200,
+				speed: 1,
+				status: "active",
+				signal: 3,
+			},
+			{
+				x: 300,
+				y: 400,
+				raw_x: 300,
+				raw_y: 400,
+				speed: 0,
+				status: "inactive",
+				signal: 0,
+			},
+		];
+
+		a._subscribeDisplay("e1");
+
+		displayHandler!({
+			targets: [
+				{ x: 110, y: 210, raw_x: 111, raw_y: 211, signal: 4 },
+				// index 1 is missing — displays fewer than targets
+			],
+		});
+
+		// First target merges
+		expect(a._targets[0].x).toBe(110);
+		// Second target is unchanged because displayTargets[1] is undefined
+		expect(a._targets[1].x).toBe(300);
+		expect(a._targets[1].y).toBe(400);
+	});
+
+	it("handles display event with empty targets array", async () => {
+		const el = createPanel();
+		const a = el as any;
+		let displayHandler: (event: any) => void;
+		el.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					displayHandler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		a._targets = [
+			{
+				x: 100,
+				y: 200,
+				raw_x: 100,
+				raw_y: 200,
+				speed: 1,
+				status: "active",
+				signal: 3,
+			},
+		];
+
+		a._subscribeDisplay("e1");
+
+		// Fire event with no targets field (falls back to [])
+		displayHandler!({});
+
+		// All targets unchanged because displayTargets is empty
+		expect(a._targets[0].x).toBe(100);
+	});
+});
+
+describe("_unsubscribeDisplay", () => {
+	it("calls and clears _unsubDisplay when set", () => {
+		const el = createPanel();
+		const a = el as any;
+		const unsub = vi.fn();
+		a._unsubDisplay = unsub;
+
+		a._unsubscribeDisplay();
+
+		expect(unsub).toHaveBeenCalled();
+		expect(a._unsubDisplay).toBeUndefined();
+	});
+
+	it("does nothing when _unsubDisplay is not set", () => {
+		const el = createPanel();
+		const a = el as any;
+		a._unsubDisplay = undefined;
+
+		// Should not throw
+		expect(() => a._unsubscribeDisplay()).not.toThrow();
+		expect(a._unsubDisplay).toBeUndefined();
+	});
+
+	it("is called during _unsubscribeTargets", () => {
+		const el = createPanel();
+		const a = el as any;
+		const displayUnsub = vi.fn();
+		a._unsubDisplay = displayUnsub;
+		a._unsubTargets = vi.fn();
+		a._targets = [];
+
+		a._unsubscribeTargets();
+
+		expect(displayUnsub).toHaveBeenCalled();
+		expect(a._unsubDisplay).toBeUndefined();
+	});
+});
+
 describe("_getSensorRoomPosition", () => {
 	it("returns null when perspective is null", () => {
 		const el = createPanel();
