@@ -62,7 +62,7 @@ class ZoneState(enum.Enum):
     PENDING = "pending"
 
 
-class TargetStatus(str, enum.Enum):
+class TargetStatus(enum.StrEnum):
     """Status of a target in zone engine output."""
 
     ACTIVE = "active"

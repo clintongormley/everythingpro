@@ -21,7 +21,6 @@ from .coordinator import SIGNAL_SENSORS_UPDATED
 from .coordinator import SIGNAL_TARGETS_UPDATED
 from .coordinator import EverythingPresenceProCoordinator
 from .zone_engine import TargetResult
-from .zone_engine import TargetStatus
 from .zone_engine import Zone
 
 _REGISTERED: set[str] = set()
