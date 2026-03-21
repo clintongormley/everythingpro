@@ -17,6 +17,8 @@ from custom_components.everything_presence_pro.binary_sensor import EverythingPr
 from custom_components.everything_presence_pro.binary_sensor import EverythingPresenceProTargetPresenceSensor
 from custom_components.everything_presence_pro.binary_sensor import EverythingPresenceProZoneOccupancySensor
 from custom_components.everything_presence_pro.zone_engine import ProcessingResult
+from custom_components.everything_presence_pro.zone_engine import TargetResult
+from custom_components.everything_presence_pro.zone_engine import TargetStatus
 from custom_components.everything_presence_pro.zone_engine import Zone
 
 
@@ -30,7 +32,11 @@ def mock_coordinator():
     coordinator.pir_motion = False
     coordinator.static_present = True
     coordinator.target_present = True
-    coordinator.targets = [(100, 200, True), (0, 0, False), (0, 0, False)]
+    coordinator.targets = [
+        TargetResult(x=100, y=200, status=TargetStatus.ACTIVE, signal=5),
+        TargetResult(),
+        TargetResult(),
+    ]
     coordinator.last_result = ProcessingResult(
         device_tracking_present=True,
         zone_occupancy={0: True, 1: True, 2: False},

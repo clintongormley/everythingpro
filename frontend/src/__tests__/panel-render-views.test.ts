@@ -224,9 +224,8 @@ describe("_renderWizardCorners", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const result = a._renderWizardCorners();
@@ -242,9 +241,8 @@ describe("_renderWizardCorners", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 			{
 				x: 300,
@@ -252,9 +250,8 @@ describe("_renderWizardCorners", () => {
 				raw_x: 300,
 				raw_y: 400,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const result = a._renderWizardCorners();
@@ -304,9 +301,8 @@ describe("_renderMiniSensorView", () => {
 				raw_x: 500,
 				raw_y: 1000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		a._wizardCorners = [
@@ -379,9 +375,8 @@ describe("_renderLiveGrid", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const result = a._renderLiveGrid();
@@ -399,9 +394,8 @@ describe("_renderLiveGrid", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 		const result = a._renderLiveGrid();
@@ -452,9 +446,8 @@ describe("_renderUncalibratedFov", () => {
 				raw_x: 500,
 				raw_y: 1000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const result = a._renderUncalibratedFov();
@@ -470,9 +463,8 @@ describe("_renderUncalibratedFov", () => {
 				raw_x: 500,
 				raw_y: 1000,
 				speed: 0,
-				active: false,
+				status: "inactive" as const,
 				signal: 0,
-				pending: false,
 			},
 		];
 		const result = a._renderUncalibratedFov();
@@ -740,9 +732,8 @@ describe("_renderEditor", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 			{
 				x: 500,
@@ -750,9 +741,8 @@ describe("_renderEditor", () => {
 				raw_x: 500,
 				raw_y: 1000,
 				speed: 0,
-				active: true,
+				status: "pending" as const,
 				signal: 3,
-				pending: true,
 			},
 			{
 				x: 0,
@@ -760,9 +750,8 @@ describe("_renderEditor", () => {
 				raw_x: 0,
 				raw_y: 0,
 				speed: 0,
-				active: false,
+				status: "inactive" as const,
 				signal: 0,
-				pending: false,
 			},
 		];
 		const result = a._renderEditor();
@@ -843,9 +832,8 @@ describe("_renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		a._zoneConfigs[0] = {
@@ -879,9 +867,8 @@ describe("_renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const result = a._renderVisibleCells(5, 15, 0, 10, 20);
@@ -976,7 +963,6 @@ describe("_renderZoneSidebar", () => {
 		a._localZoneState.set(1, {
 			occupied: true,
 			pendingSince: null,
-			isHandoff: false,
 			confirmedTargets: new Set(),
 		});
 		const result = a._renderZoneSidebar();

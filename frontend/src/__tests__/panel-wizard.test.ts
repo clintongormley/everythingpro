@@ -134,7 +134,7 @@ describe("_wizardStartCapture", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: false,
+				status: "inactive" as const,
 				signal: 0,
 			},
 		];
@@ -154,7 +154,7 @@ describe("_wizardStartCapture", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
 			},
 		];
@@ -335,7 +335,7 @@ describe("_getSmoothedRaw", () => {
 				raw_x: 500,
 				raw_y: 1000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
 			},
 		];
@@ -359,7 +359,7 @@ describe("_getWizardTargetStyle", () => {
 			raw_x: 0,
 			raw_y: 3000,
 			speed: 0,
-			active: true,
+			status: "active" as const,
 			signal: 5,
 		};
 

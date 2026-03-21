@@ -120,7 +120,7 @@ ESPHome state callback
     → _schedule_rebuild()
       → _build_calibrated_targets()    # perspective transform + grid gating
         → zone_engine.feed_raw()       # tumbling window + state machine
-          → ProcessingResult           # zone occupancy, signals, pending
+          → ProcessingResult           # targets: list[TargetResult], zone occupancy, signals
       → dispatch SIGNAL_TARGETS_UPDATED
       → dispatch SIGNAL_SENSORS_UPDATED
 ```
@@ -190,11 +190,9 @@ then emits per-target median positions and frame counts (signal strength
    - PENDING → CLEAR: after timeout expires
    - PENDING → OCCUPIED: if a target re-enters before timeout
 
-4. **Pending targets** — Collects last-known positions of targets that
-   disappeared while their zone is PENDING, for faded-dot rendering.
-
-Output is a `ProcessingResult` with zone occupancy, target signal
-strengths, and pending target positions.
+Output is a `ProcessingResult` with `targets: list[TargetResult]` (each
+carrying `status` of `"active"`, `"pending"`, or `"inactive"`), zone
+occupancy, and target signal strengths.
 
 ### Entity Platforms
 
@@ -219,7 +217,7 @@ Commands registered once per hass instance:
 | `set_setup` | Save perspective transform and room dimensions |
 | `set_zones` | Update zone configuration |
 | `set_room_layout` | Save grid bytes, zone slots, furniture; manages zone entity enable/disable |
-| `subscribe_targets` | Stream live target, sensor, zone, and pending-target data |
+| `subscribe_targets` | Stream live target, sensor, and zone data |
 | `rename_zone_entities` | Batch-rename zone entity IDs |
 | `set_reporting` | Toggle which entities are enabled; set sensor offsets |
 
@@ -228,10 +226,9 @@ callbacks and sends a JSON message on each update:
 
 ```json
 {
-  "targets": [{"x", "y", "active", "raw_x", "raw_y", "signal"}, ...],
+  "targets": [{"x", "y", "status", "raw_x", "raw_y", "signal"}, ...],
   "sensors": {"occupancy", "static_presence", "pir_motion", "target_presence", "illuminance", "temperature", "humidity", "co2"},
-  "zones": {"occupancy": {id: bool}, "target_counts": {id: int}, "frame_count": int, "debug_log": str},
-  "pending_targets": [{"x", "y", "target_index"}, ...]
+  "zones": {"occupancy": {id: bool}, "target_counts": {id: int}, "frame_count": int, "debug_log": str}
 }
 ```
 

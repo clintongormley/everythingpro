@@ -132,9 +132,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
@@ -153,9 +152,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 0,
-				pending: false,
 			},
 		];
 
@@ -173,9 +171,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "pending" as const,
 				signal: 5,
-				pending: true,
 			},
 		];
 
@@ -193,9 +190,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 999999,
 				raw_y: 999999,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 
@@ -214,9 +210,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: -1000,
 				raw_y: -1000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 
@@ -249,9 +244,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
@@ -284,9 +278,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 9, // high signal, above gated threshold
-				pending: false,
 			},
 		];
 
@@ -326,9 +319,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 		a._renderVisibleCells(5, 15, 0, 10, 20);
@@ -382,9 +374,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 3000,
 				raw_y: 1000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
@@ -397,9 +388,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 3000,
 				raw_y: 5000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 		const result = a._renderVisibleCells(
@@ -437,9 +427,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 1, // low signal, below gated threshold
-				pending: false,
 			},
 		];
 
@@ -474,9 +463,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 2, // below threshold
-				pending: false,
 			},
 		];
 
@@ -507,7 +495,6 @@ describe("zone engine in _renderVisibleCells", () => {
 		a._localZoneState.set(1, {
 			occupied: true,
 			pendingSince: Date.now() / 1000 - 1,
-			isHandoff: false,
 			confirmedTargets: new Set(),
 		});
 
@@ -519,9 +506,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
@@ -554,9 +540,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 			{
 				x: 1000,
@@ -564,9 +549,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 1000,
 				raw_y: 1000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 3,
-				pending: false,
 			},
 			{
 				x: 2000,
@@ -574,9 +558,8 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 2000,
 				raw_y: 3000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
@@ -623,7 +606,6 @@ describe("zone engine in _renderVisibleCells", () => {
 		a._localZoneState.set(1, {
 			occupied: true,
 			pendingSince: null,
-			isHandoff: false,
 			confirmedTargets: new Set([0]),
 		});
 
@@ -636,18 +618,17 @@ describe("zone engine in _renderVisibleCells", () => {
 				raw_x: 3000,
 				raw_y: 5000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
 		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
 
 		const st = a._localZoneState.get(1);
-		// Zone 1 should be in pending/handoff state since target moved away
+		// Zone 1 should be in pending state since target moved away
 		if (st && st.occupied && st.pendingSince !== null) {
-			expect(st.isHandoff).toBe(true);
+			expect(st.pendingSince).not.toBeNull();
 		}
 	});
 });
@@ -973,7 +954,7 @@ describe("_wizardStartCapture cancellation", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
 			},
 		];

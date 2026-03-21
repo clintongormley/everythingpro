@@ -39,24 +39,25 @@ function makeParityGrid(): Uint8Array {
 	return grid;
 }
 
+type TargetStatus = "active" | "pending" | "inactive";
+
 interface Target {
 	x: number;
 	y: number;
 	raw_x: number;
 	raw_y: number;
-	active: boolean;
+	status: TargetStatus;
 	signal: number;
 	speed: number;
-	pending?: boolean;
 }
 
 function makeTarget(
 	x: number,
 	y: number,
 	signal: number,
-	active = true,
+	status: TargetStatus = "active",
 ): Target {
-	return { x, y, raw_x: x, raw_y: y, active, signal, speed: 0 };
+	return { x, y, raw_x: x, raw_y: y, status, signal, speed: 0 };
 }
 
 function createParityPanel(): EverythingPresenceProPanel {
@@ -103,7 +104,7 @@ describe("Zone engine parity (mirrors test_zone_engine_parity.py)", () => {
 	});
 
 	it("inactive target → all zones clear", () => {
-		a._targets = [makeTarget(450, 450, 5, false)];
+		a._targets = [makeTarget(450, 450, 5, "inactive")];
 		const occ = a._runLocalZoneEngine();
 		expect(occ[0]).toBe(false);
 		expect(occ[1]).toBe(false);
@@ -150,7 +151,7 @@ describe("Zone engine parity (mirrors test_zone_engine_parity.py)", () => {
 		expect(occ[1]).toBe(true);
 
 		// Target disappears → PENDING
-		a._targets = [makeTarget(450, 450, 0, false)];
+		a._targets = [makeTarget(450, 450, 0, "inactive")];
 		occ = a._runLocalZoneEngine();
 		expect(occ[1]).toBe(true); // still occupied (PENDING)
 
@@ -167,7 +168,7 @@ describe("Zone engine parity (mirrors test_zone_engine_parity.py)", () => {
 		a._runLocalZoneEngine();
 
 		// Target gone → PENDING
-		a._targets = [makeTarget(450, 450, 0, false)];
+		a._targets = [makeTarget(450, 450, 0, "inactive")];
 		let occ = a._runLocalZoneEngine();
 		expect(occ[1]).toBe(true); // PENDING
 
