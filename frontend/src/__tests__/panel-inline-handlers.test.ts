@@ -927,6 +927,8 @@ describe("_applyLayout zone/furniture serialization", () => {
 			handoff_timeout: 5,
 			entry_point: true,
 		};
+		// Paint a cell with zone 1 so it doesn't get pruned
+		a._grid[0] = 0x03; // CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
 		a._furniture = [
 			{
 				id: "f1",

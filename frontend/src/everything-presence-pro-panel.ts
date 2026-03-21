@@ -1026,6 +1026,22 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	/** Save the current grid and zone config to the backend */
 	private async _applyLayout(): Promise<void> {
+		// Remove zones with zero painted cells
+		const zoneCellCounts = new Map<number, number>();
+		for (let i = 0; i < this._grid.length; i++) {
+			if (cellIsInside(this._grid[i])) {
+				const zid = cellZone(this._grid[i]);
+				if (zid > 0) {
+					zoneCellCounts.set(zid, (zoneCellCounts.get(zid) ?? 0) + 1);
+				}
+			}
+		}
+		for (let i = 0; i < this._zoneConfigs.length; i++) {
+			if (this._zoneConfigs[i] !== null && (zoneCellCounts.get(i + 1) ?? 0) === 0) {
+				this._zoneConfigs[i] = null;
+			}
+		}
+
 		this._saving = true;
 		try {
 			const result = await this.hass.callWS({
