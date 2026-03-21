@@ -71,7 +71,7 @@ Single websocket subscription (`subscribe_targets`) pushes this message structur
 | `y` | float (mm) | calibrated room-space |
 | `raw_x` | float (mm) | sensor-space (for FOV overlay) |
 | `raw_y` | float (mm) | sensor-space |
-| `active` | bool | currently tracked |
+| `status` | string | `"active"`, `"pending"`, or `"inactive"` |
 | `signal` | int 0-9 | min(frames_in_window, 9) |
 
 ### `sensors`
@@ -96,15 +96,7 @@ Single websocket subscription (`subscribe_targets`) pushes this message structur
 | `frame_count` | int | max(window_total, 10) |
 | `debug_log` | string | human-readable tick summary for debug panel |
 
-### `pending_targets[]`
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `x` | float (mm) | last known room-space position |
-| `y` | float (mm) | last known room-space position |
-| `target_index` | int 0-2 | which target slot |
-
-Update cadence: zone engine ticks every ~1s (tumbling window); display throttled at 200ms between ticks.
+Update cadence: zone engine ticks every ~1s (tumbling window). No inter-tick display updates.
 
 ---
 
