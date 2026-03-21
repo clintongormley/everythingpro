@@ -536,3 +536,155 @@ async def test_subscribe_display_tracks_subscriber_count(hass: HomeAssistant, ha
     await ws_client.receive_json()
 
     assert coordinator.display_subscriber_count == 0
+
+
+# ---------------------------------------------------------------------------
+# subscribe_raw_targets
+# ---------------------------------------------------------------------------
+
+
+async def test_subscribe_raw_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets sends initial state with raw positions and target_count."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": entry.entry_id,
+        }
+    )
+
+    msg = await ws_client.receive_json()
+    assert msg["id"] == 1
+    assert msg["success"] is True
+
+    msg = await ws_client.receive_json()
+    assert msg["type"] == "event"
+    event = msg["event"]
+    assert "target_count" in event
+    assert "targets" in event
+    assert len(event["targets"]) == 3
+    for t in event["targets"]:
+        assert "raw_x" in t
+        assert "raw_y" in t
+        assert len(t) == 2  # only raw_x and raw_y, nothing else
+
+
+async def test_subscribe_raw_targets_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": "bad_id",
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
+    assert msg["error"]["code"] == "not_found"
+
+
+async def test_subscribe_raw_targets_tracks_subscriber_count(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets increments/decrements the display subscriber count."""
+    entry = setup_integration
+    coordinator = entry.runtime_data
+    assert coordinator.display_subscriber_count == 0
+
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": entry.entry_id,
+        }
+    )
+    await ws_client.receive_json()  # result
+    await ws_client.receive_json()  # initial event
+
+    assert coordinator.display_subscriber_count == 1
+
+    await ws_client.send_json({"id": 2, "type": "unsubscribe_events", "subscription": 1})
+    await ws_client.receive_json()
+
+    assert coordinator.display_subscriber_count == 0
+
+
+# ---------------------------------------------------------------------------
+# subscribe_raw_targets
+# ---------------------------------------------------------------------------
+
+
+async def test_subscribe_raw_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets sends initial state with raw positions and target_count."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": entry.entry_id,
+        }
+    )
+
+    msg = await ws_client.receive_json()
+    assert msg["id"] == 1
+    assert msg["success"] is True
+
+    msg = await ws_client.receive_json()
+    assert msg["type"] == "event"
+    event = msg["event"]
+    assert "target_count" in event
+    assert "targets" in event
+    assert len(event["targets"]) == 3
+    for t in event["targets"]:
+        assert "raw_x" in t
+        assert "raw_y" in t
+        assert len(t) == 2  # only raw_x and raw_y, nothing else
+
+
+async def test_subscribe_raw_targets_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": "bad_id",
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
+    assert msg["error"]["code"] == "not_found"
+
+
+async def test_subscribe_raw_targets_tracks_subscriber_count(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets increments/decrements the display subscriber count."""
+    entry = setup_integration
+    coordinator = entry.runtime_data
+    assert coordinator.display_subscriber_count == 0
+
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": entry.entry_id,
+        }
+    )
+    await ws_client.receive_json()  # result
+    await ws_client.receive_json()  # initial event
+
+    assert coordinator.display_subscriber_count == 1
+
+    await ws_client.send_json({"id": 2, "type": "unsubscribe_events", "subscription": 1})
+    await ws_client.receive_json()
+
+    assert coordinator.display_subscriber_count == 0
