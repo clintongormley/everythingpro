@@ -715,10 +715,21 @@ export class EverythingPresenceProPanel extends LitElement {
 							const body = event.zones.debug_log;
 							if (body !== this._backendDebugLogPrev) {
 								this._backendDebugLogPrev = body;
-								const ts = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 1 });
+								const ts = new Date().toLocaleTimeString("en-GB", {
+									hour12: false,
+									hour: "2-digit",
+									minute: "2-digit",
+									second: "2-digit",
+									fractionalSecondDigits: 1,
+								});
 								this._backendDebugLogLines.push(`${ts} ${body}`);
-								if (this._backendDebugLogLines.length > EverythingPresenceProPanel._DEBUG_LOG_MAX) {
-									this._backendDebugLogLines = this._backendDebugLogLines.slice(-EverythingPresenceProPanel._DEBUG_LOG_MAX);
+								if (
+									this._backendDebugLogLines.length >
+									EverythingPresenceProPanel._DEBUG_LOG_MAX
+								) {
+									this._backendDebugLogLines = this._backendDebugLogLines.slice(
+										-EverythingPresenceProPanel._DEBUG_LOG_MAX,
+									);
 								}
 								this.requestUpdate();
 							}
@@ -1037,7 +1048,10 @@ export class EverythingPresenceProPanel extends LitElement {
 			}
 		}
 		for (let i = 0; i < this._zoneConfigs.length; i++) {
-			if (this._zoneConfigs[i] !== null && (zoneCellCounts.get(i + 1) ?? 0) === 0) {
+			if (
+				this._zoneConfigs[i] !== null &&
+				(zoneCellCounts.get(i + 1) ?? 0) === 0
+			) {
 				this._zoneConfigs[i] = null;
 			}
 		}
@@ -4922,8 +4936,11 @@ export class EverythingPresenceProPanel extends LitElement {
 				if (sig <= 0) continue;
 				const zid = targetZoneCurr[i];
 				const zname = zid !== null ? getZoneName(zid) : "outside";
-				const conf = zid !== null && (zoneConfirmed.get(zid) ?? false) ? "Y" : "N";
-				targetParts.push(`T${i}: signal=${sig} zone='${zname}' confirmed=${conf}`);
+				const conf =
+					zid !== null && (zoneConfirmed.get(zid) ?? false) ? "Y" : "N";
+				targetParts.push(
+					`T${i}: signal=${sig} zone='${zname}' confirmed=${conf}`,
+				);
 			}
 			const zoneParts: string[] = [];
 			for (const zid of allZoneIds) {
@@ -4936,10 +4953,20 @@ export class EverythingPresenceProPanel extends LitElement {
 			const body = `${targetParts.length ? targetParts.join(", ") : "no targets"} | ${zoneParts.length ? zoneParts.join(", ") : "all clear"}`;
 			if (body === this._debugLogPrev) return occupancy;
 			this._debugLogPrev = body;
-			const ts = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 1 });
+			const ts = new Date().toLocaleTimeString("en-GB", {
+				hour12: false,
+				hour: "2-digit",
+				minute: "2-digit",
+				second: "2-digit",
+				fractionalSecondDigits: 1,
+			});
 			this._debugLogLines.push(`${ts} ${body}`);
-			if (this._debugLogLines.length > EverythingPresenceProPanel._DEBUG_LOG_MAX) {
-				this._debugLogLines = this._debugLogLines.slice(-EverythingPresenceProPanel._DEBUG_LOG_MAX);
+			if (
+				this._debugLogLines.length > EverythingPresenceProPanel._DEBUG_LOG_MAX
+			) {
+				this._debugLogLines = this._debugLogLines.slice(
+					-EverythingPresenceProPanel._DEBUG_LOG_MAX,
+				);
 			}
 			this.requestUpdate();
 		}
@@ -5223,27 +5250,39 @@ export class EverythingPresenceProPanel extends LitElement {
           <ha-icon icon=${this._showBackendDebugLog ? "mdi:chevron-down" : "mdi:chevron-right"} style="--mdc-icon-size: 14px;"></ha-icon>
           Detection events
         </button>
-        ${this._showBackendDebugLog ? html`
+        ${
+					this._showBackendDebugLog
+						? html`
           <div style="display: flex; justify-content: flex-end; margin-bottom: 4px; gap: 4px;">
             <button
               class="debug-log-btn"
               @click=${() => {
-								navigator.clipboard.writeText(this._backendDebugLogLines.join("\n"));
+								navigator.clipboard.writeText(
+									this._backendDebugLogLines.join("\n"),
+								);
 							}}
             >Copy all</button>
             <button
               class="debug-log-btn"
-              @click=${() => { this._backendDebugLogLines = []; this._backendDebugLogPrev = null; this.requestUpdate(); }}
+              @click=${() => {
+								this._backendDebugLogLines = [];
+								this._backendDebugLogPrev = null;
+								this.requestUpdate();
+							}}
             >Clear</button>
           </div>
           <div class="debug-log-container" id="backend-debug-log-scroll">
-            ${this._backendDebugLogLines.length === 0
-							? html`<div style="color: var(--secondary-text-color, #999); font-style: italic;">Waiting for events...</div>`
-							: this._backendDebugLogLines.map(
-								(line) => html`<div class="debug-log-line">${line}</div>`,
-							)}
+            ${
+							this._backendDebugLogLines.length === 0
+								? html`<div style="color: var(--secondary-text-color, #999); font-style: italic;">Waiting for events...</div>`
+								: this._backendDebugLogLines.map(
+										(line) => html`<div class="debug-log-line">${line}</div>`,
+									)
+						}
           </div>
-        ` : nothing}
+        `
+						: nothing
+				}
       </div>
     `;
 	}
@@ -5265,7 +5304,9 @@ export class EverythingPresenceProPanel extends LitElement {
           <ha-icon icon=${this._showDebugLog ? "mdi:chevron-down" : "mdi:chevron-right"} style="--mdc-icon-size: 14px;"></ha-icon>
           Detection events
         </button>
-        ${this._showDebugLog ? html`
+        ${
+					this._showDebugLog
+						? html`
           <div style="display: flex; justify-content: flex-end; margin-bottom: 4px; gap: 4px;">
             <button
               class="debug-log-btn"
@@ -5275,17 +5316,25 @@ export class EverythingPresenceProPanel extends LitElement {
             >Copy all</button>
             <button
               class="debug-log-btn"
-              @click=${() => { this._debugLogLines = []; this._debugLogPrev = null; this.requestUpdate(); }}
+              @click=${() => {
+								this._debugLogLines = [];
+								this._debugLogPrev = null;
+								this.requestUpdate();
+							}}
             >Clear</button>
           </div>
           <div class="debug-log-container" id="debug-log-scroll">
-            ${this._debugLogLines.length === 0
-							? html`<div style="color: var(--secondary-text-color, #999); font-style: italic;">Waiting for events...</div>`
-							: this._debugLogLines.map(
-								(line) => html`<div class="debug-log-line">${line}</div>`,
-							)}
+            ${
+							this._debugLogLines.length === 0
+								? html`<div style="color: var(--secondary-text-color, #999); font-style: italic;">Waiting for events...</div>`
+								: this._debugLogLines.map(
+										(line) => html`<div class="debug-log-line">${line}</div>`,
+									)
+						}
           </div>
-        ` : nothing}
+        `
+						: nothing
+				}
       </div>
     `;
 	}
