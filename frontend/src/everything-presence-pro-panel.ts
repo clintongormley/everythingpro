@@ -850,7 +850,7 @@ export class EverythingPresenceProPanel extends LitElement {
 		this._addFurniture({
 			type: "icon",
 			icon,
-			label: "Custom",
+			label: "furniture.custom",
 			defaultWidth: 600,
 			defaultHeight: 600,
 			lockAspect: false,

@@ -38,7 +38,8 @@
     "fridge": "Fridge",
     "speaker": "Speaker",
     "window": "Window",
-    "custom_icon": "Custom icon"
+    "custom_icon": "Custom icon",
+    "custom": "Custom"
   },
   "corners": {
     "front_left": "Front-left",

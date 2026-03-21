@@ -304,7 +304,7 @@ describe("_addCustomFurniture", () => {
 		const item = a._furniture[0];
 		expect(item.type).toBe("icon");
 		expect(item.icon).toBe("mdi:star");
-		expect(item.label).toBe("Custom");
+		expect(item.label).toBe("furniture.custom");
 		expect(item.width).toBe(600);
 		expect(item.height).toBe(600);
 		expect(item.lockAspect).toBe(false);
