@@ -1,5 +1,6 @@
 import { css, html, LitElement, nothing, type PropertyValues, svg } from "lit";
 import { property, state } from "lit/decorators.js";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 import {
 	applyPaintToCell,
@@ -3125,16 +3126,16 @@ export class EverythingPresenceProPanel extends LitElement {
                 <div class="capture-bar">
                   <div class="capture-fill" style="width: ${this._wizardCaptureProgress * 100}%"></div>
                 </div>
-                <span>Recording... ${Math.round(this._wizardCaptureProgress * CAPTURE_DURATION_S)}s / ${CAPTURE_DURATION_S}s</span>
+                <span>${this._localize("wizard.recording", { current: Math.round(this._wizardCaptureProgress * CAPTURE_DURATION_S), total: CAPTURE_DURATION_S })}</span>
               </div>
               <p style="margin: 8px 0 0; font-size: 13px; color: ${this._wizardCapturePaused ? "var(--error-color, #e53935)" : "var(--secondary-text-color)"};">
-                ${this._wizardCapturePaused ? "Paused — need exactly one target visible" : "Stand still"}
+                ${this._wizardCapturePaused ? this._localize("wizard.paused") : this._localize("wizard.stand_still")}
               </p>
               <button
                 class="wizard-btn wizard-btn-back"
                 style="margin-top: 12px;"
                 @click=${() => this._wizardCancelCapture()}
-              >Cancel</button>
+              >${this._localize("common.cancel")}</button>
             </div>
           </div>
         `
@@ -3196,8 +3197,8 @@ export class EverythingPresenceProPanel extends LitElement {
               stroke="var(--divider-color, #d0d0d0)" stroke-width="2.5"/>
 
         <!-- Wall labels -->
-        <text x="170" y="28" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Front wall (sensor side)</text>
-        <text x="170" y="262" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">Back wall</text>
+        <text x="170" y="28" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">${this._localize("wizard.front_wall_label")}</text>
+        <text x="170" y="262" font-size="9" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">${this._localize("wizard.back_wall_label")}</text>
 
         <!-- Arrows with walking figures: 1→2→3→4 -->
         ${arrow(TL.x, TL.y, TR.x, TR.y)}
@@ -3252,14 +3253,14 @@ export class EverythingPresenceProPanel extends LitElement {
           <rect x="-5" y="-7" width="10" height="14" rx="3" fill="var(--primary-color, #03a9f4)"/>
           <circle cx="0" cy="-11" r="3.5" fill="var(--primary-color, #03a9f4)" opacity="0.4"/>
         </g>
-        <text x="${TR.x + 24}" y="${TR.y - 24}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">Sensor</text>
+        <text x="${TR.x + 24}" y="${TR.y - 24}" font-size="10" fill="var(--primary-color, #03a9f4)" font-weight="500">${this._localize("wizard.sensor")}</text>
       </svg>
     `;
 
 		return html`
       <div style="max-width: 560px; margin: 0 auto;">
         <div class="setting-group">
-          <h4 style="text-align: center; margin-bottom: 16px;">How room calibration works</h4>
+          <h4 style="text-align: center; margin-bottom: 16px;">${this._localize("wizard.how_calibration_works")}</h4>
 
           ${roomDiagram}
 
@@ -3267,21 +3268,21 @@ export class EverythingPresenceProPanel extends LitElement {
             <div style="display: flex; align-items: flex-start; gap: 10px;">
               <div style="min-width: 22px; height: 22px; border-radius: 50%; background: #4CAF50; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: white;">1</div>
               <div style="font-size: 13px;">
-                <strong>Walk to each corner</strong> in order (1 → 2 → 3 → 4) and click Mark. Stand still for a few seconds so the sensor can lock on.
+                ${unsafeHTML(this._localize("wizard.walk_instruction_full"))}
               </div>
             </div>
 
             <div style="display: flex; align-items: flex-start; gap: 10px;">
               <div style="min-width: 22px; height: 22px; border-radius: 50%; background: #FF9800; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: white;">!</div>
               <div style="font-size: 13px;">
-                <strong>Can't reach a corner?</strong> Stand as close as you can and enter the distance from each wall in the offset fields — like corner 4 in the diagram above, where a plant is in the way.
+                ${unsafeHTML(this._localize("wizard.cant_reach"))}
               </div>
             </div>
 
             <div style="display: flex; align-items: flex-start; gap: 10px;">
               <ha-icon icon="mdi:information-outline" style="--mdc-icon-size: 20px; color: var(--primary-color); flex-shrink: 0; margin-top: 1px;"></ha-icon>
               <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
-                Corner 2 is where your sensor is mounted. You can stand right under it.
+                ${this._localize("wizard.corner_sensor_hint")}
               </div>
             </div>
           </div>
@@ -3296,12 +3297,12 @@ export class EverythingPresenceProPanel extends LitElement {
 							this._wizardOffsetSide = "";
 							this._wizardOffsetFb = "";
 						}}
-          >Cancel</button>
+          >${this._localize("common.cancel")}</button>
           <button class="wizard-btn wizard-btn-primary"
             @click=${() => {
 							this._setupStep = "corners";
 						}}
-          >Begin marking corners</button>
+          >${this._localize("wizard.begin_marking")}</button>
         </div>
       </div>
     `;
@@ -3318,10 +3319,9 @@ export class EverythingPresenceProPanel extends LitElement {
 
 		return html`
       <div class="wizard-card">
-        <h2>Calibrate room size</h2>
+        <h2>${this._localize("wizard.calibrate_room_size")}</h2>
         <p>
-          Walk to each corner of the room and click Mark. The sensor will
-          record your position over ${CAPTURE_DURATION_S} seconds.
+          ${this._localize("wizard.walk_instruction", { duration: CAPTURE_DURATION_S })}
         </p>
 
         ${
@@ -3329,8 +3329,7 @@ export class EverythingPresenceProPanel extends LitElement {
 						? nothing
 						: html`
             <p class="corner-instruction">
-              <strong>Corner ${idx + 1}/4:</strong> Walk to the
-              <strong>${this._localize(label).toLowerCase()}</strong> corner.
+              ${this._localize("wizard.corner_step", { index: idx + 1, corner: this._localize(label) })}
             </p>
         `
 				}
@@ -3371,13 +3370,13 @@ export class EverythingPresenceProPanel extends LitElement {
         </div>
 
         <div class="corner-offsets" key="${idx}">
-          <span class="offset-label">Distance from:</span>
+          <span class="offset-label">${this._localize("wizard.distance_from")}</span>
           <input
             type="number"
             class="offset-input"
             min="0"
             step="1"
-            placeholder="${this._localize(sideLabel)} (cm)"
+            placeholder="${this._localize("wizard.distance_from_side", { wall: this._localize(sideLabel) })}"
             .value=${this._wizardOffsetSide}
             @input=${(e: Event) => {
 							this._wizardOffsetSide = (e.target as HTMLInputElement).value;
@@ -3391,7 +3390,7 @@ export class EverythingPresenceProPanel extends LitElement {
             class="offset-input"
             min="0"
             step="1"
-            placeholder="${this._localize(fbLabel)} (cm)"
+            placeholder="${this._localize("wizard.distance_from_side", { wall: this._localize(fbLabel) })}"
             .value=${this._wizardOffsetFb}
             @input=${(e: Event) => {
 							this._wizardOffsetFb = (e.target as HTMLInputElement).value;
@@ -3410,14 +3409,14 @@ export class EverythingPresenceProPanel extends LitElement {
           <p class="no-target-warning" style="visibility: ${!hasTarget || tooManyTargets ? "visible" : "hidden"};">
             ${
 							!hasTarget
-								? "No target detected. Make sure you are visible to the sensor."
-								: "Multiple targets detected. Only one person should be in the room during calibration."
+								? this._localize("wizard.no_target")
+								: this._localize("wizard.multiple_targets")
 						}
           </p>
         `
 						: html`
           <p style="font-size: 13px; color: var(--secondary-text-color); margin: 12px 0 4px;">
-            Click Save to store this room's calibration, or click a corner above to re-mark it.
+            ${this._localize("wizard.save_prompt")}
           </p>
         `
 				}
@@ -3432,7 +3431,7 @@ export class EverythingPresenceProPanel extends LitElement {
 							this._wizardOffsetSide = "";
 							this._wizardOffsetFb = "";
 						}}
-          >Cancel</button>
+          >${this._localize("common.cancel")}</button>
           ${
 						allMarked
 							? html`
@@ -3444,7 +3443,7 @@ export class EverythingPresenceProPanel extends LitElement {
 								this._wizardFinish();
 							}}
             >
-              ${this._wizardSaving ? "Saving..." : "Save"}
+              ${this._wizardSaving ? this._localize("common.saving") : this._localize("common.save")}
             </button>
           `
 							: html`
@@ -3453,7 +3452,7 @@ export class EverythingPresenceProPanel extends LitElement {
               ?disabled=${!hasTarget || tooManyTargets || this._wizardCapturing}
               @click=${() => this._wizardStartCapture()}
             >
-              Mark ${label}
+              ${this._localize("wizard.mark_corner", { corner: this._localize(label) })}
             </button>
           `
 					}
@@ -3767,10 +3766,10 @@ export class EverythingPresenceProPanel extends LitElement {
           ${
 						occupied
 							? svg`
-            <text x="${cx}" y="120" font-size="13" fill="${fovColor}" text-anchor="middle" font-weight="500">Detected</text>
+            <text x="${cx}" y="120" font-size="13" fill="${fovColor}" text-anchor="middle" font-weight="500">${this._localize("live.detected")}</text>
           `
 							: svg`
-            <text x="${cx}" y="120" font-size="13" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">No presence</text>
+            <text x="${cx}" y="120" font-size="13" fill="var(--secondary-text-color, #aaa)" text-anchor="middle">${this._localize("wizard.no_presence")}</text>
           `
 					}
         </svg>
@@ -3787,7 +3786,7 @@ export class EverythingPresenceProPanel extends LitElement {
 					}}
         >
           <ha-icon icon="mdi:target" style="--mdc-icon-size: 16px;"></ha-icon>
-          Calibrate room size
+          ${this._localize("wizard.calibrate_room_size")}
         </button>
       </div>
     `;
@@ -3872,7 +3871,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <!-- Sensor dot -->
           <circle cx="${cx}" cy="${cy}" r="6" fill="var(--primary-color, #03a9f4)"/>
           <!-- Labels -->
-          <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">Sensor</text>
+          <text x="30" y="16" font-size="10" fill="var(--primary-color, #03a9f4)">${this._localize("wizard.sensor")}</text>
           <text x="152" y="136" font-size="8" fill="var(--secondary-text-color, #aaa)" text-anchor="end">6m</text>
         </svg>
       `;
@@ -3888,13 +3887,13 @@ export class EverythingPresenceProPanel extends LitElement {
         <!-- Correct: horizontal beam -->
         <line x1="26" y1="60" x2="170" y2="60" stroke="var(--primary-color, #03a9f4)" stroke-width="1.5"/>
         <polygon points="170,60 162,56 162,64" fill="var(--primary-color, #03a9f4)"/>
-        <text x="70" y="52" font-size="10" fill="var(--primary-color, #03a9f4)">Horizontal ✓</text>
+        <text x="70" y="52" font-size="10" fill="var(--primary-color, #03a9f4)">${this._localize("wizard.horizontal_correct")}</text>
         <!-- Wrong: angled down -->
         <line x1="26" y1="60" x2="140" y2="140" stroke="var(--error-color, #f44336)" stroke-width="1" stroke-dasharray="4 2" opacity="0.6"/>
-        <text x="90" y="118" font-size="10" fill="var(--error-color, #f44336)" opacity="0.7">Angled ✗</text>
+        <text x="90" y="118" font-size="10" fill="var(--error-color, #f44336)" opacity="0.7">${this._localize("wizard.angled_wrong")}</text>
         <!-- Wrong: angled up -->
         <line x1="26" y1="60" x2="120" y2="22" stroke="var(--error-color, #f44336)" stroke-width="1" stroke-dasharray="4 2" opacity="0.6"/>
-        <text x="75" y="18" font-size="10" fill="var(--error-color, #f44336)" opacity="0.7">Angled ✗</text>
+        <text x="75" y="18" font-size="10" fill="var(--error-color, #f44336)" opacity="0.7">${this._localize("wizard.angled_wrong")}</text>
       </svg>
     `;
 
@@ -3903,15 +3902,15 @@ export class EverythingPresenceProPanel extends LitElement {
         ${this._renderHeader()}
         <div style="max-width: 560px; margin: 0 auto; padding: 0 24px;">
           <div class="setting-group">
-            <h4>How to position your sensor</h4>
+            <h4>${this._localize("wizard.how_to_position")}</h4>
             <div style="display: flex; flex-direction: column; gap: 20px; padding: 8px 0;">
 
               <div style="display: flex; align-items: center; gap: 16px;">
                 <div style="flex-shrink: 0;">${heightDiagram}</div>
                 <div>
-                  <div style="font-weight: 500; margin-bottom: 4px;">Mount height</div>
+                  <div style="font-weight: 500; margin-bottom: 4px;">${this._localize("wizard.mount_height")}</div>
                   <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
-                    Place the sensor <strong>1.5 to 2 meters</strong> from the floor
+                    ${unsafeHTML(this._localize("wizard.mount_height_desc"))}
                   </div>
                 </div>
               </div>
@@ -3921,9 +3920,9 @@ export class EverythingPresenceProPanel extends LitElement {
               <div style="display: flex; align-items: center; gap: 16px;">
                 <div style="flex-shrink: 0;">${cornerDiagram}</div>
                 <div>
-                  <div style="font-weight: 500; margin-bottom: 4px;">Placement</div>
+                  <div style="font-weight: 500; margin-bottom: 4px;">${this._localize("wizard.placement")}</div>
                   <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
-                    Place in a <strong>corner or on a wall</strong>, pointing toward the most distant opposite corner
+                    ${unsafeHTML(this._localize("wizard.placement_desc"))}
                   </div>
                 </div>
               </div>
@@ -3933,9 +3932,9 @@ export class EverythingPresenceProPanel extends LitElement {
               <div style="display: flex; align-items: center; gap: 16px;">
                 <div style="flex-shrink: 0;">${horizontalDiagram}</div>
                 <div>
-                  <div style="font-weight: 500; margin-bottom: 4px;">Beam direction</div>
+                  <div style="font-weight: 500; margin-bottom: 4px;">${this._localize("wizard.beam_direction")}</div>
                   <div style="font-size: 13px; color: var(--secondary-text-color, #757575);">
-                    Keep the beam <strong>horizontal</strong> — not angled up or down
+                    ${unsafeHTML(this._localize("wizard.beam_direction_desc"))}
                   </div>
                 </div>
               </div>
@@ -3954,7 +3953,7 @@ export class EverythingPresenceProPanel extends LitElement {
 								this._wizardOffsetFb = "";
 							}}
             >
-              Start room size calibration
+              ${this._localize("wizard.start_calibration")}
             </button>
           </div>
         </div>
