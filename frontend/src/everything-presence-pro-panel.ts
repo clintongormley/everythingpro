@@ -64,6 +64,7 @@ import {
 	ZONE_TYPE_DEFAULTS,
 	type ZoneConfig,
 } from "./lib/zone-defaults.js";
+import { setupLocalize } from "./localize.js";
 
 interface Target {
 	x: number;
@@ -344,6 +345,8 @@ const TARGET_COLORS = ["#2196F3", "#FF5722", "#4CAF50"]; // blue, red-orange, gr
 
 export class EverythingPresenceProPanel extends LitElement {
 	@property({ attribute: false }) hass: any;
+	private _localize: (key: string, params?: Record<string, string | number>) => string = (k) => k;
+	private _currentLang = "";
 
 	// Grid data: byte per cell using the encoding above
 	@state() private _grid: Uint8Array = new Uint8Array(GRID_CELL_COUNT);
@@ -560,6 +563,16 @@ export class EverythingPresenceProPanel extends LitElement {
 		if (this._originalPushState) history.pushState = this._originalPushState;
 		if (this._originalReplaceState)
 			history.replaceState = this._originalReplaceState;
+	}
+
+	willUpdate(changed: PropertyValues) {
+		if (changed.has("hass")) {
+			const newLang = this.hass?.locale?.language ?? this.hass?.language;
+			if (newLang !== this._currentLang) {
+				this._currentLang = newLang;
+				this._localize = setupLocalize(this.hass);
+			}
+		}
 	}
 
 	updated(changedProps: PropertyValues): void {
