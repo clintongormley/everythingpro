@@ -353,10 +353,9 @@ class DisplayBuffer:
         raw tuples: (x, y, esphome_active) — always set when sensor tracks.
 
         All deques accumulate whenever the sensor is tracking (esphome_active).
-        This ensures subscribe_display always has smoothed grid xy and raw
-        positions for calibration and zone editing, independent of the
-        backend's room grid.  subscribe_targets uses the zone engine
-        instead, which does its own room gating.
+        This ensures subscribe_grid_targets always has smoothed positions
+        for calibration and zone editing, independent of the backend's
+        room grid.  Room gating is handled by the zone engine.
         """
         targets: list[DisplayTarget] = []
         for i in range(MAX_TARGETS):

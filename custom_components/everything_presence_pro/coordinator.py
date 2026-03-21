@@ -549,9 +549,8 @@ class EverythingPresenceProCoordinator:
             self._last_result = result
             async_dispatcher_send(self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}")
 
-        # Always feed the display buffer so smoothed raw positions are
-        # available to subscribe_targets (FOV overlay) even when nobody
-        # is subscribed to subscribe_display.
+        # Always feed the display buffer so smoothed positions are
+        # available to subscribe_raw_targets and subscribe_grid_targets.
         self._last_display_snapshot = self._display_buffer.feed(calibrated, raw)
 
         # Schedule a single callback at the soonest pending zone expiry
@@ -616,8 +615,7 @@ class EverythingPresenceProCoordinator:
         """Build calibrated target list from current raw state.
 
         The third element indicates the target is active AND inside the
-        room grid.  This drives the zone engine's tumbling window and the
-        subscribe_targets API (live overview).
+        room grid.  This drives the zone engine's tumbling window.
         """
         grid = self._zone_engine.grid
         calibrated: list[tuple[float, float, bool]] = []
