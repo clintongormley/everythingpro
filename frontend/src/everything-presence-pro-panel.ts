@@ -67,15 +67,16 @@ import {
 } from "./lib/zone-defaults.js";
 import { setupLocalize } from "./localize.js";
 
+type TargetStatus = "active" | "pending" | "inactive";
+
 interface Target {
 	x: number;
 	y: number;
 	raw_x: number;
 	raw_y: number;
 	speed: number;
-	active: boolean;
-	signal: number; // 0-9 signal strength from tumbling window
-	pending?: boolean; // true = faded dot (presence timeout counting down)
+	status: TargetStatus;
+	signal: number;
 }
 
 interface EntryInfo {
@@ -435,7 +436,6 @@ export class EverythingPresenceProPanel extends LitElement {
 		{
 			occupied: boolean;
 			pendingSince: number | null;
-			isHandoff: boolean;
 			confirmedTargets: Set<number>;
 		}
 	> = new Map();
@@ -686,26 +686,9 @@ export class EverythingPresenceProPanel extends LitElement {
 						raw_x: t.raw_x ?? t.x,
 						raw_y: t.raw_y ?? t.y,
 						speed: 0,
-						active: t.active,
+						status: (t.status as TargetStatus) ?? "inactive",
 						signal: t.signal ?? 0,
-						pending: false,
 					}));
-					// Merge pending targets: replace inactive slots with faded versions
-					for (const pt of event.pending_targets || []) {
-						const i = pt.target_index;
-						if (i < targets.length && !targets[i].active) {
-							targets[i] = {
-								x: pt.x,
-								y: pt.y,
-								raw_x: pt.x,
-								raw_y: pt.y,
-								speed: 0,
-								active: true,
-								signal: 0,
-								pending: true,
-							};
-						}
-					}
 					this._targets = targets;
 					if (event.sensors) {
 						this._sensorState = {
@@ -1381,7 +1364,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	private _smoothBuffer: SmoothBufferEntry[] = [];
 
 	private _getSmoothedRaw(): { x: number; y: number } | null {
-		const active = this._targets.find((t) => t.active);
+		const active = this._targets.find((t) => t.status === "active");
 		if (!active) return null;
 
 		const result = getSmoothedValue(
@@ -1404,7 +1387,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	}
 
 	private _wizardStartCapture(): void {
-		const active = this._targets.find((t) => t.active);
+		const active = this._targets.find((t) => t.status === "active");
 		if (!active) return;
 
 		this._wizardCapturing = true;
@@ -1425,7 +1408,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			lastTick = now;
 
 			// Check target count: exactly 1 active target required
-			const activeTargets = this._targets.filter((t) => t.active);
+			const activeTargets = this._targets.filter((t) => t.status === "active");
 			const valid = activeTargets.length === 1;
 			this._wizardCapturePaused = !valid;
 
@@ -3401,7 +3384,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderWizardCorners() {
 		const idx = this._wizardCornerIndex;
-		const activeTargets = this._targets.filter((t) => t.active);
+		const activeTargets = this._targets.filter((t) => t.status === "active");
 		const hasTarget = activeTargets.length > 0;
 		const tooManyTargets = activeTargets.length > 1;
 		const allMarked = this._wizardCorners.every((c) => c !== null);
@@ -3618,7 +3601,7 @@ export class EverythingPresenceProPanel extends LitElement {
 						})}
           <!-- Live targets (per-target colors) -->
           ${this._targets.map((t, i) =>
-						t.active
+						t.status === "active"
 							? html`
               <div
                 class="mini-grid-target"
@@ -3772,7 +3755,7 @@ export class EverythingPresenceProPanel extends LitElement {
       ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
       <div class="targets-overlay" style="pointer-events: none;">
         ${this._targets.map((t, i) => {
-					if (!t.active) return nothing;
+					if (t.status === "inactive") return nothing;
 					const pos = this._mapTargetToGridCell(t);
 					if (!pos) return nothing;
 					const xPct = ((pos.col - minCol) / visCols) * 100;
@@ -3844,7 +3827,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
           <!-- Target dots -->
           ${this._targets.map((t, i) => {
-						if (!t.active) return nothing;
+						if (t.status === "inactive") return nothing;
 						// Map raw coords to FOV: x maps left-right, y maps top-bottom
 						const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
 						const angle = Math.atan2(t.raw_x, t.raw_y); // angle from center
@@ -4510,7 +4493,7 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
             <div class="targets-overlay" style="pointer-events: none;">
               ${this._targets.map((t, i) => {
-								if (!t.active) return nothing;
+								if (t.status === "inactive") return nothing;
 								const pos = this._mapTargetToGridCell(t);
 								if (!pos) return nothing;
 								const xPct = ((pos.col - minCol) / visCols) * 100;
@@ -4518,10 +4501,10 @@ export class EverythingPresenceProPanel extends LitElement {
 								return html`
                     <div
                       class="target-dot"
-                      style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]}; opacity: ${t.pending ? 0.3 : 1}; transition: opacity 0.5s ease;"
+                      style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]}; opacity: ${t.status === "pending" ? 0.3 : 1}; transition: opacity 0.5s ease;"
                     ></div>
                     ${
-											!t.pending && t.signal > 0
+											t.status === "active" && t.signal > 0
 												? html`
                       <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -280%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
                         ${t.signal}
@@ -4775,7 +4758,7 @@ export class EverythingPresenceProPanel extends LitElement {
 		for (let i = 0; i < MAX_TARGETS && i < this._targets.length; i++) {
 			const t = this._targets[i];
 
-			if (!t.active || t.pending) {
+			if (t.status !== "active") {
 				this._targetPrev[i] = null;
 				this._targetGateCount[i] = 0;
 				continue;
@@ -4883,7 +4866,6 @@ export class EverythingPresenceProPanel extends LitElement {
 			) {
 				const { timeout, handoffTimeout } = this._getZoneThresholds(prevZid);
 				srcSt.pendingSince = now - (timeout - handoffTimeout);
-				srcSt.isHandoff = true;
 			}
 		}
 
@@ -4899,7 +4881,6 @@ export class EverythingPresenceProPanel extends LitElement {
 				st = {
 					occupied: false,
 					pendingSince: null,
-					isHandoff: false,
 					confirmedTargets: new Set(),
 				};
 				this._localZoneState.set(zid, st);
@@ -4911,22 +4892,18 @@ export class EverythingPresenceProPanel extends LitElement {
 				if (confirmed) {
 					st.occupied = true;
 					st.pendingSince = null;
-					st.isHandoff = false;
 				}
 			} else if (st.pendingSince === null) {
 				if (!confirmed) {
 					st.pendingSince = now;
-					st.isHandoff = false;
 				}
 			} else {
 				if (confirmed) {
 					st.pendingSince = null;
-					st.isHandoff = false;
 				} else {
 					if (now - st.pendingSince >= timeout) {
 						st.occupied = false;
 						st.pendingSince = null;
-						st.isHandoff = false;
 						st.confirmedTargets.clear();
 					}
 				}
@@ -4943,7 +4920,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			const targetParts: string[] = [];
 			for (let i = 0; i < MAX_TARGETS && i < this._targets.length; i++) {
 				const t = this._targets[i];
-				if (!t.active || t.pending) continue;
+				if (t.status !== "active") continue;
 				const sig = t.signal;
 				if (sig <= 0) continue;
 				const zid = targetZoneCurr[i];
