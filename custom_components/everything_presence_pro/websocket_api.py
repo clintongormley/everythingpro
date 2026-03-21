@@ -465,7 +465,7 @@ async def websocket_subscribe_targets(
                             "raw_y": r[1],
                             "signal": t.signal,
                         }
-                        for t, r in zip(targets, raw_targets, strict=False)
+                        for t, r in zip(targets, raw_targets, strict=True)
                     ],
                     "sensors": {
                         "occupancy": coordinator.device_occupied,

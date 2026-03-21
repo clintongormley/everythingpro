@@ -3648,7 +3648,8 @@ export class EverythingPresenceProPanel extends LitElement {
       <div class="panel" @click=${(e: Event) => {
 				if (
 					this._showLiveMenu &&
-					!(e.target as HTMLElement).closest(".sidebar-menu-wrapper")
+					(!(e.target instanceof Element) ||
+						!e.target.closest(".sidebar-menu-wrapper"))
 				) {
 					this._showLiveMenu = false;
 				}
