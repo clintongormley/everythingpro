@@ -28,6 +28,7 @@ from custom_components.everything_presence_pro.const import RAW_FPS
 from custom_components.everything_presence_pro.const import ZONE_TYPE_ENTRANCE
 from custom_components.everything_presence_pro.const import ZONE_TYPE_NORMAL
 from custom_components.everything_presence_pro.zone_engine import Grid
+from custom_components.everything_presence_pro.zone_engine import TargetStatus
 from custom_components.everything_presence_pro.zone_engine import TargetWindow
 from custom_components.everything_presence_pro.zone_engine import WindowOutput
 from custom_components.everything_presence_pro.zone_engine import Zone
