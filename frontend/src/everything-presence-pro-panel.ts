@@ -350,7 +350,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	@state() private _zoneConfigs: (ZoneConfig | null)[] = new Array(
 		MAX_ZONES,
 	).fill(null);
-	@state() private _activeZone: number | null = null; // null = none selected, 0 = boundary, 1-7 = named zones
+	@state() private _activeZone: number | null = null; // null = none selected, 0 = room, 1-7 = named zones
 	@state() private _roomType: ZoneConfig["type"] = "normal";
 	@state() private _roomTrigger: number = ZONE_TYPE_DEFAULTS.normal.trigger;
 	@state() private _roomRenew: number = ZONE_TYPE_DEFAULTS.normal.renew;
@@ -396,6 +396,7 @@ export class EverythingPresenceProPanel extends LitElement {
 		occupancy: boolean;
 		static_presence: boolean;
 		pir_motion: boolean;
+		target_presence: boolean;
 		illuminance: number | null;
 		temperature: number | null;
 		humidity: number | null;
@@ -404,6 +405,7 @@ export class EverythingPresenceProPanel extends LitElement {
 		occupancy: false,
 		static_presence: false,
 		pir_motion: false,
+		target_presence: false,
 		illuminance: null,
 		temperature: null,
 		humidity: null,
@@ -681,6 +683,7 @@ export class EverythingPresenceProPanel extends LitElement {
 							occupancy: event.sensors.occupancy ?? false,
 							static_presence: event.sensors.static_presence ?? false,
 							pir_motion: event.sensors.pir_motion ?? false,
+							target_presence: event.sensors.target_presence ?? false,
 							illuminance: event.sensors.illuminance ?? null,
 							temperature: event.sensors.temperature ?? null,
 							humidity: event.sensors.humidity ?? null,
@@ -5091,7 +5094,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderZoneSidebar() {
 		return html`
-      <!-- Boundary -->
+      <!-- Room -->
       <div
         class="zone-item ${this._activeZone === 0 ? "active" : ""}"
         @click=${() => {
@@ -5100,7 +5103,7 @@ export class EverythingPresenceProPanel extends LitElement {
       >
         <div class="zone-item-row">
           <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;${this._localZoneState.get(0)?.occupied ? " box-shadow: 0 0 6px 2px #999;" : ""}"></div>
-          <span class="zone-name">Boundary</span>
+          <span class="zone-name">Room</span>
         </div>
         ${
 					this._activeZone === 0
@@ -5304,26 +5307,42 @@ export class EverythingPresenceProPanel extends LitElement {
 			},
 			{
 				id: "motion",
-				label: "PIR motion",
+				label: "Motion presence",
 				on: ss.pir_motion,
 				info: "Passive infrared sensor detects movement by sensing body heat. Fast response but only triggers on motion, not stationary presence.",
 			},
+			{
+				id: "target",
+				label: "Target presence",
+				on: ss.target_presence,
+				info: "Whether any target is actively tracked by the mmWave radar. Detected when at least one target point is being reported.",
+			},
 		];
 
-		// Add zone occupancy entries for configured zones
+		// Zone occupancy entries: always include rest-of-room, plus configured zones
+		const zoneDefs: typeof sensorDefs = [];
 		for (let i = 0; i < MAX_ZONES; i++) {
 			const zone = this._zoneConfigs[i];
 			if (!zone) continue;
 			const slot = i + 1;
 			const occupied = zs.occupancy[slot] ?? false;
 			const count = zs.target_counts[slot] ?? 0;
-			sensorDefs.push({
+			zoneDefs.push({
 				id: `zone_${slot}`,
 				label: zone.name,
 				on: occupied,
 				info: `Zone ${slot} occupancy. Currently ${count} target${count !== 1 ? "s" : ""} detected. Sensitivity determines how many consecutive frames are needed to confirm presence.`,
 			});
 		}
+		// Rest-of-room zone (slot 0) — always shown
+		const rorOccupied = zs.occupancy[0] ?? false;
+		const rorCount = zs.target_counts[0] ?? 0;
+		zoneDefs.push({
+			id: "zone_0",
+			label: "Rest of room",
+			on: rorOccupied,
+			info: `Covers the entire room outside of any defined zones. Currently ${rorCount} target${rorCount !== 1 ? "s" : ""} detected.`,
+		});
 
 		// Environment sensors
 		const envSensors: { id: string; label: string; value: string }[] = [];
@@ -5352,12 +5371,10 @@ export class EverythingPresenceProPanel extends LitElement {
 				value: `${Math.round(ss.co2)} ppm`,
 			});
 
-		const hasZones = sensorDefs.length > 3;
-
 		return html`
       <div style="padding: 8px 0;">
         <div class="live-section-header">Presence</div>
-        ${sensorDefs.slice(0, 3).map(
+        ${sensorDefs.map(
 					(s) => html`
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>
@@ -5388,10 +5405,8 @@ export class EverythingPresenceProPanel extends LitElement {
 					this._view = "editor";
 					this._sidebarTab = "zones";
 				}}>Detection zones</button>
-        ${
-					hasZones
-						? sensorDefs.slice(3).map(
-								(s) => html`
+        ${zoneDefs.map(
+					(s) => html`
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>
             <span class="live-sensor-label">${s.label}</span>
@@ -5413,17 +5428,7 @@ export class EverythingPresenceProPanel extends LitElement {
 							: nothing
 					}
         `,
-							)
-						: html`
-          <button class="live-nav-link" style="padding: 4px 12px;" @click=${() => {
-						this._view = "editor";
-						this._sidebarTab = "zones";
-					}}>
-            <ha-icon icon="mdi:plus" style="--mdc-icon-size: 16px;"></ha-icon>
-            Add zones
-          </button>
-        `
-				}
+				)}
 
         <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 10px 12px;"/>
 
