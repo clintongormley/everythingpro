@@ -20,6 +20,8 @@ from .const import ZONE_TYPE_NORMAL
 from .coordinator import SIGNAL_SENSORS_UPDATED
 from .coordinator import SIGNAL_TARGETS_UPDATED
 from .coordinator import EverythingPresenceProCoordinator
+from .zone_engine import TargetResult
+from .zone_engine import TargetStatus
 from .zone_engine import Zone
 
 _REGISTERED: set[str] = set()
@@ -445,24 +447,26 @@ async def websocket_subscribe_targets(
     @callback
     def _forward_state() -> None:
         """Forward targets, sensors, and zone state to the WebSocket subscriber."""
-        targets = coordinator.targets
-        raw_targets = coordinator.raw_targets
         result = coordinator.last_result
-        signals = result.target_signals
+        raw_targets = coordinator.raw_targets
+        # Pad targets to MAX_TARGETS if zone engine hasn't ticked yet
+        targets = list(result.targets) if result else []
+        while len(targets) < len(raw_targets):
+            targets.append(TargetResult())
         connection.send_message(
             websocket_api.event_message(
                 msg["id"],
                 {
                     "targets": [
                         {
-                            "x": t[0],
-                            "y": t[1],
-                            "active": t[2],
+                            "x": t.x,
+                            "y": t.y,
+                            "status": t.status.value,
                             "raw_x": r[0],
                             "raw_y": r[1],
-                            "signal": signals[i] if i < len(signals) else 0,
+                            "signal": t.signal,
                         }
-                        for i, (t, r) in enumerate(zip(targets, raw_targets, strict=True))
+                        for t, r in zip(targets, raw_targets, strict=False)
                     ],
                     "sensors": {
                         "occupancy": coordinator.device_occupied,
@@ -480,14 +484,6 @@ async def websocket_subscribe_targets(
                         "target_counts": result.zone_target_counts,
                         "debug_log": result.debug_log,
                     },
-                    "pending_targets": [
-                        {
-                            "x": pt["x"],
-                            "y": pt["y"],
-                            "target_index": pt["target_index"],
-                        }
-                        for pt in coordinator.pending_targets
-                    ],
                 },
             )
         )

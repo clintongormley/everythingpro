@@ -249,17 +249,18 @@ async def test_subscribe_targets(hass: HomeAssistant, hass_ws_client, setup_inte
     assert "targets" in event
     assert "sensors" in event
     assert "zones" in event
-    assert "pending_targets" in event
+    assert "pending_targets" not in event
 
     # Verify target structure
     assert len(event["targets"]) == 3  # MAX_TARGETS = 3
     for t in event["targets"]:
         assert "x" in t
         assert "y" in t
-        assert "active" in t
+        assert "status" in t
         assert "raw_x" in t
         assert "raw_y" in t
         assert "signal" in t
+        assert t["status"] in ("active", "pending", "inactive")
 
     # Verify sensor structure
     sensors = event["sensors"]
