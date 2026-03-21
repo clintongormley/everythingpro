@@ -3989,15 +3989,15 @@ export class EverythingPresenceProPanel extends LitElement {
 		const sections: { id: string; label: string; icon: string }[] = [
 			{
 				id: "detection",
-				label: "Detection Ranges",
+				label: "settings.detection_ranges",
 				icon: "mdi:signal-distance-variant",
 			},
 			{
 				id: "sensitivity",
-				label: "Sensor Calibration",
+				label: "settings.sensor_calibration",
 				icon: "mdi:tune-vertical",
 			},
-			{ id: "reporting", label: "Entities", icon: "mdi:format-list-checks" },
+			{ id: "reporting", label: "settings.entities", icon: "mdi:format-list-checks" },
 		];
 
 		return html`
@@ -4008,14 +4008,14 @@ export class EverythingPresenceProPanel extends LitElement {
 				}} @change=${() => {
 					this._dirty = true;
 				}}>
-          <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 500;">Settings</h2>
+          <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 500;">${this._localize("settings.title")}</h2>
           ${sections.map((s) => {
 						const open = this._openAccordions.has(s.id);
 						return html`
               <div class="accordion">
                 <button class="accordion-header" ?data-open=${open} @click=${() => this._toggleAccordion(s.id)}>
                   <ha-icon icon=${s.icon}></ha-icon>
-                  <span class="accordion-title">${s.label}</span>
+                  <span class="accordion-title">${this._localize(s.label)}</span>
                   <ha-icon class="accordion-chevron" icon="mdi:chevron-down" ?data-open=${open}></ha-icon>
                 </button>
                 ${
@@ -4122,11 +4122,11 @@ export class EverythingPresenceProPanel extends LitElement {
 		const autoStyle = "opacity: 0.5; pointer-events: none;";
 		return html`
       <div class="settings-section">
-        ${metrics ? html`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">Current furthest point from sensor: <strong style="color: var(--error-color, #e53935);">${metrics.furthestM}m</strong></p>` : nothing}
+        ${metrics ? html`<p style="font-size: 13px; color: var(--secondary-text-color, #757575); margin: 0 0 12px;">${this._localize("settings.furthest_point", { distance: metrics.furthestM })}</p>` : nothing}
         <div class="setting-group">
-          <h4>Target Sensor</h4>
+          <h4>${this._localize("settings.target_sensor")}</h4>
           <div class="setting-row">
-            <label>Auto</label>
+            <label>${this._localize("settings.auto")}</label>
             <label class="toggle-switch">
               <input type="checkbox" ?checked=${this._targetAutoRange}
                 @change=${(e: Event) => {
@@ -4136,23 +4136,23 @@ export class EverythingPresenceProPanel extends LitElement {
 								}} />
               <span class="toggle-slider"></span>
             </label>
-            ${this._infoTip("Automatically set max distance from room dimensions.")}
+            ${this._infoTip(this._localize("info.target_auto_range"))}
           </div>
           <div class="setting-row" style="${this._targetAutoRange ? autoStyle : ""}">
-            <label>Max distance</label>
+            <label>${this._localize("settings.max_distance")}</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(targetVal)} min="0.5" max="6" step="0.1"
               @input=${(e: Event) => {
 								const el = e.target as HTMLInputElement;
 								this._targetMaxDistance = Number(el.value);
 								el.nextElementSibling!.textContent = el.value;
 							}} /><span class="setting-value">${targetVal}</span><span class="setting-unit">m</span></span>
-            ${this._infoTip("Maximum detection distance for the target sensor (LD2450). Hardware limit: 6m.")}
+            ${this._infoTip(this._localize("info.target_max_distance"))}
           </div>
         </div>
         <div class="setting-group">
-          <h4>Static Sensor</h4>
+          <h4>${this._localize("settings.static_sensor")}</h4>
           <div class="setting-row">
-            <label>Auto</label>
+            <label>${this._localize("settings.auto")}</label>
             <label class="toggle-switch">
               <input type="checkbox" ?checked=${this._staticAutoRange}
                 @change=${(e: Event) => {
@@ -4162,10 +4162,10 @@ export class EverythingPresenceProPanel extends LitElement {
 								}} />
               <span class="toggle-slider"></span>
             </label>
-            ${this._infoTip("Automatically set max distance from room dimensions.")}
+            ${this._infoTip(this._localize("info.target_auto_range"))}
           </div>
           <div class="setting-row" style="${this._staticAutoRange ? autoStyle : ""}">
-            <label>Min distance</label>
+            <label>${this._localize("settings.min_distance")}</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(this._staticAutoRange ? 0.3 : this._staticMinDistance)} min="0.3" max="16" step="0.1"
               @input=${(e: Event) => {
 								const el = e.target as HTMLInputElement;
@@ -4177,10 +4177,10 @@ export class EverythingPresenceProPanel extends LitElement {
 								this._staticMinDistance = v;
 								el.nextElementSibling!.textContent = String(v);
 							}} /><span class="setting-value">${this._staticAutoRange ? 0.3 : this._staticMinDistance}</span><span class="setting-unit">m</span></span>
-            ${this._infoTip("Minimum detection distance for the static sensor.")}
+            ${this._infoTip(this._localize("info.static_min_distance"))}
           </div>
           <div class="setting-row" style="${this._staticAutoRange ? autoStyle : ""}">
-            <label>Max distance</label>
+            <label>${this._localize("settings.max_distance")}</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" .value=${String(staticMaxVal)} min="2.4" max="16" step="0.1"
               @input=${(e: Event) => {
 								const el = e.target as HTMLInputElement;
@@ -4192,7 +4192,7 @@ export class EverythingPresenceProPanel extends LitElement {
 								this._staticMaxDistance = v;
 								el.nextElementSibling!.textContent = String(v);
 							}} /><span class="setting-value">${staticMaxVal}</span><span class="setting-unit">m</span></span>
-            ${this._infoTip("Maximum detection distance for the static sensor. Hardware limit: 16m.")}
+            ${this._infoTip(this._localize("info.static_max_distance"))}
           </div>
         </div>
       </div>
@@ -4203,56 +4203,56 @@ export class EverythingPresenceProPanel extends LitElement {
 		return html`
       <div class="settings-section">
         <div class="setting-group">
-          <h4>Motion Sensor</h4>
+          <h4>${this._localize("settings.motion_sensor")}</h4>
           <div class="setting-row">
-            <label>Presence timeout</label>
+            <label>${this._localize("settings.presence_timeout")}</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" value="5" min="0" max="120" step="1" @input=${(
 							e: Event,
 						) => {
 							const el = e.target as HTMLInputElement;
 							el.nextElementSibling!.textContent = el.value;
 						}} /><span class="setting-value">5</span><span class="setting-unit">s</span></span>
-            ${this._infoTip("Time after last motion before the motion sensor clears.")}
+            ${this._infoTip(this._localize("info.motion_timeout"))}
           </div>
         </div>
         <div class="setting-group">
-          <h4>Static Sensor</h4>
+          <h4>${this._localize("settings.static_sensor")}</h4>
           <div class="setting-row">
-            <label>Presence timeout</label>
+            <label>${this._localize("settings.presence_timeout")}</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" value="30" min="0" max="120" step="1" @input=${(
 							e: Event,
 						) => {
 							const el = e.target as HTMLInputElement;
 							el.nextElementSibling!.textContent = el.value;
 						}} /><span class="setting-value">30</span><span class="setting-unit">s</span></span>
-            ${this._infoTip("Time after last static detection before the sensor clears.")}
+            ${this._infoTip(this._localize("info.static_timeout"))}
           </div>
           <div class="setting-row">
-            <label>Trigger threshold</label>
+            <label>${this._localize("settings.trigger_threshold")}</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="3" @input=${(
 							e: Event,
 						) => {
 							const el = e.target as HTMLInputElement;
 							el.nextElementSibling!.textContent = el.value;
 						}} /><span class="setting-value">3</span><span class="setting-unit"></span></span>
-            ${this._infoTip("Minimum signal strength needed to initially detect static presence. Higher = harder to trigger.")}
+            ${this._infoTip(this._localize("info.trigger_threshold"))}
           </div>
           <div class="setting-row">
-            <label>Renew threshold</label>
+            <label>${this._localize("settings.renew_threshold")}</label>
             <span class="setting-input-unit"><input type="range" class="setting-range" min="0" max="9" value="3" @input=${(
 							e: Event,
 						) => {
 							const el = e.target as HTMLInputElement;
 							el.nextElementSibling!.textContent = el.value;
 						}} /><span class="setting-value">3</span><span class="setting-unit"></span></span>
-            ${this._infoTip("Minimum signal strength needed to maintain static presence detection. Higher = harder to renew.")}
+            ${this._infoTip(this._localize("info.renew_threshold"))}
           </div>
         </div>
         <div class="setting-group">
-          <h4>Environmental</h4>
-          ${this._renderEnvOffset("Illuminance offset", this._sensorState.illuminance, "illuminance", -500, 500, 1, "lux", 0, "Adjust the illuminance reading by a fixed amount.")}
-          ${this._renderEnvOffset("Humidity offset", this._sensorState.humidity, "humidity", -50, 50, 0.1, "%", 1, "Adjust the humidity reading by a fixed amount.")}
-          ${this._renderEnvOffset("Temperature offset", this._sensorState.temperature, "temperature", -20, 20, 0.1, "°C", 1, "Adjust the temperature reading by a fixed amount.")}
+          <h4>${this._localize("settings.environmental")}</h4>
+          ${this._renderEnvOffset(this._localize("settings.illuminance_offset"), this._sensorState.illuminance, "illuminance", -500, 500, 1, "lux", 0, this._localize("info.illuminance_offset"))}
+          ${this._renderEnvOffset(this._localize("settings.humidity_offset"), this._sensorState.humidity, "humidity", -50, 50, 0.1, "%", 1, this._localize("info.humidity_offset"))}
+          ${this._renderEnvOffset(this._localize("settings.temperature_offset"), this._sensorState.temperature, "temperature", -20, 20, 0.1, "°C", 1, this._localize("info.temperature_offset"))}
         </div>
       </div>
     `;
@@ -4266,105 +4266,105 @@ export class EverythingPresenceProPanel extends LitElement {
 		return html`
       <div class="settings-section">
         <div class="setting-group">
-          <h4>Room level</h4>
+          <h4>${this._localize("entities.room_level")}</h4>
           <div class="setting-row">
-            <label>Occupancy</label>
+            <label>${this._localize("entities.occupancy")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="room_occupancy" ?checked=${isOn("room_occupancy", true)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Combined room occupancy from all sensors.")}
+            ${this._infoTip(this._localize("info.room_occupancy"))}
           </div>
           <div class="setting-row">
-            <label>Static presence</label>
+            <label>${this._localize("entities.static_presence")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="room_static_presence" ?checked=${isOn("room_static_presence", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("mmWave static presence detection.")}
+            ${this._infoTip(this._localize("info.room_static"))}
           </div>
           <div class="setting-row">
-            <label>Motion presence</label>
+            <label>${this._localize("entities.motion_presence")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="room_motion_presence" ?checked=${isOn("room_motion_presence", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("PIR motion detection.")}
+            ${this._infoTip(this._localize("info.room_motion"))}
           </div>
           <div class="setting-row">
-            <label>Target presence</label>
+            <label>${this._localize("entities.target_presence")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="room_target_presence" ?checked=${isOn("room_target_presence", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Whether any target is actively tracked.")}
+            ${this._infoTip(this._localize("info.room_target_presence"))}
           </div>
           <div class="setting-row">
-            <label>Target count</label>
+            <label>${this._localize("entities.target_count")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="room_target_count" ?checked=${isOn("room_target_count", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Number of targets detected in the room.")}
+            ${this._infoTip(this._localize("info.room_target_count"))}
           </div>
         </div>
         <div class="setting-group">
-          <h4>Zone level</h4>
+          <h4>${this._localize("entities.zone_level")}</h4>
           <div class="setting-row">
-            <label>Presence</label>
+            <label>${this._localize("entities.zone_presence")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="zone_presence" ?checked=${isOn("zone_presence", true)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Per-zone occupancy based on target tracking.")}
+            ${this._infoTip(this._localize("info.zone_presence"))}
           </div>
           <div class="setting-row">
-            <label>Target count</label>
+            <label>${this._localize("entities.target_count")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="zone_target_count" ?checked=${isOn("zone_target_count", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Number of targets in each zone.")}
+            ${this._infoTip(this._localize("info.zone_target_count"))}
           </div>
         </div>
         <div class="setting-group">
-          <h4>Target level</h4>
+          <h4>${this._localize("entities.target_level")}</h4>
           <div class="setting-row">
-            <label>XY position, relative to sensor</label>
+            <label>${this._localize("entities.xy_sensor")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="target_xy_sensor" ?checked=${isOn("target_xy_sensor", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Raw XY coordinates from the sensor.")}
+            ${this._infoTip(this._localize("info.xy_sensor"))}
           </div>
           <div class="setting-row">
-            <label>XY position, relative to grid</label>
+            <label>${this._localize("entities.xy_grid")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="target_xy_grid" ?checked=${isOn("target_xy_grid", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("XY coordinates mapped to the room grid.")}
+            ${this._infoTip(this._localize("info.xy_grid"))}
           </div>
           <div class="setting-row">
-            <label>Active</label>
+            <label>${this._localize("entities.active")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="target_active" ?checked=${isOn("target_active", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Whether each target slot is actively tracking.")}
+            ${this._infoTip(this._localize("info.active"))}
           </div>
           <div class="setting-row">
-            <label>Distance</label>
+            <label>${this._localize("entities.distance")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="target_distance" ?checked=${isOn("target_distance", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Distance from sensor to each target.")}
+            ${this._infoTip(this._localize("info.distance"))}
           </div>
           <div class="setting-row">
-            <label>Angle</label>
+            <label>${this._localize("entities.angle")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="target_angle" ?checked=${isOn("target_angle", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Angle from sensor to each target.")}
+            ${this._infoTip(this._localize("info.angle"))}
           </div>
           <div class="setting-row">
-            <label>Speed</label>
+            <label>${this._localize("entities.speed")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="target_speed" ?checked=${isOn("target_speed", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Movement speed of each target.")}
+            ${this._infoTip(this._localize("info.speed"))}
           </div>
           <div class="setting-row">
-            <label>Resolution</label>
+            <label>${this._localize("entities.resolution")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="target_resolution" ?checked=${isOn("target_resolution", false)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("Detection resolution for each target.")}
+            ${this._infoTip(this._localize("info.resolution"))}
           </div>
         </div>
         <div class="setting-group">
-          <h4>Environmental</h4>
+          <h4>${this._localize("settings.environmental")}</h4>
           <div class="setting-row">
-            <label>Illuminance</label>
+            <label>${this._localize("entities.illuminance")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="env_illuminance" ?checked=${isOn("env_illuminance", true)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("BH1750 illuminance sensor.")}
+            ${this._infoTip(this._localize("info.illuminance"))}
           </div>
           <div class="setting-row">
-            <label>Humidity</label>
+            <label>${this._localize("entities.humidity")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="env_humidity" ?checked=${isOn("env_humidity", true)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("SHTC3 humidity sensor.")}
+            ${this._infoTip(this._localize("info.humidity"))}
           </div>
           <div class="setting-row">
-            <label>Temperature</label>
+            <label>${this._localize("entities.temperature")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="env_temperature" ?checked=${isOn("env_temperature", true)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("SHTC3 temperature sensor.")}
+            ${this._infoTip(this._localize("info.temperature"))}
           </div>
           <div class="setting-row">
-            <label>CO₂</label>
+            <label>${this._localize("entities.co2")}</label>
             <label class="toggle-switch"><input type="checkbox" data-report-key="env_co2" ?checked=${isOn("env_co2", true)} /><span class="toggle-slider"></span></label>
-            ${this._infoTip("SCD40 CO₂ sensor (optional module).")}
+            ${this._infoTip(this._localize("info.co2"))}
           </div>
         </div>
       </div>
