@@ -46,6 +46,7 @@ function createPanel(): EverythingPresenceProPanel {
 		occupancy: false,
 		static_presence: false,
 		pir_motion: false,
+		target_presence: false,
 		illuminance: 150,
 		temperature: 22.5,
 		humidity: 45,
@@ -175,7 +176,9 @@ describe("_renderLiveOverview DOM events", () => {
 		const tpl = a._renderLiveOverview();
 		const c = renderTo(tpl);
 
-		const link = c.querySelector(".live-section-link") as HTMLElement;
+		const link = c.querySelector(
+			".zone-sidebar .live-section-link",
+		) as HTMLElement;
 		if (link) {
 			link.click();
 			expect(a._view).toBe("editor");

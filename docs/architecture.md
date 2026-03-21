@@ -177,8 +177,8 @@ then emits per-target median positions and frame counts (signal strength
 1. **Target evaluation** — Map each target to a grid cell and zone. Check
    continuity (Chebyshev distance ≤ 5 cells from previous position).
    Apply entry-point gating: non-entry zones require 2 consecutive
-   qualifying ticks at doubled threshold before confirming a discontinuous
-   target.
+   qualifying ticks at `min(threshold + 2, 8)` before confirming a
+   discontinuous target.
 
 2. **Handoff detection** — When a target moves between zones, the source
    zone transitions to PENDING with an accelerated timeout
@@ -229,8 +229,8 @@ callbacks and sends a JSON message on each update:
 ```json
 {
   "targets": [{"x", "y", "active", "raw_x", "raw_y", "signal"}, ...],
-  "sensors": {"occupancy", "static_presence", "pir_motion", "illuminance", "temperature", "humidity", "co2"},
-  "zones": {"occupancy": {id: bool}, "target_counts": {id: int}, "frame_count": int},
+  "sensors": {"occupancy", "static_presence", "pir_motion", "target_presence", "illuminance", "temperature", "humidity", "co2"},
+  "zones": {"occupancy": {id: bool}, "target_counts": {id: int}, "frame_count": int, "debug_log": str},
   "pending_targets": [{"x", "y", "target_index"}, ...]
 }
 ```
@@ -270,15 +270,18 @@ config via `get_config`, and subscribes to live target data via
 `subscribe_targets`.
 
 **Live Overview** — Renders the calibrated grid with target dots, zone
-occupancy overlays, environment sensor readouts, and presence status. The
-local zone engine replica runs on each incoming message to show zone
-occupancy state with the same gating, thresholds, and handoff logic as the
-backend.
+occupancy overlays, environment sensor readouts, and presence status
+(including target presence and motion presence). The sidebar shows
+rest-of-room zone under detection zones. A collapsible "Detection events"
+debug log panel below the grid shows backend zone engine tick summaries
+(deduped, timestamped, 100-line cap).
 
 **Editor** — Two tabs:
 - *Zones:* Paint zone cells on the grid, add/remove zones, configure
   type/trigger/renew/timeout per zone. Room boundary is zone 0 (painted
-  with the room bit).
+  with the room bit). Zones with zero painted cells are auto-removed on
+  save. A collapsible "Detection events" debug log panel below the grid
+  shows local zone engine output (deduped, timestamped, 100-line cap).
 - *Furniture:* Place, move, resize, rotate furniture items (MDI icons or
   SVG floor plans) for visual context. Drag handles for resize, rotation
   handle at top.

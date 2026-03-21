@@ -43,6 +43,7 @@ function createPanel(): EverythingPresenceProPanel {
 		occupancy: false,
 		static_presence: false,
 		pir_motion: false,
+		target_presence: false,
 		illuminance: 150,
 		temperature: 22.5,
 		humidity: 45,
@@ -1115,7 +1116,7 @@ describe("_renderLiveSidebar", () => {
 		expect(result).toBeDefined();
 	});
 
-	it("renders without zones (shows add zones button)", () => {
+	it("renders without configured zones (still shows rest-of-room)", () => {
 		const a = createPanel() as any;
 		a._zoneConfigs = new Array(7).fill(null);
 		const result = a._renderLiveSidebar();

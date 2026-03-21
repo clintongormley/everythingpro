@@ -468,6 +468,7 @@ async def websocket_subscribe_targets(
                         "occupancy": coordinator.device_occupied,
                         "static_presence": coordinator.static_present,
                         "pir_motion": coordinator.pir_motion,
+                        "target_presence": coordinator.target_present,
                         "illuminance": coordinator.illuminance,
                         "temperature": coordinator.temperature,
                         "humidity": coordinator.humidity,
@@ -477,6 +478,7 @@ async def websocket_subscribe_targets(
                         "frame_count": result.frame_count,
                         "occupancy": result.zone_occupancy,
                         "target_counts": result.zone_target_counts,
+                        "debug_log": result.debug_log,
                     },
                     "pending_targets": [
                         {

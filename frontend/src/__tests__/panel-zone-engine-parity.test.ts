@@ -123,15 +123,14 @@ describe("Zone engine parity (mirrors test_zone_engine_parity.py)", () => {
 		expect(occ[1]).toBe(false);
 	});
 
-	it("target in room (zone 0, non-entry) with signal >= trigger → zone 0 occupied after gating", () => {
-		// Room zone 0: trigger=5, entry_point=false
-		// Non-entry zone with no previous position → needs gating (2 ticks at 2×trigger)
-		// First tick: gated threshold = min(5*2, 9) = 9, signal=9 → gate count 1
-		a._targets = [makeTarget(150, 150, 9)];
+	it("target in room (zone 0) with signal >= gated threshold → zone 0 occupied after gating", () => {
+		// Room zone 0: trigger=5, gated threshold = min(5+2, 8) = 7
+		// First tick: signal=7 meets gated threshold, gate_count=1
+		a._targets = [makeTarget(150, 150, 7)];
 		let occ = a._runLocalZoneEngine();
-		expect(occ[0]).toBe(false); // not yet — need 2 ticks
+		expect(occ[0]).toBe(false); // not yet — need continuous or 2 gate ticks
 
-		// Second tick: gate count reaches 2 → confirmed
+		// Second tick: continuous from tick 1, bypasses gating → confirmed
 		occ = a._runLocalZoneEngine();
 		expect(occ[0]).toBe(true);
 	});
@@ -179,16 +178,16 @@ describe("Zone engine parity (mirrors test_zone_engine_parity.py)", () => {
 	});
 
 	it("two targets in different zones → both zones occupied", () => {
-		// Target 0 in zone 1 (entrance, trigger=3)
-		// Target 1 in zone 0 (room, trigger=5, needs gating)
-		a._targets = [makeTarget(450, 450, 5), makeTarget(150, 150, 9)];
+		// Target 0 in zone 1 (entrance, trigger=3, entry point — no gating)
+		// Target 1 in zone 0 (room, trigger=5, gated threshold = min(5+2,8) = 7)
+		a._targets = [makeTarget(450, 450, 5), makeTarget(150, 150, 7)];
 
-		// First tick: zone 1 occupied, zone 0 gating (count=1)
+		// First tick: zone 1 immediate (entry point), zone 0 gating (count=1)
 		let occ = a._runLocalZoneEngine();
 		expect(occ[1]).toBe(true);
 		expect(occ[0]).toBe(false);
 
-		// Second tick: zone 0 gating passes (count=2)
+		// Second tick: zone 0 continuous → confirmed
 		occ = a._runLocalZoneEngine();
 		expect(occ[1]).toBe(true);
 		expect(occ[0]).toBe(true);

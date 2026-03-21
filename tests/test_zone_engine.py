@@ -441,14 +441,14 @@ class TestStateMachine:
         engine = ZoneEngine(grid=grid, zones=[zone])
 
         t = 100.0
-        # Window 1: gate_count goes to 1 (gating in non-entry-point zone 0)
+        # Window 1: gate_count goes to 1 (gating in zone 0, thresh=min(5+2,8)=7)
         for i in range(10):
             engine.feed_raw([(450, 150, True)], t + i * 0.1)
         result = engine.feed_raw([(450, 150, True)], t + 1.01)
         assert result is not None
         assert result.device_tracking_present is False
 
-        # Window 2: gate_count reaches 2
+        # Window 2: continuous from window 1, bypasses gating → confirmed
         for i in range(10):
             engine.feed_raw([(450, 150, True)], t + 1.01 + i * 0.1)
         result = engine.feed_raw([(450, 150, True)], t + 2.02)
@@ -476,18 +476,18 @@ class TestEntryPointGating:
 
         t = 100.0
 
-        # Tick 1: 5 frames below gated threshold (6), not confirmed
-        w1 = _make_window([(150, 150, 5)])
+        # Tick 1: 4 frames below gated threshold (min(3+2,8)=5), not confirmed
+        w1 = _make_window([(150, 150, 4)])
         r1 = engine._tick(w1, t)
         assert r1.zone_occupancy[1] is False
 
-        # Tick 2: 7 frames above gated threshold, gate_count=1, not confirmed yet
-        w2 = _make_window([(150, 150, 7)])
+        # Tick 2: 5 frames at gated threshold, gate_count=1, not confirmed yet
+        w2 = _make_window([(150, 150, 5)])
         r2 = engine._tick(w2, t + 1.0)
         assert r2.zone_occupancy[1] is False
 
-        # Tick 3: 7 frames, continuous from tick 2 -> confirmed
-        w3 = _make_window([(150, 150, 7)])
+        # Tick 3: continuous from tick 2, bypasses gating, frame_count >= trigger → confirmed
+        w3 = _make_window([(150, 150, 5)])
         r3 = engine._tick(w3, t + 2.0)
         assert r3.zone_occupancy[1] is True
 
