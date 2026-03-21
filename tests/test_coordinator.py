@@ -17,6 +17,9 @@ from custom_components.everything_presence_pro.const import GRID_COLS
 from custom_components.everything_presence_pro.const import GRID_ROWS
 from custom_components.everything_presence_pro.coordinator import EverythingPresenceProCoordinator
 from custom_components.everything_presence_pro.zone_engine import Grid
+from custom_components.everything_presence_pro.zone_engine import ProcessingResult
+from custom_components.everything_presence_pro.zone_engine import TargetResult
+from custom_components.everything_presence_pro.zone_engine import TargetStatus
 from custom_components.everything_presence_pro.zone_engine import Zone
 
 
@@ -81,10 +84,6 @@ class TestCoordinatorInit:
             assert coordinator.target_speed(i) is None
             assert coordinator.target_angle(i) is None
             assert coordinator.target_resolution(i) is None
-
-    def test_default_pending_targets(self, coordinator):
-        """No pending targets by default."""
-        assert coordinator.pending_targets == []
 
 
 # ---------------------------------------------------------------------------
@@ -254,19 +253,37 @@ class TestCoordinatorProperties:
 
     def test_target_present_and_count(self, coordinator):
         """target_present and target_count track active targets."""
-        coordinator._targets = [(100, 200, True), (0, 0, False), (300, 400, True)]
+        coordinator._last_result = ProcessingResult(
+            targets=[
+                TargetResult(x=100, y=200, status=TargetStatus.ACTIVE, signal=5),
+                TargetResult(),
+                TargetResult(x=300, y=400, status=TargetStatus.ACTIVE, signal=5),
+            ]
+        )
         assert coordinator.target_present is True
         assert coordinator.target_count == 2
 
     def test_target_distance(self, coordinator):
         """target_distance computes Euclidean distance from sensor."""
-        coordinator._targets = [(3000, 4000, True), (0, 0, False), (0, 0, False)]
+        coordinator._last_result = ProcessingResult(
+            targets=[
+                TargetResult(x=3000, y=4000, status=TargetStatus.ACTIVE, signal=5),
+                TargetResult(),
+                TargetResult(),
+            ]
+        )
         assert coordinator.target_distance(0) == pytest.approx(5000.0)
         assert coordinator.target_distance(1) is None  # inactive
 
     def test_target_angle(self, coordinator):
         """target_angle computes atan2(x, y) in degrees."""
-        coordinator._targets = [(1000, 1000, True), (0, 0, False), (0, 0, False)]
+        coordinator._last_result = ProcessingResult(
+            targets=[
+                TargetResult(x=1000, y=1000, status=TargetStatus.ACTIVE, signal=5),
+                TargetResult(),
+                TargetResult(),
+            ]
+        )
         assert coordinator.target_angle(0) == pytest.approx(45.0)
         assert coordinator.target_angle(1) is None
 
@@ -628,19 +645,7 @@ class TestStateHandling:
 
 
 class TestScheduleAndExpiry:
-    """Tests for _schedule_rebuild, _expiry_tick, _do_display_update."""
-
-    @patch("custom_components.everything_presence_pro.coordinator.async_dispatcher_send")
-    def test_do_display_update_dispatches(self, mock_dispatch, mock_hass, mock_entry):
-        coord = _coordinator_with_grid(mock_hass, mock_entry)
-        coord._rebuild_scheduled = True
-        coord._target_active = [True, False, False]
-        coord._target_x = [1500.0, 0.0, 0.0]
-        coord._target_y = [1500.0, 0.0, 0.0]
-        coord._do_display_update()
-        assert coord._rebuild_scheduled is False
-        assert coord._targets[0][2] is True
-        mock_dispatch.assert_called_once()
+    """Tests for _schedule_rebuild and _expiry_tick."""
 
     @patch("custom_components.everything_presence_pro.coordinator.async_dispatcher_send")
     def test_schedule_rebuild_feeds_zone_engine(self, mock_dispatch, mock_hass, mock_entry):
@@ -649,7 +654,7 @@ class TestScheduleAndExpiry:
         coord._target_x = [1500.0, 0.0, 0.0]
         coord._target_y = [1500.0, 0.0, 0.0]
         coord._schedule_rebuild()
-        assert coord._targets is not None
+        assert coord._last_result is not None
 
     def test_schedule_expiry_tick_no_pending(self, mock_hass, mock_entry):
         coord = _coordinator_with_grid(mock_hass, mock_entry)
@@ -697,10 +702,18 @@ class TestAdditionalProperties:
         assert coordinator.pir_motion is True
 
     def test_targets_property(self, coordinator):
-        """targets returns a copy of _targets list."""
-        coordinator._targets = [(100.0, 200.0, True), (0.0, 0.0, False), (0.0, 0.0, False)]
+        """targets returns a copy of last_result.targets list."""
+        coordinator._last_result = ProcessingResult(
+            targets=[
+                TargetResult(x=100.0, y=200.0, status=TargetStatus.ACTIVE, signal=5),
+                TargetResult(),
+                TargetResult(),
+            ]
+        )
         result = coordinator.targets
-        assert result[0] == (100.0, 200.0, True)
+        assert result[0].x == 100.0
+        assert result[0].y == 200.0
+        assert result[0].status == TargetStatus.ACTIVE
         assert len(result) == 3
 
     def test_sensor_transform_property(self, coordinator):
@@ -710,7 +723,13 @@ class TestAdditionalProperties:
 
     def test_target_angle_zero_zero_is_none(self, coordinator):
         """target_angle returns None when x and y are both 0."""
-        coordinator._targets = [(0.0, 0.0, True), (0.0, 0.0, False), (0.0, 0.0, False)]
+        coordinator._last_result = ProcessingResult(
+            targets=[
+                TargetResult(x=0.0, y=0.0, status=TargetStatus.ACTIVE, signal=5),
+                TargetResult(),
+                TargetResult(),
+            ]
+        )
         assert coordinator.target_angle(0) is None
 
 

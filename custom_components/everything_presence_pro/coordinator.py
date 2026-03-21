@@ -28,6 +28,8 @@ from .const import ZONE_TYPE_DEFAULTS
 from .const import ZONE_TYPE_NORMAL
 from .zone_engine import Grid
 from .zone_engine import ProcessingResult
+from .zone_engine import TargetResult
+from .zone_engine import TargetStatus
 from .zone_engine import Zone
 from .zone_engine import ZoneEngine
 
@@ -68,8 +70,7 @@ class EverythingPresenceProCoordinator:
         # Room layout
         self._room_layout: dict[str, Any] = {}
 
-        # Target state: list of (x, y, active) tuples
-        self._targets: list[tuple[float, float, bool]] = [(0.0, 0.0, False) for _ in range(MAX_TARGETS)]
+        # Target state
         self._target_x: list[float] = [0.0] * MAX_TARGETS
         self._target_y: list[float] = [0.0] * MAX_TARGETS
         self._target_speed: list[float] = [0.0] * MAX_TARGETS
@@ -92,7 +93,6 @@ class EverythingPresenceProCoordinator:
 
         # Processing result
         self._last_result: ProcessingResult = ProcessingResult()
-        self._rebuild_scheduled: bool = False
         self._window_timer: object | None = None
 
         # ESPHome entity key mapping (populated during subscription)
@@ -160,26 +160,22 @@ class EverythingPresenceProCoordinator:
         return self._pir_motion or self._static_present or self._last_result.device_tracking_present
 
     @property
-    def pending_targets(self) -> list[dict]:
-        """Return pending target positions for faded dot rendering."""
-        return self._last_result.pending_targets if self._last_result else []
-
-    @property
     def target_present(self) -> bool:
         """Return whether any target is actively tracked."""
-        return any(t[2] for t in self._targets)
+        return any(t.status == TargetStatus.ACTIVE for t in self.targets)
 
     @property
     def target_count(self) -> int:
         """Return the number of active targets."""
-        return sum(1 for t in self._targets if t[2])
+        return sum(1 for t in self.targets if t.status == TargetStatus.ACTIVE)
 
     def target_distance(self, index: int) -> float | None:
         """Return the distance from sensor to a target in mm."""
-        if index >= len(self._targets) or not self._targets[index][2]:
+        targets = self.targets
+        if index >= len(targets) or targets[index].status != TargetStatus.ACTIVE:
             return None
-        x, y, _ = self._targets[index]
-        return (x * x + y * y) ** 0.5
+        t = targets[index]
+        return (t.x * t.x + t.y * t.y) ** 0.5
 
     def target_speed(self, index: int) -> float | None:
         """Return the speed of a target in mm/s."""
@@ -195,14 +191,15 @@ class EverythingPresenceProCoordinator:
 
     def target_angle(self, index: int) -> float | None:
         """Return the angle from sensor to a target in degrees."""
-        if index >= len(self._targets) or not self._targets[index][2]:
+        targets = self.targets
+        if index >= len(targets) or targets[index].status != TargetStatus.ACTIVE:
+            return None
+        t = targets[index]
+        if t.x == 0 and t.y == 0:
             return None
         import math
 
-        x, y, _ = self._targets[index]
-        if x == 0 and y == 0:
-            return None
-        return math.degrees(math.atan2(x, y))
+        return math.degrees(math.atan2(t.x, t.y))
 
     @property
     def connected(self) -> bool:
@@ -210,9 +207,9 @@ class EverythingPresenceProCoordinator:
         return self._connected
 
     @property
-    def targets(self) -> list[tuple[float, float, bool]]:
-        """Return the current target positions."""
-        return list(self._targets)
+    def targets(self) -> list[TargetResult]:
+        """Return the current target results from zone engine."""
+        return list(self._last_result.targets) if self._last_result else []
 
     @property
     def raw_targets(self) -> list[tuple[float, float, bool]]:
@@ -517,12 +514,7 @@ class EverythingPresenceProCoordinator:
         if result is not None:
             # Window ticked — update state and dispatch
             self._last_result = result
-            self._targets = calibrated
             async_dispatcher_send(self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}")
-        elif not self._rebuild_scheduled:
-            # Dispatch at throttled rate for live display even between window ticks
-            self._rebuild_scheduled = True
-            self.hass.loop.call_later(0.2, self._do_display_update)
 
         # Schedule a single callback at the soonest pending zone expiry
         self._schedule_expiry_tick()
@@ -548,7 +540,6 @@ class EverythingPresenceProCoordinator:
         result = self._zone_engine.feed_raw(empty, now)
         if result is not None:
             self._last_result = result
-            self._targets = empty
             async_dispatcher_send(self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}")
         # If more zones are still pending, schedule the next expiry
         self._schedule_expiry_tick()
@@ -566,12 +557,6 @@ class EverythingPresenceProCoordinator:
             else:
                 calibrated.append((self._target_x[i], self._target_y[i], False))
         return calibrated
-
-    def _do_display_update(self) -> None:
-        """Dispatch a display update for live target positions (between window ticks)."""
-        self._rebuild_scheduled = False
-        self._targets = self._build_calibrated_targets()
-        async_dispatcher_send(self.hass, f"{SIGNAL_TARGETS_UPDATED}_{self.entry.entry_id}")
 
     def _target_index(self, name: str) -> int | None:
         """Extract the 0-based target index from a name like target_1_x."""
