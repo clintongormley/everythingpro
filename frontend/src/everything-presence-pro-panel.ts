@@ -331,7 +331,12 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 	},
 ];
 
-const CORNER_LABELS = ["corners.front_left", "corners.front_right", "corners.back_right", "corners.back_left"];
+const CORNER_LABELS = [
+	"corners.front_left",
+	"corners.front_right",
+	"corners.back_right",
+	"corners.back_left",
+];
 const CORNER_OFFSET_LABELS: [string, string][] = [
 	["corners.left_wall", "corners.front_wall"],
 	["corners.right_wall", "corners.front_wall"],
@@ -347,7 +352,10 @@ const TARGET_COLORS = ["#2196F3", "#FF5722", "#4CAF50"]; // blue, red-orange, gr
 
 export class EverythingPresenceProPanel extends LitElement {
 	@property({ attribute: false }) hass: any;
-	private _localize: (key: string, params?: Record<string, string | number>) => string = (k) => k;
+	private _localize: (
+		key: string,
+		params?: Record<string, string | number>,
+	) => string = (k) => k;
 	private _currentLang = "";
 
 	// Grid data: byte per cell using the encoding above
@@ -3637,7 +3645,14 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderLiveOverview() {
 		return html`
-      <div class="panel">
+      <div class="panel" @click=${(e: Event) => {
+				if (
+					this._showLiveMenu &&
+					!(e.target as HTMLElement).closest(".sidebar-menu-wrapper")
+				) {
+					this._showLiveMenu = false;
+				}
+			}}>
         ${this._renderHeader()}
         <div class="editor-layout">
           <div style="flex: 1; min-width: 0;">
@@ -3763,7 +3778,7 @@ export class EverythingPresenceProPanel extends LitElement {
 					return html`
             <div
               class="target-dot"
-              style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]};"
+              style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]}; opacity: ${t.status === "pending" ? 0.3 : 1}; transition: opacity 0.5s ease;"
             ></div>
           `;
 				})}
@@ -4072,7 +4087,11 @@ export class EverythingPresenceProPanel extends LitElement {
 				label: "settings.sensor_calibration",
 				icon: "mdi:tune-vertical",
 			},
-			{ id: "reporting", label: "settings.entities", icon: "mdi:format-list-checks" },
+			{
+				id: "reporting",
+				label: "settings.entities",
+				icon: "mdi:format-list-checks",
+			},
 		];
 
 		return html`
@@ -4910,6 +4929,16 @@ export class EverythingPresenceProPanel extends LitElement {
 			}
 			occupancy[zid] = st.occupied;
 		}
+		// Clean up stale confirmed targets in non-pending zones
+		for (let i = 0; i < MAX_TARGETS && i < this._targets.length; i++) {
+			if (this._targets[i].status !== "active") {
+				for (const st of this._localZoneState.values()) {
+					if (st.pendingSince === null) {
+						st.confirmedTargets.delete(i);
+					}
+				}
+			}
+		}
 		// Build debug log line (mirrors backend zone_engine._tick logging)
 		if (this._showDebugLog) {
 			const getZoneName = (zid: number): string => {
@@ -4936,7 +4965,8 @@ export class EverythingPresenceProPanel extends LitElement {
 				const st = this._localZoneState.get(zid);
 				if (st?.occupied) {
 					const state = st.pendingSince !== null ? "pending" : "occupied";
-					zoneParts.push(`${getZoneName(zid)}: ${state}`);
+					const n = st.confirmedTargets.size;
+					zoneParts.push(`${getZoneName(zid)}: ${state} (${n})`);
 				}
 			}
 			const body = `${targetParts.length ? targetParts.join(", ") : "no targets"} | ${zoneParts.length ? zoneParts.join(", ") : "all clear"}`;

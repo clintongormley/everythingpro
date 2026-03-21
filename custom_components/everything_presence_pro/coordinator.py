@@ -94,6 +94,7 @@ class EverythingPresenceProCoordinator:
         # Processing result
         self._last_result: ProcessingResult = ProcessingResult()
         self._window_timer: object | None = None
+        self._stale_timer: object | None = None
 
         # ESPHome entity key mapping (populated during subscription)
         self._sensor_key_map: dict[int, str] = {}
@@ -518,6 +519,18 @@ class EverythingPresenceProCoordinator:
 
         # Schedule a single callback at the soonest pending zone expiry
         self._schedule_expiry_tick()
+
+        # Safety: if sensor updates stop (unchanged values = no callbacks),
+        # _last_result would go stale.  Schedule a fallback tick so the zone
+        # engine still processes the "no targets" transition.
+        if self._stale_timer is not None:
+            self._stale_timer.cancel()
+        self._stale_timer = self.hass.loop.call_later(1.5, self._stale_tick)
+
+    def _stale_tick(self) -> None:
+        """Feed current sensor state after sensor updates stopped flowing."""
+        self._stale_timer = None
+        self._schedule_rebuild()
 
     def _schedule_expiry_tick(self) -> None:
         """Schedule a single callback when the next pending zone should expire."""

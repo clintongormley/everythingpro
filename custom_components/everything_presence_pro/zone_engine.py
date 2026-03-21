@@ -612,6 +612,15 @@ class ZoneEngine:
                         )
                     )
 
+        # Clean up stale confirmed_targets in non-PENDING zones so counts
+        # stay accurate.  PENDING zones keep their confirmed_targets — those
+        # entries drive the faded-dot rendering until the zone clears.
+        for i, tw in enumerate(window.targets):
+            if not tw.active:
+                for rt in self._zone_runtimes.values():
+                    if rt.state != ZoneState.PENDING:
+                        rt.confirmed_targets.discard(i)
+
         # Room is occupied if any zone (including zone 0) is occupied
         result.device_tracking_present = any(result.zone_occupancy.values())
 
@@ -628,7 +637,8 @@ class ZoneEngine:
         zone_parts = []
         for _zid, rt in self._zone_runtimes.items():
             if rt.state != ZoneState.CLEAR:
-                zone_parts.append(f"{rt.zone.name}: {rt.state.value}")
+                n = len(rt.confirmed_targets)
+                zone_parts.append(f"{rt.zone.name}: {rt.state.value} ({n})")
         result.debug_log = "{} | {}".format(
             ", ".join(parts) if parts else "no targets",
             ", ".join(zone_parts) if zone_parts else "all clear",

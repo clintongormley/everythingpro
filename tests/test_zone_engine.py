@@ -808,6 +808,66 @@ class TestTargetStatus:
         r2 = engine._tick(w2, t + 1.0)
         assert r2.targets[0].status == TargetStatus.ACTIVE
 
+    def test_pending_persists_for_full_timeout(self):
+        """Faded dot stays PENDING for the entire zone timeout, not just one tick."""
+        grid = _make_grid(cols=4, rows=4)
+        cell_idx = grid.xy_to_cell(150, 150)
+        grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
+
+        zone = Zone(id=1, name="Desk", type=ZONE_TYPE_ENTRANCE, trigger=3, renew=3, timeout=5.0)
+        engine = ZoneEngine(grid=grid, zones=[zone])
+
+        t = 100.0
+        w1 = _make_window([(150, 150, 8)])
+        engine._tick(w1, t)
+
+        # Target disappears — zone goes PENDING, target should be PENDING
+        w2 = _make_window([(0, 0, 0)])
+        r2 = engine._tick(w2, t + 1.0)
+        assert r2.zone_occupancy[1] is True
+        assert r2.targets[0].status == TargetStatus.PENDING
+
+        # Several ticks later — still within timeout — target must stay PENDING
+        for dt in [2.0, 3.0, 4.0, 5.0]:
+            w = _make_window([(0, 0, 0)])
+            r = engine._tick(w, t + dt)
+            assert r.zone_occupancy[1] is True, f"zone should still be occupied at t+{dt}"
+            assert r.targets[0].status == TargetStatus.PENDING, f"target should still be PENDING at t+{dt}"
+
+        # After timeout expires — zone clears, target becomes INACTIVE
+        w_final = _make_window([(0, 0, 0)])
+        r_final = engine._tick(w_final, t + 6.5)
+        assert r_final.zone_occupancy[1] is False
+        assert r_final.targets[0].status == TargetStatus.INACTIVE
+
+    def test_stale_confirmed_target_cleaned_from_occupied_zone(self):
+        """When one of two targets disappears, the occupied zone count updates."""
+        grid = _make_grid(cols=4, rows=4)
+        cell_idx = grid.xy_to_cell(150, 150)
+        grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
+
+        zone = Zone(id=1, name="Desk", type=ZONE_TYPE_ENTRANCE, trigger=3, renew=3, timeout=10.0)
+        engine = ZoneEngine(grid=grid, zones=[zone])
+
+        t = 100.0
+        # Two targets confirmed in zone
+        w1 = _make_window([(150, 150, 8), (150, 150, 8)])
+        engine._tick(w1, t)
+
+        # T1 disappears, T0 stays — zone stays OCCUPIED
+        w2 = _make_window([(150, 150, 8), (0, 0, 0)])
+        r2 = engine._tick(w2, t + 1.0)
+        assert r2.zone_occupancy[1] is True
+        assert r2.targets[0].status == TargetStatus.ACTIVE
+        # T1 should be INACTIVE (not PENDING) because zone is still OCCUPIED
+        assert r2.targets[1].status == TargetStatus.INACTIVE
+
+        # On next tick, confirmed_targets should not include stale T1
+        w3 = _make_window([(150, 150, 8), (0, 0, 0)])
+        r3 = engine._tick(w3, t + 2.0)
+        assert r3.targets[0].status == TargetStatus.ACTIVE
+        assert r3.targets[1].status == TargetStatus.INACTIVE
+
 
 # ===================================================================
 # Zone type defaults
