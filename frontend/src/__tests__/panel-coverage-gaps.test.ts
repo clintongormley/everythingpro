@@ -49,6 +49,7 @@ function createPanel(): EverythingPresenceProPanel {
 		occupancy: false,
 		static_presence: false,
 		pir_motion: false,
+		target_presence: false,
 		illuminance: 150,
 		temperature: 22.5,
 		humidity: 45,
@@ -544,9 +545,9 @@ describe("_renderLiveSidebar zone info toggles", () => {
 		const c = renderTo(tpl);
 
 		const infoBtns = c.querySelectorAll(".live-sensor-info-btn");
-		// Zone info should be beyond first 3 sensor buttons
-		if (infoBtns.length > 3) {
-			(infoBtns[3] as HTMLElement).click();
+		// Zone info should be beyond the 4 presence sensor buttons
+		if (infoBtns.length > 4) {
+			(infoBtns[4] as HTMLElement).click();
 			expect(a._expandedSensorInfo).toBe("zone_1");
 		}
 		document.body.removeChild(c);

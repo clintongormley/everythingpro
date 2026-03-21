@@ -48,6 +48,7 @@ function createPanel(): EverythingPresenceProPanel {
 		occupancy: false,
 		static_presence: false,
 		pir_motion: false,
+		target_presence: false,
 		illuminance: 150,
 		temperature: 22.5,
 		humidity: 45,

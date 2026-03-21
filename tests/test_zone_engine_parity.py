@@ -154,18 +154,17 @@ class TestZoneEngineParity:
         result = engine._tick(_window([(X_OFF + 450, 450, 2)]), 100.0)
         assert result.zone_occupancy.get(1, False) is False
 
-    def test_non_entry_zone_needs_gating(self):
-        """Target in zone 0 (non-entry) needs 2 ticks of gating."""
+    def test_zone_0_gating(self):
+        """Target in zone 0 needs gating like any other non-entry zone."""
         engine = _make_parity_engine()
         t = 100.0
-        # Target at room-space (150, 150) → grid-space (2550, 150) → cell (8,0) = zone 0
-        # Zone 0: trigger=5, entry_point=False → gated threshold = min(5*2, 9) = 9
-        # First tick: gate count 1
-        r1 = engine._tick(_window([(X_OFF + 150, 150, 9)]), t)
+        # Zone 0: trigger=5, gated threshold = min(5+2, 8) = 7
+        # First tick: signal=7 meets gated threshold, gate_count=1
+        r1 = engine._tick(_window([(X_OFF + 150, 150, 7)]), t)
         assert r1.zone_occupancy.get(0, False) is False
 
-        # Second tick: gate count 2 → confirmed
-        r2 = engine._tick(_window([(X_OFF + 150, 150, 9)]), t + 1.0)
+        # Second tick: continuous from tick 1, bypasses gating → confirmed
+        r2 = engine._tick(_window([(X_OFF + 150, 150, 7)]), t + 1.0)
         assert r2.zone_occupancy[0] is True
 
     def test_entry_point_bypasses_gating(self):
@@ -213,15 +212,15 @@ class TestZoneEngineParity:
         engine = _make_parity_engine()
         t = 100.0
 
-        # Target 0 in zone 1 (entrance), Target 1 in zone 0 (room, needs gating)
-        targets = [(X_OFF + 450, 450, 5), (X_OFF + 150, 150, 9)]
+        # Target 0 in zone 1 (entrance, entry point), Target 1 in zone 0 (room, gating)
+        targets = [(X_OFF + 450, 450, 5), (X_OFF + 150, 150, 7)]
 
-        # First tick: zone 1 occupied, zone 0 gating (count=1)
+        # First tick: zone 1 immediate, zone 0 gating (count=1)
         r1 = engine._tick(_window(targets), t)
         assert r1.zone_occupancy[1] is True
         assert r1.zone_occupancy.get(0, False) is False
 
-        # Second tick: zone 0 confirmed (count=2)
+        # Second tick: zone 0 continuous → confirmed
         r2 = engine._tick(_window(targets), t + 1.0)
         assert r2.zone_occupancy[1] is True
         assert r2.zone_occupancy[0] is True

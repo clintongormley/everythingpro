@@ -72,6 +72,7 @@ class ProcessingResult:
     target_signals: list[int] = field(default_factory=list)  # per-target signal 0-9
     frame_count: int = 0
     pending_targets: list[dict] = field(default_factory=list)
+    debug_log: str = ""
 
 
 @dataclass
@@ -466,8 +467,8 @@ class ZoneEngine:
                 needs_gating = not entry_point and not continuous
 
                 if needs_gating and rt.state == ZoneState.CLEAR:
-                    # Entry point gating: double threshold, cap at 9
-                    gated_thresh = min(base_thresh * 2, 9)
+                    # Gating: raise threshold, cap at 8
+                    gated_thresh = min(base_thresh + 2, 8)
                     if tw.frame_count >= gated_thresh:
                         self._target_gate_count[i] += 1
                         if self._target_gate_count[i] >= 2:
@@ -596,10 +597,10 @@ class ZoneEngine:
         for _zid, rt in self._zone_runtimes.items():
             if rt.state != ZoneState.CLEAR:
                 zone_parts.append(f"{rt.zone.name}: {rt.state.value}")
-        _LOGGER.debug(
-            "%s | %s",
+        result.debug_log = "{} | {}".format(
             ", ".join(parts) if parts else "no targets",
             ", ".join(zone_parts) if zone_parts else "all clear",
         )
+        _LOGGER.debug("%s", result.debug_log)
 
         return result

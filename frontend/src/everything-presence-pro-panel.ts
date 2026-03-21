@@ -417,6 +417,13 @@ export class EverythingPresenceProPanel extends LitElement {
 		frame_count: number;
 	} = { occupancy: {}, target_counts: {}, frame_count: 0 };
 	@state() private _showHitCounts = false;
+	@state() private _showDebugLog = false;
+	private _debugLogLines: string[] = [];
+	private _debugLogPrev: string | null = null;
+	@state() private _showBackendDebugLog = false;
+	private _backendDebugLogLines: string[] = [];
+	private _backendDebugLogPrev: string | null = null;
+	private static readonly _DEBUG_LOG_MAX = 100;
 
 	// Local zone occupancy state machine for live preview (with timeout)
 	private _localZoneState: Map<
@@ -568,6 +575,14 @@ export class EverythingPresenceProPanel extends LitElement {
 				this._initialize();
 			}
 		}
+		if (this._showDebugLog) {
+			const el = this.shadowRoot?.getElementById("debug-log-scroll");
+			if (el) el.scrollTop = el.scrollHeight;
+		}
+		if (this._showBackendDebugLog) {
+			const el = this.shadowRoot?.getElementById("backend-debug-log-scroll");
+			if (el) el.scrollTop = el.scrollHeight;
+		}
 	}
 
 	private async _initialize(): Promise<void> {
@@ -696,6 +711,18 @@ export class EverythingPresenceProPanel extends LitElement {
 							target_counts: event.zones.target_counts ?? {},
 							frame_count: event.zones.frame_count ?? 0,
 						};
+						if (this._showBackendDebugLog && event.zones.debug_log) {
+							const body = event.zones.debug_log;
+							if (body !== this._backendDebugLogPrev) {
+								this._backendDebugLogPrev = body;
+								const ts = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 1 });
+								this._backendDebugLogLines.push(`${ts} ${body}`);
+								if (this._backendDebugLogLines.length > EverythingPresenceProPanel._DEBUG_LOG_MAX) {
+									this._backendDebugLogLines = this._backendDebugLogLines.slice(-EverythingPresenceProPanel._DEBUG_LOG_MAX);
+								}
+								this.requestUpdate();
+							}
+						}
 					}
 				},
 				{
@@ -1540,6 +1567,7 @@ export class EverythingPresenceProPanel extends LitElement {
       align-items: flex-start;
     }
 
+
     .grid-container {
       position: relative;
       display: inline-block;
@@ -1943,7 +1971,7 @@ export class EverythingPresenceProPanel extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      overflow-y: auto;
+      overflow: hidden;
     }
 
     .sidebar-tabs {
@@ -2668,6 +2696,39 @@ export class EverythingPresenceProPanel extends LitElement {
       padding: 16px 12px 8px;
       margin-top: 8px;
       border-top: 1px solid var(--divider-color, #eee);
+    }
+
+    .debug-log-container {
+      max-height: 200px;
+      overflow-y: auto;
+      background: var(--card-background-color, #1e1e1e);
+      border: 1px solid var(--divider-color, #333);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .debug-log-line {
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--primary-text-color, #e0e0e0);
+    }
+
+    .debug-log-btn {
+      background: none;
+      border: 1px solid var(--divider-color, #444);
+      border-radius: 4px;
+      color: var(--secondary-text-color, #999);
+      font-size: 10px;
+      padding: 2px 8px;
+      cursor: pointer;
+    }
+
+    .debug-log-btn:hover {
+      color: var(--primary-text-color);
+      border-color: var(--primary-text-color, #ccc);
     }
 
     .live-nav-link {
@@ -3563,6 +3624,7 @@ export class EverythingPresenceProPanel extends LitElement {
 									: this._renderUncalibratedFov()
 							}
             </div>
+            ${this._renderBackendDebugLog()}
           </div>
           <div class="zone-sidebar">
             <div class="sidebar-header">
@@ -4429,6 +4491,7 @@ export class EverythingPresenceProPanel extends LitElement {
 							})}
             </div>
             ${this._renderGridDimensions()}
+            ${this._sidebarTab === "zones" ? this._renderDebugLog() : nothing}
           </div>
           </div>
 
@@ -4443,6 +4506,7 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._renderSaveCancelButtons()}
           </div>
         </div>
+
 
         ${this._showTemplateSave ? this._renderTemplateSaveDialog() : nothing}
         ${this._showTemplateLoad ? this._renderTemplateLoadDialog() : nothing}
@@ -4734,7 +4798,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			const needsGating = !entryPoint && !continuous;
 
 			if (needsGating && isClear) {
-				const gatedThresh = Math.min(baseTrigger * 2, 9);
+				const gatedThresh = Math.min(baseTrigger + 2, 8);
 				if (signal >= gatedThresh) {
 					this._targetGateCount[i]++;
 					if (this._targetGateCount[i] >= 2) {
@@ -4817,10 +4881,7 @@ export class EverythingPresenceProPanel extends LitElement {
 					st.pendingSince = null;
 					st.isHandoff = false;
 				} else {
-					const effectiveTimeout = st.isHandoff
-						? this._getZoneThresholds(zid).handoffTimeout
-						: timeout;
-					if (now - st.pendingSince >= effectiveTimeout) {
+					if (now - st.pendingSince >= timeout) {
 						st.occupied = false;
 						st.pendingSince = null;
 						st.isHandoff = false;
@@ -4830,6 +4891,43 @@ export class EverythingPresenceProPanel extends LitElement {
 			}
 			occupancy[zid] = st.occupied;
 		}
+		// Build debug log line (mirrors backend zone_engine._tick logging)
+		if (this._showDebugLog) {
+			const getZoneName = (zid: number): string => {
+				if (zid === 0) return "Room";
+				const cfg = this._zoneConfigs[zid - 1];
+				return cfg ? cfg.name : `Zone ${zid}`;
+			};
+			const targetParts: string[] = [];
+			for (let i = 0; i < MAX_TARGETS && i < this._targets.length; i++) {
+				const t = this._targets[i];
+				if (!t.active || t.pending) continue;
+				const sig = t.signal;
+				if (sig <= 0) continue;
+				const zid = targetZoneCurr[i];
+				const zname = zid !== null ? getZoneName(zid) : "outside";
+				const conf = zid !== null && (zoneConfirmed.get(zid) ?? false) ? "Y" : "N";
+				targetParts.push(`T${i}: signal=${sig} zone='${zname}' confirmed=${conf}`);
+			}
+			const zoneParts: string[] = [];
+			for (const zid of allZoneIds) {
+				const st = this._localZoneState.get(zid);
+				if (st?.occupied) {
+					const state = st.pendingSince !== null ? "pending" : "occupied";
+					zoneParts.push(`${getZoneName(zid)}: ${state}`);
+				}
+			}
+			const body = `${targetParts.length ? targetParts.join(", ") : "no targets"} | ${zoneParts.length ? zoneParts.join(", ") : "all clear"}`;
+			if (body === this._debugLogPrev) return occupancy;
+			this._debugLogPrev = body;
+			const ts = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 1 });
+			this._debugLogLines.push(`${ts} ${body}`);
+			if (this._debugLogLines.length > EverythingPresenceProPanel._DEBUG_LOG_MAX) {
+				this._debugLogLines = this._debugLogLines.slice(-EverythingPresenceProPanel._DEBUG_LOG_MAX);
+			}
+			this.requestUpdate();
+		}
+
 		return occupancy;
 	}
 
@@ -5092,8 +5190,93 @@ export class EverythingPresenceProPanel extends LitElement {
     `;
 	}
 
+	private _renderBackendDebugLog() {
+		return html`
+      <div style="margin-top: 8px;">
+        <button
+          class="live-section-header live-section-link"
+          style="font-size: 12px; gap: 4px;"
+          @click=${() => {
+						this._showBackendDebugLog = !this._showBackendDebugLog;
+						if (!this._showBackendDebugLog) {
+							this._backendDebugLogLines = [];
+							this._backendDebugLogPrev = null;
+						}
+					}}
+        >
+          <ha-icon icon=${this._showBackendDebugLog ? "mdi:chevron-down" : "mdi:chevron-right"} style="--mdc-icon-size: 14px;"></ha-icon>
+          Detection events
+        </button>
+        ${this._showBackendDebugLog ? html`
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 4px; gap: 4px;">
+            <button
+              class="debug-log-btn"
+              @click=${() => {
+								navigator.clipboard.writeText(this._backendDebugLogLines.join("\n"));
+							}}
+            >Copy all</button>
+            <button
+              class="debug-log-btn"
+              @click=${() => { this._backendDebugLogLines = []; this._backendDebugLogPrev = null; this.requestUpdate(); }}
+            >Clear</button>
+          </div>
+          <div class="debug-log-container" id="backend-debug-log-scroll">
+            ${this._backendDebugLogLines.length === 0
+							? html`<div style="color: var(--secondary-text-color, #999); font-style: italic;">Waiting for events...</div>`
+							: this._backendDebugLogLines.map(
+								(line) => html`<div class="debug-log-line">${line}</div>`,
+							)}
+          </div>
+        ` : nothing}
+      </div>
+    `;
+	}
+
+	private _renderDebugLog() {
+		return html`
+      <div style="padding: 0 16px; margin-top: 8px;">
+        <button
+          class="live-section-header live-section-link"
+          style="font-size: 12px; gap: 4px;"
+          @click=${() => {
+						this._showDebugLog = !this._showDebugLog;
+						if (!this._showDebugLog) {
+							this._debugLogLines = [];
+							this._debugLogPrev = null;
+						}
+					}}
+        >
+          <ha-icon icon=${this._showDebugLog ? "mdi:chevron-down" : "mdi:chevron-right"} style="--mdc-icon-size: 14px;"></ha-icon>
+          Detection events
+        </button>
+        ${this._showDebugLog ? html`
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 4px; gap: 4px;">
+            <button
+              class="debug-log-btn"
+              @click=${() => {
+								navigator.clipboard.writeText(this._debugLogLines.join("\n"));
+							}}
+            >Copy all</button>
+            <button
+              class="debug-log-btn"
+              @click=${() => { this._debugLogLines = []; this._debugLogPrev = null; this.requestUpdate(); }}
+            >Clear</button>
+          </div>
+          <div class="debug-log-container" id="debug-log-scroll">
+            ${this._debugLogLines.length === 0
+							? html`<div style="color: var(--secondary-text-color, #999); font-style: italic;">Waiting for events...</div>`
+							: this._debugLogLines.map(
+								(line) => html`<div class="debug-log-line">${line}</div>`,
+							)}
+          </div>
+        ` : nothing}
+      </div>
+    `;
+	}
+
 	private _renderZoneSidebar() {
 		return html`
+      <div class="zone-scroll-area">
       <!-- Room -->
       <div
         class="zone-item ${this._activeZone === 0 ? "active" : ""}"
@@ -5115,7 +5298,6 @@ export class EverythingPresenceProPanel extends LitElement {
       </div>
 
       <hr class="zone-separator"/>
-      <div class="zone-scroll-area">
       <!-- Named zones 1..N -->
       ${this._zoneConfigs.map((zone, i) => {
 				if (zone === null) return nothing;
