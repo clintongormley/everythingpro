@@ -62,6 +62,24 @@ class ZoneState(enum.Enum):
     PENDING = "pending"
 
 
+class TargetStatus(str, enum.Enum):
+    """Status of a target in zone engine output."""
+
+    ACTIVE = "active"
+    PENDING = "pending"
+    INACTIVE = "inactive"
+
+
+@dataclass
+class TargetResult:
+    """Per-target result from zone engine processing."""
+
+    x: float = 0.0
+    y: float = 0.0
+    status: TargetStatus = TargetStatus.INACTIVE
+    signal: int = 0
+
+
 @dataclass
 class ProcessingResult:
     """Result of processing a tumbling window."""
@@ -69,9 +87,8 @@ class ProcessingResult:
     device_tracking_present: bool = False
     zone_occupancy: dict[int, bool] = field(default_factory=dict)
     zone_target_counts: dict[int, int] = field(default_factory=dict)
-    target_signals: list[int] = field(default_factory=list)  # per-target signal 0-9
     frame_count: int = 0
-    pending_targets: list[dict] = field(default_factory=list)
+    targets: list[TargetResult] = field(default_factory=list)
     debug_log: str = ""
 
 
@@ -397,7 +414,7 @@ class ZoneEngine:
         # Evaluate each target: is it confirmed present in a zone?
         zone_confirmed: dict[int, bool] = {}  # zone_id → has confirmed target
         zone_signal: dict[int, int] = {}  # zone_id → best signal strength
-        target_signals: list[int] = []
+        target_signal: dict[int, int] = {}
 
         # Track per-target zone assignments for handoff detection
         target_zone_prev: list[int | None] = [None] * MAX_TARGETS
@@ -405,7 +422,6 @@ class ZoneEngine:
 
         for i, tw in enumerate(window.targets):
             if not tw.active:
-                target_signals.append(0)
                 # Target gone: clear its tracking state
                 self._target_prev[i] = None
                 self._target_gate_count[i] = 0
@@ -414,12 +430,12 @@ class ZoneEngine:
             signal = min(tw.frame_count, 9)
             cell = grid.xy_to_cell(tw.median_x, tw.median_y)
             if cell is None or not grid.cell_is_room(cell):
-                target_signals.append(signal)
+                target_signal[i] = signal
                 self._target_prev[i] = None
                 self._target_gate_count[i] = 0
                 continue
 
-            target_signals.append(signal)
+            target_signal[i] = signal
             zone_id = grid.cell_zone(cell)
             target_zone_curr[i] = zone_id
 
@@ -555,30 +571,46 @@ class ZoneEngine:
 
             result.zone_occupancy[zone_id] = rt.state != ZoneState.CLEAR
 
-        result.target_signals = target_signals
-
-        # Build pending targets list: targets that disappeared (inactive) but
-        # are still in a zone's confirmed_targets while that zone is PENDING.
-        # Handoff targets are already removed from confirmed_targets, so they
-        # won't appear here.
+        # Build per-target results
         active_targets = {i for i, tw in enumerate(window.targets) if tw.active}
-        for zone_id, rt in self._zone_runtimes.items():
-            if rt.state != ZoneState.PENDING:
-                continue
-            for target_idx in rt.confirmed_targets:
-                if target_idx in active_targets:
-                    continue
-                xy = self._target_prev_xy[target_idx]
-                if xy is None:
-                    continue
-                result.pending_targets.append(
-                    {
-                        "x": xy[0],
-                        "y": xy[1],
-                        "target_index": target_idx,
-                        "zone_id": zone_id,
-                    }
+        for i in range(len(window.targets)):
+            if i in active_targets and target_signal.get(i, 0) > 0:
+                tw = window.targets[i]
+                result.targets.append(
+                    TargetResult(
+                        x=tw.median_x,
+                        y=tw.median_y,
+                        status=TargetStatus.ACTIVE,
+                        signal=target_signal.get(i, 0),
+                    )
                 )
+            else:
+                # Check if this target is pending in any zone
+                is_pending = False
+                if i not in active_targets:
+                    for _zid, rt in self._zone_runtimes.items():
+                        if rt.state == ZoneState.PENDING and i in rt.confirmed_targets:
+                            is_pending = True
+                            break
+                if is_pending:
+                    xy = self._target_prev_xy[i]
+                    result.targets.append(
+                        TargetResult(
+                            x=xy[0] if xy else 0.0,
+                            y=xy[1] if xy else 0.0,
+                            status=TargetStatus.PENDING,
+                            signal=0,
+                        )
+                    )
+                else:
+                    result.targets.append(
+                        TargetResult(
+                            x=0.0,
+                            y=0.0,
+                            status=TargetStatus.INACTIVE,
+                            signal=0,
+                        )
+                    )
 
         # Room is occupied if any zone (including zone 0) is occupied
         result.device_tracking_present = any(result.zone_occupancy.values())
