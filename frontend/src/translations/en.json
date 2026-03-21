@@ -1,0 +1,13 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading..."
+  },
+  "wizard": {
+    "recording": "Recording... {current}s / {total}s"
+  },
+  "info": {
+    "zone_occupancy": "Zone {slot} occupancy. Currently {count} {count, plural, one {target} other {targets}} detected."
+  }
+}
