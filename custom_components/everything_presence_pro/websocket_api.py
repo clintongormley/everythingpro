@@ -453,16 +453,12 @@ async def websocket_subscribe_raw_targets(
 
     @callback
     def _forward() -> None:
-        connection.send_message(
-            websocket_api.event_message(msg["id"], _build_payload())
-        )
+        connection.send_message(websocket_api.event_message(msg["id"], _build_payload()))
 
     coordinator.increment_display_subscribers()
 
     connection.send_result(msg["id"])
-    connection.send_message(
-        websocket_api.event_message(msg["id"], _build_payload())
-    )
+    connection.send_message(websocket_api.event_message(msg["id"], _build_payload()))
 
     from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
@@ -535,16 +531,12 @@ async def websocket_subscribe_grid_targets(
 
     @callback
     def _forward() -> None:
-        connection.send_message(
-            websocket_api.event_message(msg["id"], _build_payload())
-        )
+        connection.send_message(websocket_api.event_message(msg["id"], _build_payload()))
 
     coordinator.increment_display_subscribers()
 
     connection.send_result(msg["id"])
-    connection.send_message(
-        websocket_api.event_message(msg["id"], _build_payload())
-    )
+    connection.send_message(websocket_api.event_message(msg["id"], _build_payload()))
 
     from homeassistant.helpers.dispatcher import async_dispatcher_connect
 

@@ -783,7 +783,14 @@ export class EverythingPresenceProPanel extends LitElement {
 					this._targets = this._targets.map((t, i) => {
 						const d = displayTargets[i];
 						if (!d) return t;
-						return { ...t, x: d.x, y: d.y, raw_x: d.raw_x, raw_y: d.raw_y, signal: d.signal };
+						return {
+							...t,
+							x: d.x,
+							y: d.y,
+							raw_x: d.raw_x,
+							raw_y: d.raw_y,
+							signal: d.signal,
+						};
 					});
 				},
 				{

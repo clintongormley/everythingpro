@@ -473,8 +473,24 @@ describe("display event merging", () => {
 		// Set up existing targets (as if from subscribe_targets)
 		a._targets = [
 			{ x: 0, y: 0, raw_x: 0, raw_y: 0, speed: 0, status: "active", signal: 5 },
-			{ x: 0, y: 0, raw_x: 0, raw_y: 0, speed: 0, status: "pending", signal: 3 },
-			{ x: 0, y: 0, raw_x: 0, raw_y: 0, speed: 0, status: "inactive", signal: 0 },
+			{
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
+				speed: 0,
+				status: "pending",
+				signal: 3,
+			},
+			{
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
+				speed: 0,
+				status: "inactive",
+				signal: 0,
+			},
 		];
 
 		// Simulate display event callback

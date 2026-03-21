@@ -537,10 +537,7 @@ class EverythingPresenceProCoordinator:
         """Feed raw target data to the zone engine on each state update."""
         now = time.monotonic()
         calibrated = self._build_calibrated_targets()
-        raw = [
-            (self._target_x[i], self._target_y[i], self._target_active[i])
-            for i in range(MAX_TARGETS)
-        ]
+        raw = [(self._target_x[i], self._target_y[i], self._target_active[i]) for i in range(MAX_TARGETS)]
 
         result = self._zone_engine.feed_raw(calibrated, now)
 
