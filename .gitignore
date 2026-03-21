@@ -5,3 +5,6 @@ dist/
 .DS_Store
 .superpowers/
 *.code-workspace
+.coverage
+coverage.json
+frontend/coverage/

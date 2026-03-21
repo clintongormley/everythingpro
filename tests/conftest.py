@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
@@ -50,7 +51,7 @@ def mock_esphome_client():
         client.connect = AsyncMock()
         client.device_info = AsyncMock()
         client.list_entities_services = AsyncMock(return_value=([], []))
-        client.subscribe_states = AsyncMock()
+        client.subscribe_states = MagicMock()
         client.disconnect = AsyncMock()
         mock_client_cls.return_value = client
 

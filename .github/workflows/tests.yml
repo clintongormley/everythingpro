@@ -41,7 +41,9 @@ jobs:
       - name: Ruff format
         run: ruff format --check custom_components/ tests/
       - name: Pytest
-        run: pytest tests/ --cov=custom_components/everything_presence_pro --cov-report=xml -v
+        run: pytest tests/ --cov=custom_components/everything_presence_pro --cov-report=term-missing --cov-report=json -v
+      - name: Check per-file coverage
+        run: python scripts/check_coverage.py
 
   frontend:
     runs-on: ubuntu-latest
@@ -59,5 +61,5 @@ jobs:
       - run: npm ci
       - name: Biome lint
         run: npx biome check src/ --diagnostic-level=error
-      - name: Vitest
-        run: npx vitest run
+      - name: Vitest with coverage
+        run: npm run test:coverage

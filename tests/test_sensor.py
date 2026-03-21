@@ -20,7 +20,12 @@ from custom_components.everything_presence_pro.sensor import EverythingPresenceP
 from custom_components.everything_presence_pro.sensor import EverythingPresenceProHumiditySensor
 from custom_components.everything_presence_pro.sensor import EverythingPresenceProIlluminanceSensor
 from custom_components.everything_presence_pro.sensor import EverythingPresenceProRoomTargetCountSensor
+from custom_components.everything_presence_pro.sensor import EverythingPresenceProTargetAngleSensor
 from custom_components.everything_presence_pro.sensor import EverythingPresenceProTargetDistanceSensor
+from custom_components.everything_presence_pro.sensor import EverythingPresenceProTargetResolutionSensor
+from custom_components.everything_presence_pro.sensor import EverythingPresenceProTargetSpeedSensor
+from custom_components.everything_presence_pro.sensor import EverythingPresenceProTargetXYGridSensor
+from custom_components.everything_presence_pro.sensor import EverythingPresenceProTargetXYSensorSensor
 from custom_components.everything_presence_pro.sensor import EverythingPresenceProTemperatureSensor
 from custom_components.everything_presence_pro.sensor import EverythingPresenceProZoneTargetCountSensor
 from custom_components.everything_presence_pro.zone_engine import ProcessingResult
@@ -313,3 +318,144 @@ async def test_async_setup_entry_creates_sensor_entities(
     assert any("illuminance" in eid for eid in sensor_ids)
     assert any("temperature" in eid for eid in sensor_ids)
     assert any("humidity" in eid for eid in sensor_ids)
+
+
+async def test_async_setup_entry_with_co2(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_esphome_client,
+):
+    """async_setup_entry creates CO2 sensor when co2 value is not None."""
+    mock_http = MagicMock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http
+
+    with patch(
+        "custom_components.everything_presence_pro.panel_custom.async_register_panel",
+        new_callable=AsyncMock,
+    ):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    coordinator._co2 = 420.0
+    assert mock_config_entry.state.name == "LOADED"
+
+
+# ---------------------------------------------------------------------------
+# Per-target XY sensor (raw coordinates)
+# ---------------------------------------------------------------------------
+
+
+class TestTargetXYSensorSensor:
+    def test_value_active(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYSensorSensor(mock_coordinator, 0)
+        assert sensor.native_value == "3000,4000"
+
+    def test_value_inactive(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYSensorSensor(mock_coordinator, 1)
+        assert sensor.native_value is None
+
+    def test_extra_attributes_active(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYSensorSensor(mock_coordinator, 0)
+        attrs = sensor.extra_state_attributes
+        assert attrs["x_mm"] == 3000
+        assert attrs["y_mm"] == 4000
+
+    def test_extra_attributes_inactive(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYSensorSensor(mock_coordinator, 1)
+        assert sensor.extra_state_attributes is None
+
+    def test_name(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYSensorSensor(mock_coordinator, 0)
+        assert sensor.name == "Target 1 XY sensor"
+
+    def test_unique_id(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYSensorSensor(mock_coordinator, 0)
+        assert sensor.unique_id == "test_entry_target_1_xy_sensor"
+
+
+# ---------------------------------------------------------------------------
+# Per-target XY grid sensor (calibrated coordinates)
+# ---------------------------------------------------------------------------
+
+
+class TestTargetXYGridSensor:
+    def test_value_active(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYGridSensor(mock_coordinator, 0)
+        assert sensor.native_value == "3000,4000"
+
+    def test_value_inactive(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYGridSensor(mock_coordinator, 1)
+        assert sensor.native_value is None
+
+    def test_extra_attributes_active(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYGridSensor(mock_coordinator, 0)
+        attrs = sensor.extra_state_attributes
+        assert attrs["x_mm"] == 3000
+        assert attrs["y_mm"] == 4000
+
+    def test_extra_attributes_inactive(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYGridSensor(mock_coordinator, 1)
+        assert sensor.extra_state_attributes is None
+
+    def test_name(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetXYGridSensor(mock_coordinator, 0)
+        assert sensor.name == "Target 1 XY grid"
+
+
+# ---------------------------------------------------------------------------
+# Per-target angle sensor
+# ---------------------------------------------------------------------------
+
+
+class TestTargetAngleSensor:
+    def test_value_active(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetAngleSensor(mock_coordinator, 0)
+        assert sensor.native_value == 45.0
+
+    def test_value_inactive(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetAngleSensor(mock_coordinator, 1)
+        assert sensor.native_value is None
+
+    def test_name(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetAngleSensor(mock_coordinator, 0)
+        assert sensor.name == "Target 1 angle"
+
+
+# ---------------------------------------------------------------------------
+# Per-target speed sensor
+# ---------------------------------------------------------------------------
+
+
+class TestTargetSpeedSensor:
+    def test_value_active(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetSpeedSensor(mock_coordinator, 0)
+        assert sensor.native_value == 100.0
+
+    def test_value_inactive(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetSpeedSensor(mock_coordinator, 1)
+        assert sensor.native_value is None
+
+    def test_name(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetSpeedSensor(mock_coordinator, 0)
+        assert sensor.name == "Target 1 speed"
+
+
+# ---------------------------------------------------------------------------
+# Per-target resolution sensor
+# ---------------------------------------------------------------------------
+
+
+class TestTargetResolutionSensor:
+    def test_value_active(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetResolutionSensor(mock_coordinator, 0)
+        assert sensor.native_value == 75.0
+
+    def test_value_inactive(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetResolutionSensor(mock_coordinator, 1)
+        assert sensor.native_value is None
+
+    def test_name(self, mock_coordinator):
+        sensor = EverythingPresenceProTargetResolutionSensor(mock_coordinator, 0)
+        assert sensor.name == "Target 1 resolution"

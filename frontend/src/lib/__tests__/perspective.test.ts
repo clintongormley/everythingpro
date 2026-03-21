@@ -206,4 +206,20 @@ describe("getInversePerspective", () => {
 			expect(back.y).toBeCloseTo(pt.y, 2);
 		}
 	});
+
+	it("returns null for near-singular matrix (zero determinant)", () => {
+		// All-zero coefficients → determinant is 0
+		const h = [0, 0, 0, 0, 0, 0, 0, 0];
+		expect(getInversePerspective(h)).toBeNull();
+	});
+
+	it("returns null when normalized scale factor is near-zero", () => {
+		// Need det != 0 but inv[8] = (h0*h4 - h1*h3)/det ≈ 0
+		// h = [2,3,10,4,6,1,1,2] gives:
+		// H = [2,3,10; 4,6,1; 1,2,1]
+		// det = 2*(6-2) - 3*(4-1) + 10*(8-6) = 8 - 9 + 20 = 19 (nonzero)
+		// inv[8] = (2*6 - 3*4) / 19 = 0/19 = 0 → triggers line 98
+		const h = [2, 3, 10, 4, 6, 1, 1, 2];
+		expect(getInversePerspective(h)).toBeNull();
+	});
 });

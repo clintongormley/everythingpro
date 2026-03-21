@@ -286,3 +286,184 @@ async def test_subscribe_targets_not_found(hass: HomeAssistant, hass_ws_client, 
     msg = await ws_client.receive_json()
     assert msg["success"] is False
     assert msg["error"]["code"] == "not_found"
+
+
+# ---------------------------------------------------------------------------
+# rename_zone_entities
+# ---------------------------------------------------------------------------
+
+
+async def test_rename_zone_entities(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """rename_zone_entities renames entities in the registry."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/rename_zone_entities",
+            "entry_id": entry.entry_id,
+            "renames": [{"old_entity_id": "binary_sensor.nonexistent", "new_entity_id": "binary_sensor.renamed"}],
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+    assert len(msg["result"]["errors"]) == 1
+    assert "not found" in msg["result"]["errors"][0]
+
+
+async def test_rename_zone_entities_conflict(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """rename_zone_entities reports error when target entity_id exists."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+    entity_ids = [e.entity_id for e in hass.states.async_all()]
+    if len(entity_ids) < 2:
+        pytest.skip("Need at least 2 entities")
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/rename_zone_entities",
+            "entry_id": entry.entry_id,
+            "renames": [{"old_entity_id": entity_ids[0], "new_entity_id": entity_ids[1]}],
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+    assert len(msg["result"]["errors"]) == 1
+    assert "already exists" in msg["result"]["errors"][0]
+
+
+async def test_rename_zone_entities_empty(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """rename_zone_entities with empty list succeeds."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/rename_zone_entities",
+            "entry_id": entry.entry_id,
+            "renames": [],
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+    assert msg["result"]["errors"] == []
+
+
+# ---------------------------------------------------------------------------
+# set_reporting
+# ---------------------------------------------------------------------------
+
+
+async def test_set_reporting(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_reporting persists reporting config."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_reporting",
+            "entry_id": entry.entry_id,
+            "reporting": {"room_occupancy": True, "room_target_count": False},
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+    config = entry.options.get("config", {})
+    assert config["reporting"]["room_occupancy"] is True
+    assert config["reporting"]["room_target_count"] is False
+
+
+async def test_set_reporting_with_offsets(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_reporting saves offsets and applies them to coordinator."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_reporting",
+            "entry_id": entry.entry_id,
+            "reporting": {},
+            "offsets": {"illuminance": 10.0, "temperature": -1.5, "humidity": 3.0},
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+    config = entry.options.get("config", {})
+    assert config["offsets"]["illuminance"] == 10.0
+    coordinator = entry.runtime_data
+    assert coordinator._illuminance_offset == 10.0
+
+
+async def test_set_reporting_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_reporting with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_reporting",
+            "entry_id": "bad_id",
+            "reporting": {},
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
+    assert msg["error"]["code"] == "not_found"
+
+
+async def test_set_reporting_zone_entities(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_reporting handles zone-level entity toggling."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_reporting",
+            "entry_id": entry.entry_id,
+            "reporting": {"zone_presence": True, "zone_target_count": False},
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+
+
+# ---------------------------------------------------------------------------
+# set_setup
+# ---------------------------------------------------------------------------
+
+
+async def test_set_setup(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_setup persists perspective transform."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_setup",
+            "entry_id": entry.entry_id,
+            "perspective": [1.0, 0.0, 100.0, 0.0, 1.0, 200.0, 0.0, 0.0],
+            "room_width": 3000.0,
+            "room_depth": 4000.0,
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is True
+    config = entry.options.get("config", {})
+    assert config["calibration"]["perspective"] == [1.0, 0.0, 100.0, 0.0, 1.0, 200.0, 0.0, 0.0]
+    assert config["calibration"]["room_width"] == 3000.0
+
+
+async def test_set_setup_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """set_setup with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/set_setup",
+            "entry_id": "bad_id",
+            "perspective": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+            "room_width": 3000.0,
+            "room_depth": 4000.0,
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
