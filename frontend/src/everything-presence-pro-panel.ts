@@ -3578,7 +3578,7 @@ export class EverythingPresenceProPanel extends LitElement {
           </div>
           <div class="zone-sidebar">
             <div class="sidebar-header">
-              <span class="sidebar-title" style="margin-right: auto;">Live overview</span>
+              <span class="sidebar-title" style="margin-right: auto;">${this._localize("sidebar.live_overview")}</span>
               <div class="sidebar-menu-wrapper">
                 <button class="sidebar-menu-btn" @click=${() => {
 									this._showLiveMenu = !this._showLiveMenu;
@@ -3598,13 +3598,13 @@ export class EverythingPresenceProPanel extends LitElement {
 												this._view = "editor";
 												this._sidebarTab = "zones";
 											}}>
-                        <ha-icon icon="mdi:vector-square" style="--mdc-icon-size: 18px;"></ha-icon> Detection zones
+                        <ha-icon icon="mdi:vector-square" style="--mdc-icon-size: 18px;"></ha-icon> ${this._localize("menu.detection_zones")}
                       </button>
                       <button class="sidebar-menu-item" @click=${() => {
 												this._view = "editor";
 												this._sidebarTab = "furniture";
 											}}>
-                        <ha-icon icon="mdi:sofa" style="--mdc-icon-size: 18px;"></ha-icon> Furniture
+                        <ha-icon icon="mdi:sofa" style="--mdc-icon-size: 18px;"></ha-icon> ${this._localize("menu.furniture")}
                       </button>
                     `
 												: nothing
@@ -3612,11 +3612,11 @@ export class EverythingPresenceProPanel extends LitElement {
                     <button class="sidebar-menu-item" @click=${() => {
 											this._view = "settings";
 										}}>
-                      <ha-icon icon="mdi:cog" style="--mdc-icon-size: 18px;"></ha-icon> Settings
+                      <ha-icon icon="mdi:cog" style="--mdc-icon-size: 18px;"></ha-icon> ${this._localize("menu.settings")}
                     </button>
                     <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 4px 0;"/>
                     <button class="sidebar-menu-item" @click=${this._changePlacement}>
-                      <ha-icon icon="mdi:target" style="--mdc-icon-size: 18px;"></ha-icon> Room size calibration
+                      <ha-icon icon="mdi:target" style="--mdc-icon-size: 18px;"></ha-icon> ${this._localize("menu.room_calibration")}
                     </button>
                     ${
 											this._perspective
@@ -3624,7 +3624,7 @@ export class EverythingPresenceProPanel extends LitElement {
                       <button class="sidebar-menu-item" style="color: var(--error-color, #f44336);" @click=${() => {
 												this._showDeleteCalibrationDialog = true;
 											}}>
-                        <ha-icon icon="mdi:delete" style="--mdc-icon-size: 18px;"></ha-icon> Delete room calibration
+                        <ha-icon icon="mdi:delete" style="--mdc-icon-size: 18px;"></ha-icon> ${this._localize("menu.delete_calibration")}
                       </button>
                     `
 												: nothing
@@ -3633,12 +3633,12 @@ export class EverythingPresenceProPanel extends LitElement {
                     <button class="sidebar-menu-item" @click=${() => {
 											this._showTemplateSave = true;
 										}}>
-                      <ha-icon icon="mdi:content-save" style="--mdc-icon-size: 18px;"></ha-icon> Save template
+                      <ha-icon icon="mdi:content-save" style="--mdc-icon-size: 18px;"></ha-icon> ${this._localize("dialogs.save_template")}
                     </button>
                     <button class="sidebar-menu-item" @click=${() => {
 											this._showTemplateLoad = true;
 										}}>
-                      <ha-icon icon="mdi:folder-open" style="--mdc-icon-size: 18px;"></ha-icon> Load template
+                      <ha-icon icon="mdi:folder-open" style="--mdc-icon-size: 18px;"></ha-icon> ${this._localize("dialogs.load_template")}
                     </button>
                   </div>
                 `
@@ -4446,7 +4446,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
           <!-- Sidebar -->
           <div class="zone-sidebar">
-            <div class="sidebar-title">${this._sidebarTab === "furniture" ? "Furniture" : "Detection zones"}</div>
+            <div class="sidebar-title">${this._sidebarTab === "furniture" ? this._localize("sidebar.furniture") : this._localize("sidebar.detection_zones")}</div>
             ${
 							this._sidebarTab === "zones"
 								? this._renderZoneSidebar()
@@ -4463,8 +4463,8 @@ export class EverythingPresenceProPanel extends LitElement {
 						? html`
           <div class="template-dialog">
             <div class="template-dialog-card" style="max-width: 520px;">
-              <h3>Update entity IDs?</h3>
-              <p class="overlay-help">Zone names changed. Would you like to update the entity IDs to match?</p>
+              <h3>${this._localize("dialogs.update_entity_ids")}</h3>
+              <p class="overlay-help">${this._localize("dialogs.update_entity_ids_body")}</p>
               <div style="max-height: 300px; overflow-y: auto; margin: 12px 0;">
                 ${this._pendingRenames.map((r) => {
 									const oldShort =
@@ -4494,10 +4494,10 @@ export class EverythingPresenceProPanel extends LitElement {
               <div class="template-dialog-actions">
                 <button class="wizard-btn wizard-btn-back"
                   @click=${this._dismissRenameDialog}
-                >Skip</button>
+                >${this._localize("common.skip")}</button>
                 <button class="wizard-btn wizard-btn-primary"
                   @click=${this._applyRenames}
-                >Rename</button>
+                >${this._localize("common.rename")}</button>
               </div>
             </div>
           </div>
@@ -4509,18 +4509,18 @@ export class EverythingPresenceProPanel extends LitElement {
 						? html`
           <div class="template-dialog">
             <div class="template-dialog-card">
-              <h3>You have unsaved changes</h3>
-              <p class="overlay-help">Your changes will be lost if you navigate away without applying.</p>
+              <h3>${this._localize("dialogs.unsaved_changes")}</h3>
+              <p class="overlay-help">${this._localize("dialogs.unsaved_changes_body")}</p>
               <div class="template-dialog-actions">
                 <button class="wizard-btn wizard-btn-back"
                   @click=${() => {
 										this._showUnsavedDialog = false;
 										this._pendingNavigation = null;
 									}}
-                >Cancel</button>
+                >${this._localize("common.cancel")}</button>
                 <button class="wizard-btn wizard-btn-primary" style="background: var(--error-color, #f44336);"
                   @click=${this._discardAndNavigate}
-                >Discard</button>
+                >${this._localize("common.discard")}</button>
               </div>
             </div>
           </div>
@@ -4535,11 +4535,11 @@ export class EverythingPresenceProPanel extends LitElement {
 		return html`
       <div class="template-dialog">
         <div class="template-dialog-card">
-          <h3>Save template</h3>
+          <h3>${this._localize("dialogs.save_template")}</h3>
           <input
             type="text"
             class="template-name-input"
-            placeholder="Template name"
+            placeholder="${this._localize("dialogs.template_name")}"
             .value=${this._templateName}
             @input=${(e: Event) => {
 							this._templateName = (e.target as HTMLInputElement).value;
@@ -4551,12 +4551,12 @@ export class EverythingPresenceProPanel extends LitElement {
               @click=${() => {
 								this._showTemplateSave = false;
 							}}
-            >Cancel</button>
+            >${this._localize("common.cancel")}</button>
             <button
               class="wizard-btn wizard-btn-primary"
               ?disabled=${!this._templateName.trim()}
               @click=${() => this._saveTemplate()}
-            >Save</button>
+            >${this._localize("common.save")}</button>
           </div>
         </div>
       </div>
@@ -4568,10 +4568,10 @@ export class EverythingPresenceProPanel extends LitElement {
 		return html`
       <div class="template-dialog">
         <div class="template-dialog-card">
-          <h3>Load template</h3>
+          <h3>${this._localize("dialogs.load_template")}</h3>
           ${
 						templates.length === 0
-							? html`<p class="overlay-help">No saved templates.</p>`
+							? html`<p class="overlay-help">${this._localize("dialogs.no_templates")}</p>`
 							: templates.map(
 									(t) => html`
               <div class="template-item">
@@ -4580,7 +4580,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 <button
                   class="wizard-btn wizard-btn-primary template-item-btn"
                   @click=${() => this._loadTemplate(t.name)}
-                >Load</button>
+                >${this._localize("common.load")}</button>
                 <button
                   class="zone-remove-btn"
                   @click=${() => this._deleteTemplate(t.name)}
@@ -4597,7 +4597,7 @@ export class EverythingPresenceProPanel extends LitElement {
               @click=${() => {
 								this._showTemplateLoad = false;
 							}}
-            >Close</button>
+            >${this._localize("common.close")}</button>
           </div>
         </div>
       </div>
@@ -4887,7 +4887,7 @@ export class EverythingPresenceProPanel extends LitElement {
 		return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
         <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
-          <label style="width: 80px; flex-shrink: 0; font-size: 12px;">Type</label>
+          <label style="width: 80px; flex-shrink: 0; font-size: 12px;">${this._localize("zones.type")}</label>
           <select
             class="sensitivity-select" style="flex: 1; min-width: 0;"
             .value=${this._roomType}
@@ -4904,15 +4904,15 @@ export class EverythingPresenceProPanel extends LitElement {
 						}}
             @click=${(e: Event) => e.stopPropagation()}
           >
-            <option value="normal">Normal</option>
-            <option value="entrance">Entrance</option>
-            <option value="thoroughfare">Thoroughfare</option>
-            <option value="rest">Rest area</option>
-            <option value="custom">Custom</option>
+            <option value="normal">${this._localize("zones.normal")}</option>
+            <option value="entrance">${this._localize("zones.entrance")}</option>
+            <option value="thoroughfare">${this._localize("zones.thoroughfare")}</option>
+            <option value="rest">${this._localize("zones.rest_area")}</option>
+            <option value="custom">${this._localize("zones.custom")}</option>
           </select>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Trigger</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.trigger")}</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => {
 							this._roomTrigger = Number((e.target as HTMLInputElement).value);
@@ -4922,7 +4922,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Renew</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.renew")}</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(renew)} ?disabled=${!isCustom}
             @input=${(e: Event) => {
 							this._roomRenew = Number((e.target as HTMLInputElement).value);
@@ -4932,7 +4932,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${renew}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Presence timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.presence_timeout")}</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(timeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => {
@@ -4943,10 +4943,10 @@ export class EverythingPresenceProPanel extends LitElement {
 							}
 						}}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">${this._localize("zones.seconds_suffix")}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Handoff timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.handoff_timeout")}</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px;" .value=${String(handoffTimeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => {
@@ -4957,10 +4957,10 @@ export class EverythingPresenceProPanel extends LitElement {
 							}
 						}}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">${this._localize("zones.seconds_suffix")}</span>
         </div>
         <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
-          <label style="width: 80px; flex-shrink: 0;">Entry point</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.entry_point")}</label>
           <span style="flex: 1;"></span>
           <label class="toggle-switch">
             <input type="checkbox" ?checked=${isCustom ? this._roomEntryPoint : false} ?disabled=${!isCustom}
@@ -4989,7 +4989,7 @@ export class EverythingPresenceProPanel extends LitElement {
 		return html`
       <div class="zone-item-row zone-settings-row" style="flex-wrap: wrap; gap: 3px; padding: 4px 8px;">
         <div style="width: 100%; display: flex; align-items: center; gap: 4px;">
-          <label style="width: 80px; flex-shrink: 0; font-size: 12px;">Type</label>
+          <label style="width: 80px; flex-shrink: 0; font-size: 12px;">${this._localize("zones.type")}</label>
           <select
             class="sensitivity-select" style="flex: 1; min-width: 0;"
             .value=${zone.type}
@@ -5011,15 +5011,15 @@ export class EverythingPresenceProPanel extends LitElement {
 						}}
             @click=${(e: Event) => e.stopPropagation()}
           >
-            <option value="normal">Normal</option>
-            <option value="entrance">Entrance</option>
-            <option value="thoroughfare">Thoroughfare</option>
-            <option value="rest">Rest area</option>
-            <option value="custom">Custom</option>
+            <option value="normal">${this._localize("zones.normal")}</option>
+            <option value="entrance">${this._localize("zones.entrance")}</option>
+            <option value="thoroughfare">${this._localize("zones.thoroughfare")}</option>
+            <option value="rest">${this._localize("zones.rest_area")}</option>
+            <option value="custom">${this._localize("zones.custom")}</option>
           </select>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Trigger</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.trigger")}</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(trigger)} ?disabled=${!isCustom}
             @input=${(e: Event) => {
 							const configs = [...this._zoneConfigs];
@@ -5034,7 +5034,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${trigger}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Renew</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.renew")}</label>
           <input type="range" min="1" max="9" style="flex: 1; min-width: 0;" .value=${String(renew)} ?disabled=${!isCustom}
             @input=${(e: Event) => {
 							const configs = [...this._zoneConfigs];
@@ -5049,7 +5049,7 @@ export class EverythingPresenceProPanel extends LitElement {
           <span style="width: 10px; text-align: right; flex-shrink: 0;">${renew}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Presence timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.presence_timeout")}</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(timeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => {
@@ -5062,10 +5062,10 @@ export class EverythingPresenceProPanel extends LitElement {
 							}
 						}}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">${this._localize("zones.seconds_suffix")}</span>
         </div>
         <div style="${rowStyle}">
-          <label style="width: 80px; flex-shrink: 0;">Handoff timeout</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.handoff_timeout")}</label>
           <span style="flex: 1;"></span>
           <input type="number" min="1" max="300" style="width: 48px; text-align: right; font: inherit; font-size: 12px; margin-right: 0;" .value=${String(handoffTimeout)} ?disabled=${!isCustom}
             @input=${(e: Event) => {
@@ -5078,10 +5078,10 @@ export class EverythingPresenceProPanel extends LitElement {
 							}
 						}}
             @click=${(e: Event) => e.stopPropagation()} />
-          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">s</span>
+          <span style="width: 10px; text-align: right; flex-shrink: 0; font-size: 12px;">${this._localize("zones.seconds_suffix")}</span>
         </div>
         <div style="width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: ${isCustom ? 1 : 0.5};">
-          <label style="width: 80px; flex-shrink: 0;">Entry point</label>
+          <label style="width: 80px; flex-shrink: 0;">${this._localize("zones.entry_point")}</label>
           <span style="flex: 1;"></span>
           <label class="toggle-switch">
             <input type="checkbox" ?checked=${isCustom ? (zone.entry_point ?? false) : zone.type === "entrance"} ?disabled=${!isCustom}
@@ -5115,7 +5115,7 @@ export class EverythingPresenceProPanel extends LitElement {
       >
         <div class="zone-item-row">
           <div class="zone-color-dot" style="background: #fff; border: 1px solid #ccc;${this._localZoneState.get(0)?.occupied ? " box-shadow: 0 0 6px 2px #999;" : ""}"></div>
-          <span class="zone-name">Room</span>
+          <span class="zone-name">${this._localize("sidebar.room")}</span>
         </div>
         ${
 					this._activeZone === 0
@@ -5206,7 +5206,7 @@ export class EverythingPresenceProPanel extends LitElement {
 					? html`
           <button class="add-zone-btn" @click=${this._addZone}>
             <ha-icon icon="mdi:plus"></ha-icon>
-            Add zone
+            ${this._localize("sidebar.add_zone")}
           </button>
         `
 					: nothing
@@ -5307,27 +5307,27 @@ export class EverythingPresenceProPanel extends LitElement {
 		}[] = [
 			{
 				id: "occupancy",
-				label: "Occupancy",
+				label: this._localize("live.occupancy"),
 				on: ss.occupancy,
-				info: "Combined occupancy from all sources — PIR motion, static mmWave presence, and zone tracking. Shows detected if any source detects presence.",
+				info: this._localize("info.occupancy"),
 			},
 			{
 				id: "static",
-				label: "Static presence",
+				label: this._localize("live.static_presence"),
 				on: ss.static_presence,
-				info: "mmWave radar detects stationary people by measuring micro-movements like breathing. Works through furniture and blankets.",
+				info: this._localize("info.static_presence"),
 			},
 			{
 				id: "motion",
-				label: "Motion presence",
+				label: this._localize("live.motion_presence"),
 				on: ss.pir_motion,
-				info: "Passive infrared sensor detects movement by sensing body heat. Fast response but only triggers on motion, not stationary presence.",
+				info: this._localize("info.motion_presence"),
 			},
 			{
 				id: "target",
-				label: "Target presence",
+				label: this._localize("live.target_presence"),
 				on: ss.target_presence,
-				info: "Whether any target is actively tracked by the mmWave radar. Detected when at least one target point is being reported.",
+				info: this._localize("info.target_presence"),
 			},
 		];
 
@@ -5343,7 +5343,7 @@ export class EverythingPresenceProPanel extends LitElement {
 				id: `zone_${slot}`,
 				label: zone.name,
 				on: occupied,
-				info: `Zone ${slot} occupancy. Currently ${count} target${count !== 1 ? "s" : ""} detected. Sensitivity determines how many consecutive frames are needed to confirm presence.`,
+				info: this._localize("info.zone_occupancy", { slot, count }),
 			});
 		}
 		// Rest-of-room zone (slot 0) — always shown
@@ -5351,9 +5351,9 @@ export class EverythingPresenceProPanel extends LitElement {
 		const rorCount = zs.target_counts[0] ?? 0;
 		zoneDefs.push({
 			id: "zone_0",
-			label: "Rest of room",
+			label: this._localize("sidebar.rest_of_room"),
 			on: rorOccupied,
-			info: `Covers the entire room outside of any defined zones. Currently ${rorCount} target${rorCount !== 1 ? "s" : ""} detected.`,
+			info: this._localize("info.rest_of_room_occupancy", { count: rorCount }),
 		});
 
 		// Environment sensors
@@ -5361,37 +5361,37 @@ export class EverythingPresenceProPanel extends LitElement {
 		if (ss.illuminance !== null)
 			envSensors.push({
 				id: "illuminance",
-				label: "Illuminance",
+				label: this._localize("entities.illuminance"),
 				value: `${ss.illuminance.toFixed(1)} lux`,
 			});
 		if (ss.temperature !== null)
 			envSensors.push({
 				id: "temperature",
-				label: "Temperature",
+				label: this._localize("entities.temperature"),
 				value: `${ss.temperature.toFixed(1)} °C`,
 			});
 		if (ss.humidity !== null)
 			envSensors.push({
 				id: "humidity",
-				label: "Humidity",
+				label: this._localize("entities.humidity"),
 				value: `${ss.humidity.toFixed(1)} %`,
 			});
 		if (ss.co2 !== null)
 			envSensors.push({
 				id: "co2",
-				label: "CO₂",
+				label: this._localize("entities.co2"),
 				value: `${Math.round(ss.co2)} ppm`,
 			});
 
 		return html`
       <div style="padding: 8px 0;">
-        <div class="live-section-header">Presence</div>
+        <div class="live-section-header">${this._localize("live.presence")}</div>
         ${sensorDefs.map(
 					(s) => html`
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>
             <span class="live-sensor-label">${s.label}</span>
-            <span class="live-sensor-state ${s.on ? "detected" : ""}">${s.on ? "Detected" : "Clear"}</span>
+            <span class="live-sensor-state ${s.on ? "detected" : ""}">${s.on ? this._localize("live.detected") : this._localize("live.clear")}</span>
             <button class="live-sensor-info-btn"
               @click=${() => {
 								this._expandedSensorInfo =
@@ -5416,13 +5416,13 @@ export class EverythingPresenceProPanel extends LitElement {
         <button class="live-section-header live-section-link" @click=${() => {
 					this._view = "editor";
 					this._sidebarTab = "zones";
-				}}>Detection zones</button>
+				}}>${this._localize("sidebar.detection_zones")}</button>
         ${zoneDefs.map(
 					(s) => html`
           <div class="live-sensor-row">
             <div class="live-sensor-dot ${s.on ? "on" : "off"}"></div>
             <span class="live-sensor-label">${s.label}</span>
-            <span class="live-sensor-state ${s.on ? "detected" : ""}">${s.on ? "Detected" : "Clear"}</span>
+            <span class="live-sensor-state ${s.on ? "detected" : ""}">${s.on ? this._localize("live.detected") : this._localize("live.clear")}</span>
             <button class="live-sensor-info-btn"
               @click=${() => {
 								this._expandedSensorInfo =
@@ -5447,7 +5447,7 @@ export class EverythingPresenceProPanel extends LitElement {
         ${
 					envSensors.length
 						? html`
-          <div class="live-section-header">Environment</div>
+          <div class="live-section-header">${this._localize("live.environment")}</div>
           ${envSensors.map(
 						(s) => html`
             <div class="live-sensor-row">
