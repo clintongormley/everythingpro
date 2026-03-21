@@ -169,112 +169,112 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 	{
 		type: "svg",
 		icon: "armchair",
-		label: "Armchair",
+		label: "furniture.armchair",
 		defaultWidth: 800,
 		defaultHeight: 800,
 	},
 	{
 		type: "svg",
 		icon: "bath",
-		label: "Bath",
+		label: "furniture.bath",
 		defaultWidth: 1700,
 		defaultHeight: 700,
 	},
 	{
 		type: "svg",
 		icon: "bed-double",
-		label: "Double bed",
+		label: "furniture.double_bed",
 		defaultWidth: 1600,
 		defaultHeight: 2000,
 	},
 	{
 		type: "svg",
 		icon: "bed-single",
-		label: "Single bed",
+		label: "furniture.single_bed",
 		defaultWidth: 900,
 		defaultHeight: 2000,
 	},
 	{
 		type: "svg",
 		icon: "door-left",
-		label: "Door (left swing)",
+		label: "furniture.door_left_swing",
 		defaultWidth: 800,
 		defaultHeight: 800,
 	},
 	{
 		type: "svg",
 		icon: "door-right",
-		label: "Door (right swing)",
+		label: "furniture.door_right_swing",
 		defaultWidth: 800,
 		defaultHeight: 800,
 	},
 	{
 		type: "svg",
 		icon: "table-dining-room",
-		label: "Dining table",
+		label: "furniture.dining_table",
 		defaultWidth: 1600,
 		defaultHeight: 900,
 	},
 	{
 		type: "svg",
 		icon: "table-dining-room-round",
-		label: "Round table",
+		label: "furniture.round_table",
 		defaultWidth: 1000,
 		defaultHeight: 1000,
 	},
 	{
 		type: "svg",
 		icon: "floor-lamp",
-		label: "Lamp",
+		label: "furniture.lamp",
 		defaultWidth: 400,
 		defaultHeight: 400,
 	},
 	{
 		type: "svg",
 		icon: "oven",
-		label: "Oven / stove",
+		label: "furniture.oven_stove",
 		defaultWidth: 600,
 		defaultHeight: 600,
 	},
 	{
 		type: "svg",
 		icon: "plant",
-		label: "Plant",
+		label: "furniture.plant",
 		defaultWidth: 400,
 		defaultHeight: 400,
 	},
 	{
 		type: "svg",
 		icon: "shower",
-		label: "Shower",
+		label: "furniture.shower",
 		defaultWidth: 900,
 		defaultHeight: 900,
 	},
 	{
 		type: "svg",
 		icon: "sofa-two-seater",
-		label: "Sofa (2 seat)",
+		label: "furniture.sofa_2_seat",
 		defaultWidth: 1600,
 		defaultHeight: 800,
 	},
 	{
 		type: "svg",
 		icon: "sofa-three-seater",
-		label: "Sofa (3 seat)",
+		label: "furniture.sofa_3_seat",
 		defaultWidth: 2400,
 		defaultHeight: 800,
 	},
 	{
 		type: "svg",
 		icon: "television",
-		label: "TV",
+		label: "furniture.tv",
 		defaultWidth: 1200,
 		defaultHeight: 200,
 	},
 	{
 		type: "svg",
 		icon: "toilet",
-		label: "Toilet",
+		label: "furniture.toilet",
 		defaultWidth: 400,
 		defaultHeight: 700,
 	},
@@ -282,7 +282,7 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 	{
 		type: "icon",
 		icon: "mdi:countertop",
-		label: "Counter",
+		label: "furniture.counter",
 		defaultWidth: 2000,
 		defaultHeight: 600,
 		lockAspect: false,
@@ -290,7 +290,7 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 	{
 		type: "icon",
 		icon: "mdi:cupboard",
-		label: "Cupboard",
+		label: "furniture.cupboard",
 		defaultWidth: 1000,
 		defaultHeight: 500,
 		lockAspect: false,
@@ -298,7 +298,7 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 	{
 		type: "icon",
 		icon: "mdi:desk",
-		label: "Desk",
+		label: "furniture.desk",
 		defaultWidth: 1400,
 		defaultHeight: 700,
 		lockAspect: false,
@@ -306,7 +306,7 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 	{
 		type: "icon",
 		icon: "mdi:fridge",
-		label: "Fridge",
+		label: "furniture.fridge",
 		defaultWidth: 700,
 		defaultHeight: 700,
 		lockAspect: true,
@@ -314,7 +314,7 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 	{
 		type: "icon",
 		icon: "mdi:speaker",
-		label: "Speaker",
+		label: "furniture.speaker",
 		defaultWidth: 300,
 		defaultHeight: 300,
 		lockAspect: true,
@@ -322,19 +322,19 @@ const FURNITURE_CATALOG: FurnitureSticker[] = [
 	{
 		type: "icon",
 		icon: "mdi:window-open-variant",
-		label: "Window",
+		label: "furniture.window",
 		defaultWidth: 1000,
 		defaultHeight: 150,
 		lockAspect: false,
 	},
 ];
 
-const CORNER_LABELS = ["Front-left", "Front-right", "Back-right", "Back-left"];
+const CORNER_LABELS = ["corners.front_left", "corners.front_right", "corners.back_right", "corners.back_left"];
 const CORNER_OFFSET_LABELS: [string, string][] = [
-	["left wall", "front wall"],
-	["right wall", "front wall"],
-	["right wall", "back wall"],
-	["left wall", "back wall"],
+	["corners.left_wall", "corners.front_wall"],
+	["corners.right_wall", "corners.front_wall"],
+	["corners.right_wall", "corners.back_wall"],
+	["corners.left_wall", "corners.back_wall"],
 ];
 
 // Corner capture duration (seconds)
@@ -2973,11 +2973,11 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	render() {
 		if (this._loading) {
-			return html`<div class="loading-container">Loading...</div>`;
+			return html`<div class="loading-container">${this._localize("common.loading")}</div>`;
 		}
 
 		if (!this._entries.length) {
-			return html`<div class="loading-container">Loading...</div>`;
+			return html`<div class="loading-container">${this._localize("common.loading")}</div>`;
 		}
 
 		if (this._setupStep !== null) {
@@ -2999,17 +2999,17 @@ export class EverythingPresenceProPanel extends LitElement {
 					? html`
         <div class="template-dialog">
           <div class="template-dialog-card">
-            <h3>Delete room calibration?</h3>
-            <p class="overlay-help">This will also delete all detection zones and furniture. This cannot be undone.</p>
+            <h3>${this._localize("dialogs.delete_calibration_title")}</h3>
+            <p class="overlay-help">${this._localize("dialogs.delete_calibration_body")}</p>
             <div class="template-dialog-actions">
               <button class="wizard-btn wizard-btn-back"
                 @click=${() => {
 									this._showDeleteCalibrationDialog = false;
 								}}
-              >Cancel</button>
+              >${this._localize("common.cancel")}</button>
               <button class="wizard-btn wizard-btn-primary" style="background: var(--error-color, #f44336);"
                 @click=${this._deleteCalibration}
-              >Delete</button>
+              >${this._localize("common.delete")}</button>
             </div>
           </div>
         </div>
@@ -3096,7 +3096,7 @@ export class EverythingPresenceProPanel extends LitElement {
               </option>
             `,
 					)}
-          <option value="__add__">+ Add another sensor</option>
+          <option value="__add__">${this._localize("common.add_another_sensor")}</option>
         </select>
         ${headerBtns}
       </div>
@@ -3330,7 +3330,7 @@ export class EverythingPresenceProPanel extends LitElement {
 						: html`
             <p class="corner-instruction">
               <strong>Corner ${idx + 1}/4:</strong> Walk to the
-              <strong>${label.toLowerCase()}</strong> corner.
+              <strong>${this._localize(label).toLowerCase()}</strong> corner.
             </p>
         `
 				}
@@ -3357,7 +3357,7 @@ export class EverythingPresenceProPanel extends LitElement {
 											: "";
 									}}
                 >
-                  ${name} ${done ? "\u2713" : ""}
+                  ${this._localize(name)} ${done ? "\u2713" : ""}
                 </span>
                 ${
 									showArrow
@@ -3377,7 +3377,7 @@ export class EverythingPresenceProPanel extends LitElement {
             class="offset-input"
             min="0"
             step="1"
-            placeholder="${sideLabel} (cm)"
+            placeholder="${this._localize(sideLabel)} (cm)"
             .value=${this._wizardOffsetSide}
             @input=${(e: Event) => {
 							this._wizardOffsetSide = (e.target as HTMLInputElement).value;
@@ -3391,7 +3391,7 @@ export class EverythingPresenceProPanel extends LitElement {
             class="offset-input"
             min="0"
             step="1"
-            placeholder="${fbLabel} (cm)"
+            placeholder="${this._localize(fbLabel)} (cm)"
             .value=${this._wizardOffsetFb}
             @input=${(e: Event) => {
 							this._wizardOffsetFb = (e.target as HTMLInputElement).value;
@@ -3522,7 +3522,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 <div
                   class="mini-grid-captured"
                   style="left: ${xPct}%; top: ${yPct}%;"
-                  title="${CORNER_LABELS[i]}"
+                  title="${this._localize(CORNER_LABELS[i])}"
                 ></div>
               `;
 						})}
@@ -3553,11 +3553,11 @@ export class EverythingPresenceProPanel extends LitElement {
 						this._view = "live";
 						this._loadEntryConfig(this._selectedEntryId);
 					}}
-        >Cancel</button>
+        >${this._localize("common.cancel")}</button>
         <button class="wizard-btn wizard-btn-primary"
           ?disabled=${this._saving || !this._dirty}
           @click=${saveHandler}
-        >${this._saving ? "Saving..." : "Save"}</button>
+        >${this._saving ? this._localize("common.saving") : this._localize("common.save")}</button>
       </div>
     `;
 	}
@@ -5477,26 +5477,26 @@ export class EverythingPresenceProPanel extends LitElement {
         <div class="furn-selected-info">
           <div class="zone-item-row">
             <ha-icon icon="${selected.icon}" style="--mdc-icon-size: 20px;"></ha-icon>
-            <strong>${selected.label}</strong>
+            <strong>${this._localize(selected.label)}</strong>
             <button class="zone-remove-btn" @click=${() => this._removeFurniture(selected.id)}>
               <ha-icon icon="mdi:close"></ha-icon>
             </button>
           </div>
           <div class="furn-dims">
             <label>
-              W (mm)
+              ${this._localize("dimensions.width_mm")}
               <input type="number" min="100" step="50" .value=${String(Math.round(selected.width))}
                 @change=${(e: Event) => this._updateFurniture(selected.id, { width: parseInt((e.target as HTMLInputElement).value) })}
               />
             </label>
             <label>
-              H (mm)
+              ${this._localize("dimensions.height_mm")}
               <input type="number" min="100" step="50" .value=${String(Math.round(selected.height))}
                 @change=${(e: Event) => this._updateFurniture(selected.id, { height: parseInt((e.target as HTMLInputElement).value) })}
               />
             </label>
             <label>
-              Rot
+              ${this._localize("dimensions.rotation")}
               <input type="number" step="5" .value=${String(Math.round(selected.rotation))}
                 @change=${(e: Event) => this._updateFurniture(selected.id, { rotation: parseInt((e.target as HTMLInputElement).value) % 360 })}
               />
@@ -5518,7 +5518,7 @@ export class EverythingPresenceProPanel extends LitElement {
                 </svg>`
 								: html`<ha-icon icon="${s.icon}" style="--mdc-icon-size: 24px;"></ha-icon>`
 						}
-            <span>${s.label}</span>
+            <span>${this._localize(s.label)}</span>
           </button>
         `,
 				)}
@@ -5526,7 +5526,7 @@ export class EverythingPresenceProPanel extends LitElement {
 					this._showCustomIconPicker = !this._showCustomIconPicker;
 				}}>
           <ha-icon icon="mdi:plus" style="--mdc-icon-size: 24px;"></ha-icon>
-          <span>Custom icon</span>
+          <span>${this._localize("furniture.custom_icon")}</span>
         </button>
       </div>
       ${
@@ -5534,7 +5534,7 @@ export class EverythingPresenceProPanel extends LitElement {
 					? html`
         <div class="template-dialog">
           <div class="template-dialog-card">
-            <h3>Custom icon</h3>
+            <h3>${this._localize("furniture.custom_icon")}</h3>
             <ha-icon-picker
               .hass=${this.hass}
               .value=${this._customIconValue}
@@ -5557,7 +5557,7 @@ export class EverythingPresenceProPanel extends LitElement {
 									this._showCustomIconPicker = false;
 									this._customIconValue = "";
 								}}
-              >Cancel</button>
+              >${this._localize("common.cancel")}</button>
               <button class="wizard-btn wizard-btn-primary"
                 ?disabled=${!this._customIconValue.trim()}
                 @click=${() => {
@@ -5565,7 +5565,7 @@ export class EverythingPresenceProPanel extends LitElement {
 									this._customIconValue = "";
 									this._showCustomIconPicker = false;
 								}}
-              >Add</button>
+              >${this._localize("common.add")}</button>
             </div>
           </div>
         </div>
