@@ -13,11 +13,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import EverythingPresenceProConfigEntry
 from .const import DOMAIN
 from .const import MAX_TARGETS
-from .zone_engine import TargetStatus
 from .const import MAX_ZONES
 from .coordinator import SIGNAL_SENSORS_UPDATED
 from .coordinator import SIGNAL_TARGETS_UPDATED
 from .coordinator import EverythingPresenceProCoordinator
+from .zone_engine import TargetStatus
 
 
 async def async_setup_entry(
