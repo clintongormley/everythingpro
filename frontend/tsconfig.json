@@ -10,7 +10,9 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "outDir": "./dist",
-    "sourceMap": true
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true
   },
   "include": ["src/**/*.ts"]
 }
