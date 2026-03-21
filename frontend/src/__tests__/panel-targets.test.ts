@@ -116,8 +116,8 @@ describe("_subscribeTargets", () => {
 		// Trigger event
 		handler!({
 			targets: [
-				{ x: 100, y: 200, active: true, signal: 5 },
-				{ x: 300, y: 400, active: false, signal: 0 },
+				{ x: 100, y: 200, status: "active", signal: 5 },
+				{ x: 300, y: 400, status: "inactive", signal: 0 },
 			],
 			sensors: {
 				occupancy: true,
@@ -137,9 +137,9 @@ describe("_subscribeTargets", () => {
 		});
 
 		expect(a._targets).toHaveLength(2);
-		expect(a._targets[0].active).toBe(true);
+		expect(a._targets[0].status).toBe("active");
 		expect(a._targets[0].raw_x).toBe(100);
-		expect(a._targets[1].active).toBe(false);
+		expect(a._targets[1].status).toBe("inactive");
 
 		expect(a._sensorState.occupancy).toBe(true);
 		expect(a._sensorState.illuminance).toBe(150);
@@ -150,7 +150,7 @@ describe("_subscribeTargets", () => {
 		expect(a._zoneState.frame_count).toBe(10);
 	});
 
-	it("merges pending targets into inactive slots", async () => {
+	it("handles pending targets via status field", async () => {
 		const a = el as any;
 		let handler: (event: any) => void;
 		el.hass = {
@@ -166,16 +166,14 @@ describe("_subscribeTargets", () => {
 		a._subscribeTargets("e1");
 
 		handler!({
-			targets: [{ x: 100, y: 200, active: false, signal: 0 }],
-			pending_targets: [{ target_index: 0, x: 150, y: 250 }],
+			targets: [{ x: 150, y: 250, status: "pending", signal: 0 }],
 		});
 
-		expect(a._targets[0].active).toBe(true);
-		expect(a._targets[0].pending).toBe(true);
+		expect(a._targets[0].status).toBe("pending");
 		expect(a._targets[0].x).toBe(150);
 	});
 
-	it("does not overwrite active targets with pending ones", async () => {
+	it("active targets retain active status", async () => {
 		const a = el as any;
 		let handler: (event: any) => void;
 		el.hass = {
@@ -191,13 +189,10 @@ describe("_subscribeTargets", () => {
 		a._subscribeTargets("e1");
 
 		handler!({
-			targets: [{ x: 100, y: 200, active: true, signal: 5 }],
-			pending_targets: [{ target_index: 0, x: 150, y: 250 }],
+			targets: [{ x: 100, y: 200, status: "active", signal: 5 }],
 		});
 
-		// Active target should not be overwritten by pending
-		expect(a._targets[0].active).toBe(true);
-		expect(a._targets[0].pending).toBe(false);
+		expect(a._targets[0].status).toBe("active");
 		expect(a._targets[0].x).toBe(100);
 	});
 
@@ -217,7 +212,7 @@ describe("_subscribeTargets", () => {
 		a._subscribeTargets("e1");
 
 		handler!({
-			targets: [{ x: 100, y: 200, active: true, signal: 3 }],
+			targets: [{ x: 100, y: 200, status: "active", signal: 3 }],
 		});
 
 		// Sensor state should remain unchanged
@@ -239,9 +234,8 @@ describe("_unsubscribeTargets", () => {
 				raw_x: 1,
 				raw_y: 2,
 				speed: 0,
-				active: true,
+				status: "active",
 				signal: 5,
-				pending: false,
 			},
 		];
 

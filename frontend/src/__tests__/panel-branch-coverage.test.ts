@@ -136,7 +136,7 @@ describe("target subscription null coalescing branches", () => {
 
 		// Fire event with targets missing raw_x, raw_y, signal
 		handler!({
-			targets: [{ x: 100, y: 200, active: true }],
+			targets: [{ x: 100, y: 200, status: "active" }],
 			sensors: {
 				// All fields missing -> ?? branches hit
 			},
@@ -215,9 +215,8 @@ describe("zone engine branch coverage", () => {
 				raw_x: -5000,
 				raw_y: -5000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		a._targetPrev = [{ col: 5, row: 5 }, null, null]; // had previous valid position
@@ -248,7 +247,6 @@ describe("zone engine branch coverage", () => {
 		a._localZoneState.set(1, {
 			occupied: true,
 			pendingSince: Date.now() / 1000 - 100, // well past timeout
-			isHandoff: true,
 			confirmedTargets: new Set(),
 		});
 
@@ -282,7 +280,6 @@ describe("zone engine branch coverage", () => {
 		a._localZoneState.set(1, {
 			occupied: true,
 			pendingSince: Date.now() / 1000,
-			isHandoff: false,
 			confirmedTargets: new Set(),
 		});
 
@@ -294,9 +291,8 @@ describe("zone engine branch coverage", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
@@ -328,7 +324,6 @@ describe("zone engine branch coverage", () => {
 		a._localZoneState.set(1, {
 			occupied: true,
 			pendingSince: null,
-			isHandoff: false,
 			confirmedTargets: new Set([0]),
 		});
 
@@ -365,9 +360,8 @@ describe("zone engine branch coverage", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 9,
-				pending: false,
 			},
 		];
 
@@ -400,7 +394,6 @@ describe("zone engine branch coverage", () => {
 		a._localZoneState.set(1, {
 			occupied: true,
 			pendingSince: null,
-			isHandoff: false,
 			confirmedTargets: new Set([0]),
 		});
 
@@ -412,9 +405,8 @@ describe("zone engine branch coverage", () => {
 				raw_x: 3000,
 				raw_y: 5500,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
@@ -432,9 +424,8 @@ describe("zone engine branch coverage", () => {
 				raw_x: -10000,
 				raw_y: -10000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 
@@ -464,9 +455,8 @@ describe("wizard corner offset edge cases", () => {
 				raw_x: 0,
 				raw_y: 0,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 
@@ -527,9 +517,8 @@ describe("_renderEditor target rendering branches", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "pending" as const,
 				signal: 3,
-				pending: true,
 			},
 		];
 
@@ -548,9 +537,8 @@ describe("_renderEditor target rendering branches", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
@@ -569,9 +557,8 @@ describe("_renderEditor target rendering branches", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "pending" as const,
 				signal: 7,
-				pending: true,
 			},
 		];
 
@@ -595,9 +582,8 @@ describe("_renderLiveGrid target branches", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 
@@ -614,9 +600,8 @@ describe("_renderLiveGrid target branches", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 			{
 				x: 1000,
@@ -624,9 +609,8 @@ describe("_renderLiveGrid target branches", () => {
 				raw_x: 1000,
 				raw_y: 1000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 3,
-				pending: false,
 			},
 			{
 				x: 2000,
@@ -634,9 +618,8 @@ describe("_renderLiveGrid target branches", () => {
 				raw_x: 2000,
 				raw_y: 3000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 
@@ -772,7 +755,6 @@ describe("_renderZoneSidebar boundary occupancy glow", () => {
 		a._localZoneState.set(0, {
 			occupied: true,
 			pendingSince: null,
-			isHandoff: false,
 			confirmedTargets: new Set(),
 		});
 		const tpl = a._renderZoneSidebar();
@@ -1206,9 +1188,8 @@ describe("corner chip click with null offsets", () => {
 				raw_x: 0,
 				raw_y: 0,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 
@@ -1282,9 +1263,8 @@ describe("editor target signal display branches", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 0,
-				pending: false,
 			},
 		];
 		const tpl = a._renderEditor();
@@ -1306,9 +1286,8 @@ describe("uncalibrated FOV target color", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 			{
 				x: 200,
@@ -1316,9 +1295,8 @@ describe("uncalibrated FOV target color", () => {
 				raw_x: 200,
 				raw_y: 300,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 			{
 				x: 300,
@@ -1326,9 +1304,8 @@ describe("uncalibrated FOV target color", () => {
 				raw_x: 300,
 				raw_y: 400,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const tpl = a._renderUncalibratedFov();
@@ -1350,9 +1327,8 @@ describe("live grid hit count and signal", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 7,
-				pending: false,
 			},
 		];
 		const tpl = a._renderLiveGrid();
@@ -1369,9 +1345,8 @@ describe("live grid hit count and signal", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 0,
-				pending: false,
 			},
 		];
 		const tpl = a._renderLiveGrid();
@@ -1390,7 +1365,6 @@ describe("zone sidebar occupancy glow branch", () => {
 		a._localZoneState.set(1, {
 			occupied: true,
 			pendingSince: null,
-			isHandoff: false,
 			confirmedTargets: new Set(),
 		});
 
@@ -1403,7 +1377,6 @@ describe("zone sidebar occupancy glow branch", () => {
 		a._localZoneState.set(0, {
 			occupied: true,
 			pendingSince: null,
-			isHandoff: false,
 			confirmedTargets: new Set(),
 		});
 		const tpl = a._renderZoneSidebar();

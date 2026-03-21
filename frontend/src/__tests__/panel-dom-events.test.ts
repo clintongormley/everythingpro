@@ -286,9 +286,8 @@ describe("_renderWizardCorners DOM events", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const tpl = a._renderWizardCorners();
@@ -316,9 +315,8 @@ describe("_renderWizardCorners DOM events", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const tpl = a._renderWizardCorners();
@@ -347,9 +345,8 @@ describe("_renderWizardCorners DOM events", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const tpl = a._renderWizardCorners();
@@ -371,9 +368,8 @@ describe("_renderWizardCorners DOM events", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const tpl = a._renderWizardCorners();
@@ -403,9 +399,8 @@ describe("_renderWizardCorners DOM events", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const tpl = a._renderWizardCorners();

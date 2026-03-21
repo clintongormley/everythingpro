@@ -227,9 +227,8 @@ describe("_renderLiveGrid target rendering branches", () => {
 				raw_x: 1500,
 				raw_y: 2000,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 			{
 				x: 0,
@@ -237,9 +236,8 @@ describe("_renderLiveGrid target rendering branches", () => {
 				raw_x: 0,
 				raw_y: 0,
 				speed: 0,
-				active: false,
+				status: "inactive" as const,
 				signal: 0,
-				pending: false,
 			},
 		];
 		a._showHitCounts = true;
@@ -836,9 +834,8 @@ describe("_renderWizard capture overlay branches", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const tpl = a._renderWizard();
@@ -862,9 +859,8 @@ describe("_renderWizard capture overlay branches", () => {
 				raw_x: 100,
 				raw_y: 200,
 				speed: 0,
-				active: true,
+				status: "active" as const,
 				signal: 5,
-				pending: false,
 			},
 		];
 		const tpl = a._renderWizard();
