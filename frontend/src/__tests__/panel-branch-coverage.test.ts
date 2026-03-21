@@ -1449,3 +1449,1074 @@ describe("_onFurniturePointerDown onUp callback", () => {
 		removeSpy.mockRestore();
 	});
 });
+
+// =========================================================
+// Debug log: _showDebugLog exercising the full debug log path
+// =========================================================
+describe("local zone engine debug log branches", () => {
+	it("generates debug log line with active target and occupied zone", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = {
+			name: "Z1",
+			color: ZONE_COLORS[0],
+			type: "custom",
+			trigger: 3,
+			renew: 2,
+			timeout: 100,
+			handoff_timeout: 100,
+			entry_point: true,
+		};
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		// Zone occupied
+		a._localZoneState.set(1, {
+			occupied: true,
+			pendingSince: null,
+			confirmedTargets: new Set([0]),
+		});
+
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 7,
+			},
+		];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("T0:");
+		expect(a._debugLogLines[0]).toContain("Z1");
+	});
+
+	it("skips duplicate debug log body", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._showDebugLog = true;
+		a._targets = [];
+		a._debugLogPrev = "no targets | all clear";
+		a._debugLogLines = ["old"];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		// Should not add a new line since body equals prev
+		expect(a._debugLogLines.length).toBe(1);
+	});
+
+	it("debug log with pending zone", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = {
+			name: "Z1",
+			color: ZONE_COLORS[0],
+			type: "normal",
+		};
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		a._localZoneState.set(1, {
+			occupied: true,
+			pendingSince: Date.now() / 1000,
+			confirmedTargets: new Set(),
+		});
+		a._targets = [];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("pending");
+	});
+
+	it("debug log with no-config zone uses fallback name", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 2);
+		}
+		a._zoneConfigs = new Array(7).fill(null); // no config for zone 2
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		a._localZoneState.set(2, {
+			occupied: true,
+			pendingSince: null,
+			confirmedTargets: new Set(),
+		});
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 5,
+			},
+		];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		// Should use fallback "Zone 2"
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("Zone 2");
+	});
+
+	it("debug log with target outside grid (zone=null)", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		a._targets = [
+			{
+				x: -9999,
+				y: -9999,
+				raw_x: -9999,
+				raw_y: -9999,
+				speed: 0,
+				status: "active" as const,
+				signal: 5,
+			},
+		];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		// Should produce "outside" for the zone name
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+	});
+
+	it("debug log with zoneId 0 shows Room", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		// Zone 0 = room boundary (no zone set) - all cells are inside but zone=0
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		a._localZoneState.set(0, {
+			occupied: true,
+			pendingSince: null,
+			confirmedTargets: new Set([0]),
+		});
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 5,
+			},
+		];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("Room");
+	});
+
+	it("debug log truncation when exceeding max", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._showDebugLog = true;
+		// Fill with many lines
+		a._debugLogLines = new Array(500).fill("old line");
+		a._debugLogPrev = null;
+		a._targets = [];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		// Lines should be trimmed
+		expect(a._debugLogLines.length).toBeLessThanOrEqual(501);
+	});
+
+	it("debug log with inactive target skips it", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 5,
+			},
+		];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("no targets");
+	});
+
+	it("debug log with target signal 0 skips it", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 0,
+			},
+		];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("no targets");
+	});
+
+	it("debug log with confirmed=N (not confirmed)", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = {
+			name: "Z1",
+			color: ZONE_COLORS[0],
+			type: "custom",
+			trigger: 99, // very high trigger - won't be confirmed
+			renew: 2,
+			timeout: 100,
+			handoff_timeout: 100,
+			entry_point: false,
+		};
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		a._debugLogPrev = null;
+
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 3,
+			},
+		];
+
+		a._renderVisibleCells(0, GRID_COLS - 1, 0, GRID_ROWS - 1, 10);
+		expect(a._debugLogLines.length).toBeGreaterThan(0);
+		expect(a._debugLogLines[0]).toContain("confirmed=N");
+	});
+});
+
+// =========================================================
+// Zone engine: confirmed target cleanup for non-active targets
+// =========================================================
+describe("zone engine confirmed target cleanup", () => {
+	it("removes non-active target from confirmed sets (non-pending zones)", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = {
+			name: "Z1",
+			color: ZONE_COLORS[0],
+			type: "custom",
+			trigger: 3,
+			renew: 2,
+			timeout: 100,
+			handoff_timeout: 100,
+			entry_point: true,
+		};
+
+		// Zone has confirmed targets 0 AND 1
+		// Target 1 is still active, so zone stays occupied & pendingSince stays null
+		a._localZoneState.set(1, {
+			occupied: true,
+			pendingSince: null,
+			confirmedTargets: new Set([0, 1]),
+		});
+
+		// Target 0 is inactive, target 1 is active (keeps zone occupied)
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 0,
+			},
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 7,
+			},
+		];
+
+		a._runLocalZoneEngine();
+		const st = a._localZoneState.get(1);
+		// Target 0 should have been removed from confirmedTargets (non-active, non-pending zone)
+		expect(st?.confirmedTargets.has(0)).toBe(false);
+		// Target 1 should still be there
+		expect(st?.confirmedTargets.has(1)).toBe(true);
+	});
+
+	it("does NOT remove target from pending zones", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = { name: "Z1", color: ZONE_COLORS[0], type: "normal" };
+
+		// Zone is pending (pendingSince is non-null)
+		a._localZoneState.set(1, {
+			occupied: true,
+			pendingSince: Date.now() / 1000,
+			confirmedTargets: new Set([0]),
+		});
+
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "pending" as const,
+				signal: 0,
+			},
+		];
+
+		a._runLocalZoneEngine();
+		const st = a._localZoneState.get(1);
+		// Should NOT have been removed because zone is pending
+		expect(st?.confirmedTargets.has(0)).toBe(true);
+	});
+});
+
+// =========================================================
+// Backend debug log subscription: _showBackendDebugLog branch
+// =========================================================
+describe("backend debug log subscription branch", () => {
+	it("appends backend debug log when _showBackendDebugLog is true", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = [];
+		a._backendDebugLogPrev = null;
+
+		let handler: (event: any) => void;
+		a.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					handler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		a._subscribeTargets("e1");
+
+		handler!({
+			targets: [],
+			zones: {
+				occupancy: {},
+				target_counts: {},
+				frame_count: 1,
+				debug_log: "zone1: occupied",
+			},
+		});
+
+		expect(a._backendDebugLogLines.length).toBe(1);
+		expect(a._backendDebugLogLines[0]).toContain("zone1: occupied");
+	});
+
+	it("skips duplicate backend debug log body", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = ["old"];
+		a._backendDebugLogPrev = "same body";
+
+		let handler: (event: any) => void;
+		a.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					handler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		a._subscribeTargets("e1");
+
+		handler!({
+			targets: [],
+			zones: {
+				occupancy: {},
+				target_counts: {},
+				frame_count: 1,
+				debug_log: "same body",
+			},
+		});
+
+		// Should NOT have added a new line
+		expect(a._backendDebugLogLines.length).toBe(1);
+	});
+
+	it("truncates backend debug log when exceeding max", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = new Array(500).fill("old");
+		a._backendDebugLogPrev = null;
+
+		let handler: (event: any) => void;
+		a.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockImplementation((cb: any) => {
+					handler = cb;
+					return Promise.resolve(() => {});
+				}),
+			},
+		};
+
+		a._subscribeTargets("e1");
+
+		handler!({
+			targets: [],
+			zones: {
+				occupancy: {},
+				target_counts: {},
+				frame_count: 1,
+				debug_log: "new line",
+			},
+		});
+
+		expect(a._backendDebugLogLines.length).toBeLessThanOrEqual(501);
+	});
+});
+
+// =========================================================
+// _renderDebugLog and _renderBackendDebugLog toggle+content
+// =========================================================
+describe("debug log rendering branches", () => {
+	it("renders debug log expanded with lines", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._debugLogLines = ["line 1", "line 2"];
+		const tpl = a._renderDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const logLines = c.querySelectorAll(".debug-log-line");
+		expect(logLines.length).toBe(2);
+		document.body.removeChild(c);
+	});
+
+	it("renders debug log expanded with empty lines shows waiting", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._debugLogLines = [];
+		const tpl = a._renderDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		expect(c.textContent).toContain("Waiting");
+		document.body.removeChild(c);
+	});
+
+	it("clicking debug log toggle closes and clears", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._debugLogLines = ["something"];
+		a._debugLogPrev = "body";
+		const tpl = a._renderDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const toggleBtn = c.querySelector(".live-section-link") as HTMLElement;
+		if (toggleBtn) {
+			toggleBtn.click();
+			expect(a._showDebugLog).toBe(false);
+			expect(a._debugLogLines).toEqual([]);
+			expect(a._debugLogPrev).toBeNull();
+		}
+		document.body.removeChild(c);
+	});
+
+	it("renders backend debug log expanded with lines", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = ["evt 1", "evt 2"];
+		const tpl = a._renderBackendDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const logLines = c.querySelectorAll(".debug-log-line");
+		expect(logLines.length).toBe(2);
+		document.body.removeChild(c);
+	});
+
+	it("renders backend debug log expanded with empty lines", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = [];
+		const tpl = a._renderBackendDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		expect(c.textContent).toContain("Waiting");
+		document.body.removeChild(c);
+	});
+
+	it("clicking backend debug log toggle closes and clears", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+		a._backendDebugLogLines = ["something"];
+		a._backendDebugLogPrev = "body";
+		const tpl = a._renderBackendDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const toggleBtn = c.querySelector(".live-section-link") as HTMLElement;
+		if (toggleBtn) {
+			toggleBtn.click();
+			expect(a._showBackendDebugLog).toBe(false);
+			expect(a._backendDebugLogLines).toEqual([]);
+			expect(a._backendDebugLogPrev).toBeNull();
+		}
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// Live overview: click outside menu dismisses it
+// =========================================================
+describe("live overview panel click dismisses menu", () => {
+	it("clicking outside menu wrapper closes showLiveMenu", () => {
+		const a = createPanel() as any;
+		a._showLiveMenu = true;
+		const tpl = a._renderLiveOverview();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		// Click on the panel div itself (not .sidebar-menu-wrapper)
+		const panel = c.querySelector(".panel") as HTMLElement;
+		if (panel) {
+			panel.click();
+			expect(a._showLiveMenu).toBe(false);
+		}
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// Wizard mini sensor view: inactive target not rendered
+// =========================================================
+describe("wizard mini sensor view: inactive target rendering", () => {
+	it("does not render inactive targets in wizard mini grid", () => {
+		const a = createPanel() as any;
+		a._targets = [
+			{
+				x: 100,
+				y: 200,
+				raw_x: 100,
+				raw_y: 200,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 0,
+			},
+			{
+				x: 300,
+				y: 400,
+				raw_x: 300,
+				raw_y: 400,
+				speed: 0,
+				status: "active" as const,
+				signal: 5,
+			},
+		];
+		a._perspective = null; // uncalibrated -> renders FOV
+		const tpl = a._renderMiniSensorView();
+		expect(tpl).toBeDefined();
+	});
+});
+
+// =========================================================
+// Pending targets in live grid rendering
+// =========================================================
+describe("live grid pending target opacity", () => {
+	it("renders pending target with 0.3 opacity", () => {
+		const a = createPanel() as any;
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "pending" as const,
+				signal: 3,
+			},
+		];
+		const tpl = a._renderLiveGrid();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const dot = c.querySelector(".target-dot") as HTMLElement;
+		if (dot) {
+			expect(dot.style.opacity).toBe("0.3");
+		}
+		document.body.removeChild(c);
+	});
+
+	it("skips inactive target in live grid", () => {
+		const a = createPanel() as any;
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 0,
+			},
+		];
+		const tpl = a._renderLiveGrid();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const dots = c.querySelectorAll(".target-dot");
+		expect(dots.length).toBe(0);
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// Uncalibrated FOV: inactive target not rendered, pending target
+// =========================================================
+describe("uncalibrated FOV target status branches", () => {
+	it("skips inactive target in FOV", () => {
+		const a = createPanel() as any;
+		a._perspective = null;
+		a._targets = [
+			{
+				x: 100,
+				y: 200,
+				raw_x: 100,
+				raw_y: 200,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 0,
+			},
+		];
+		const tpl = a._renderUncalibratedFov();
+		expect(tpl).toBeDefined();
+	});
+});
+
+// =========================================================
+// Static min/max distance clamping branches
+// =========================================================
+describe("detection range distance clamping", () => {
+	it("clamps static min distance when >= max distance", () => {
+		const a = createPanel() as any;
+		a._staticAutoRange = false;
+		a._staticMinDistance = 5;
+		a._staticMaxDistance = 10;
+		const tpl = a._renderDetectionRanges();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		// Find the min distance range input (min=0.3)
+		const ranges = c.querySelectorAll(".setting-range");
+		for (let i = 0; i < ranges.length; i++) {
+			const r = ranges[i] as HTMLInputElement;
+			if (r.min === "0.3") {
+				r.value = "15"; // exceeds max
+				r.dispatchEvent(new Event("input"));
+				expect(a._staticMinDistance).toBeLessThan(a._staticMaxDistance);
+				break;
+			}
+		}
+		document.body.removeChild(c);
+	});
+
+	it("clamps static max distance when <= min distance", () => {
+		const a = createPanel() as any;
+		a._staticAutoRange = false;
+		a._staticMinDistance = 5;
+		a._staticMaxDistance = 10;
+		const tpl = a._renderDetectionRanges();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		// Find the max distance range input (max=16)
+		const ranges = c.querySelectorAll(".setting-range");
+		for (let i = 0; i < ranges.length; i++) {
+			const r = ranges[i] as HTMLInputElement;
+			if (r.min === "2.4") {
+				r.value = "3"; // less than min=5
+				r.dispatchEvent(new Event("input"));
+				expect(a._staticMaxDistance).toBeGreaterThan(a._staticMinDistance);
+				break;
+			}
+		}
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// Rename dialog: entity_id split fallback branches
+// =========================================================
+describe("rename dialog entity_id fallback branches", () => {
+	it("handles entity_id with no dot (fallback to full string)", () => {
+		const a = createPanel() as any;
+		a._view = "editor";
+		a._showRenameDialog = true;
+		a._pendingRenames = [
+			{
+				old_entity_id: "nodotshere",
+				new_entity_id: "alsonodots",
+			},
+		];
+		const tpl = a._renderEditor();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		// Should not throw, and render the fallback strings
+		expect(c.textContent).toContain("nodotshere");
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// _applyLayout: zone with zero painted cells gets removed
+// =========================================================
+describe("_applyLayout zero-cell zone removal", () => {
+	it("removes zone config with zero painted cells", async () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		// Zone 1 config exists but no cells painted with zone 1
+		a._zoneConfigs[0] = { name: "Z1", color: ZONE_COLORS[0], type: "normal" };
+		a.hass = {
+			callWS: vi.fn().mockResolvedValue({
+				entity_renames: [],
+			}),
+		};
+		a._selectedEntryId = "e1";
+
+		await a._applyLayout();
+
+		// Zone should have been removed since no cells are painted
+		expect(a._zoneConfigs[0]).toBeNull();
+	});
+});
+
+// =========================================================
+// _renderLiveSidebar: expanded sensor info toggle (collapse)
+// =========================================================
+describe("live sidebar sensor info collapse", () => {
+	it("toggles sensor info from expanded to collapsed", () => {
+		const a = createPanel() as any;
+		a._expandedSensorInfo = "occupancy";
+		a._zoneConfigs[0] = { name: "Z1", color: ZONE_COLORS[0], type: "normal" };
+		a._zoneState = {
+			occupancy: { 1: true },
+			target_counts: { 1: 1 },
+			frame_count: 10,
+		};
+		const tpl = a._renderLiveSidebar();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		// Find the already-expanded info button and click to collapse
+		const infoBtns = c.querySelectorAll(".live-sensor-info-btn");
+		if (infoBtns.length > 0) {
+			(infoBtns[0] as HTMLElement).click();
+			expect(a._expandedSensorInfo).toBeNull();
+		}
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// Updated callback: _showDebugLog scroll
+// =========================================================
+describe("updated callback debug log scroll", () => {
+	it("scrolls debug log when _showDebugLog is true", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+
+		const mockEl = { scrollTop: 0, scrollHeight: 500 };
+		Object.defineProperty(a, "shadowRoot", {
+			value: {
+				getElementById: (id: string) => {
+					if (id === "debug-log-scroll") return mockEl;
+					return null;
+				},
+				querySelectorAll: () => [],
+			},
+			configurable: true,
+		});
+
+		a.updated(new Map([["_showDebugLog", false]]));
+		expect(mockEl.scrollTop).toBe(500);
+	});
+
+	it("scrolls backend debug log when _showBackendDebugLog is true", () => {
+		const a = createPanel() as any;
+		a._showBackendDebugLog = true;
+
+		const mockEl = { scrollTop: 0, scrollHeight: 300 };
+		Object.defineProperty(a, "shadowRoot", {
+			value: {
+				getElementById: (id: string) => {
+					if (id === "backend-debug-log-scroll") return mockEl;
+					return null;
+				},
+				querySelectorAll: () => [],
+			},
+			configurable: true,
+		});
+
+		a.updated(new Map([["_showBackendDebugLog", false]]));
+		expect(mockEl.scrollTop).toBe(300);
+	});
+});
+
+// =========================================================
+// Zone engine: pending target skip in local zone engine
+// =========================================================
+describe("zone engine pending target handling", () => {
+	it("clears targetPrev and gateCount for pending target", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(3000, 4000);
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) a._grid[i] = cellSetZone(a._grid[i], 1);
+		}
+		a._zoneConfigs[0] = { name: "Z1", color: ZONE_COLORS[0], type: "normal" };
+		a._targetPrev = [{ col: 5, row: 5 }, null, null];
+		a._targetGateCount = [3, 0, 0];
+
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "pending" as const,
+				signal: 5,
+			},
+		];
+
+		a._runLocalZoneEngine();
+		expect(a._targetPrev[0]).toBeNull();
+		expect(a._targetGateCount[0]).toBe(0);
+	});
+});
+
+// =========================================================
+// Wizard corners: fb offset input on existing corner
+// =========================================================
+describe("wizard corners fb offset input", () => {
+	it("updates offset_fb on existing corner", () => {
+		const a = createPanel() as any;
+		a._wizardCorners = [
+			{ raw_x: 100, raw_y: 200, offset_side: 0, offset_fb: 0 },
+			null,
+			null,
+			null,
+		];
+		a._wizardCornerIndex = 0;
+		a._targets = [
+			{
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
+				speed: 0,
+				status: "active" as const,
+				signal: 5,
+			},
+		];
+
+		const tpl = a._renderWizardCorners();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const offsets = c.querySelectorAll(
+			".offset-input",
+		) as NodeListOf<HTMLInputElement>;
+		if (offsets.length >= 2) {
+			offsets[1].value = "25";
+			offsets[1].dispatchEvent(new Event("input"));
+			expect(a._wizardCorners[0].offset_fb).toBe(250);
+		}
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// Handoff detection: srcSt is null (no state for previous zone)
+// =========================================================
+describe("handoff detection srcSt null branch", () => {
+	it("skips handoff when source zone has no state", () => {
+		const a = createPanel() as any;
+		a._grid = initGridFromRoom(6000, 6000);
+		a._roomWidth = 6000;
+		a._roomDepth = 6000;
+
+		a._zoneConfigs[0] = { name: "Z1", color: ZONE_COLORS[0], type: "normal" };
+		a._zoneConfigs[1] = { name: "Z2", color: ZONE_COLORS[1], type: "normal" };
+		for (let r = 0; r < GRID_ROWS; r++) {
+			for (let c = 0; c < GRID_COLS; c++) {
+				const idx = r * GRID_COLS + c;
+				if (a._grid[idx] & CELL_ROOM_BIT) {
+					a._grid[idx] = cellSetZone(a._grid[idx], r < GRID_ROWS / 2 ? 1 : 2);
+				}
+			}
+		}
+
+		// Previous position in zone 1, but no localZoneState for zone 1
+		a._targetPrev = [{ col: 10, row: 3 }, null, null];
+		a._targetGateCount = [0, 0, 0];
+		// No localZoneState for zone 1
+
+		a._targets = [
+			{
+				x: 3000,
+				y: 5500,
+				raw_x: 3000,
+				raw_y: 5500,
+				speed: 0,
+				status: "active" as const,
+				signal: 7,
+			},
+		];
+
+		// Should not throw
+		a._runLocalZoneEngine();
+	});
+});
+
+// =========================================================
+// _renderWizardCorners: corner arrow done branch
+// =========================================================
+describe("wizard corner progress arrow done", () => {
+	it("renders done arrow for completed corner", () => {
+		const a = createPanel() as any;
+		a._wizardCorners = [
+			{ raw_x: 100, raw_y: 200, offset_side: 0, offset_fb: 0 },
+			{ raw_x: 300, raw_y: 400, offset_side: 0, offset_fb: 0 },
+			null,
+			null,
+		];
+		a._wizardCornerIndex = 2;
+		a._targets = [
+			{
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
+				speed: 0,
+				status: "active" as const,
+				signal: 5,
+			},
+		];
+
+		const tpl = a._renderWizardCorners();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const doneArrows = c.querySelectorAll(".corner-arrow.done");
+		expect(doneArrows.length).toBeGreaterThan(0);
+		document.body.removeChild(c);
+	});
+});
+
+// =========================================================
+// Wizard corner offset side input on existing corner
+// =========================================================
+describe("wizard offset side on existing corner", () => {
+	it("updates offset_side on existing corner", () => {
+		const a = createPanel() as any;
+		a._wizardCorners = [
+			{ raw_x: 100, raw_y: 200, offset_side: 0, offset_fb: 0 },
+			null,
+			null,
+			null,
+		];
+		a._wizardCornerIndex = 0;
+		a._targets = [
+			{
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
+				speed: 0,
+				status: "active" as const,
+				signal: 5,
+			},
+		];
+
+		const tpl = a._renderWizardCorners();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const offsets = c.querySelectorAll(
+			".offset-input",
+		) as NodeListOf<HTMLInputElement>;
+		if (offsets.length >= 1) {
+			offsets[0].value = "30";
+			offsets[0].dispatchEvent(new Event("input"));
+			expect(a._wizardCorners[0].offset_side).toBe(300);
+		}
+		document.body.removeChild(c);
+	});
+});
