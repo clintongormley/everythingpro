@@ -25,6 +25,7 @@ from .const import MAX_ZONES
 from .coordinator import SIGNAL_SENSORS_UPDATED
 from .coordinator import SIGNAL_TARGETS_UPDATED
 from .coordinator import EverythingPresenceProCoordinator
+from .zone_engine import TargetStatus
 
 
 async def async_setup_entry(
@@ -339,19 +340,19 @@ class EverythingPresenceProTargetXYGridSensor(_PerTargetSensor):
     def native_value(self) -> str | None:
         """Return calibrated X,Y as a string value."""
         targets = self._coordinator.targets
-        if self._index >= len(targets) or not targets[self._index][2]:
+        if self._index >= len(targets) or targets[self._index].status != TargetStatus.ACTIVE:
             return None
-        x, y, _ = targets[self._index]
-        return f"{x:.0f},{y:.0f}"
+        t = targets[self._index]
+        return f"{t.x:.0f},{t.y:.0f}"
 
     @property
     def extra_state_attributes(self) -> dict[str, float] | None:
         """Return x and y as separate attributes."""
         targets = self._coordinator.targets
-        if self._index >= len(targets) or not targets[self._index][2]:
+        if self._index >= len(targets) or targets[self._index].status != TargetStatus.ACTIVE:
             return None
-        x, y, _ = targets[self._index]
-        return {"x_mm": round(x), "y_mm": round(y)}
+        t = targets[self._index]
+        return {"x_mm": round(t.x), "y_mm": round(t.y)}
 
 
 class EverythingPresenceProTargetDistanceSensor(_PerTargetSensor):
