@@ -12,6 +12,7 @@ from custom_components.everything_presence_pro.const import ZONE_TYPE_ENTRANCE
 from custom_components.everything_presence_pro.const import ZONE_TYPE_NORMAL
 from custom_components.everything_presence_pro.const import threshold_to_frame_count
 from custom_components.everything_presence_pro.zone_engine import Grid
+from custom_components.everything_presence_pro.zone_engine import TargetStatus
 from custom_components.everything_presence_pro.zone_engine import TargetWindow
 from custom_components.everything_presence_pro.zone_engine import TumblingWindow
 from custom_components.everything_presence_pro.zone_engine import WindowOutput
@@ -610,8 +611,7 @@ class TestHandoff:
         w2 = _make_window([(450, 150, 8)])
         r2 = engine._tick(w2, t + 1.0)
 
-        zone1_pending = [p for p in r2.pending_targets if p["zone_id"] == 1]
-        assert zone1_pending == []
+        assert r2.targets[0].status == TargetStatus.ACTIVE  # target moved, not pending
 
 
 # ===================================================================
@@ -701,11 +701,11 @@ class TestNextExpiry:
 # ===================================================================
 
 
-class TestPendingTargets:
-    """Tests for pending target tracking (faded dots)."""
+class TestTargetStatus:
+    """Tests for per-target status in zone engine output."""
 
-    def test_appear_when_target_disappears(self):
-        """Faded dot appears when a confirmed target goes inactive."""
+    def test_active_target_has_active_status(self):
+        """Active confirmed target has ACTIVE status with signal."""
         grid = _make_grid(cols=4, rows=4)
         cell_idx = grid.xy_to_cell(150, 150)
         grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
@@ -716,21 +716,35 @@ class TestPendingTargets:
         t = 100.0
         w1 = _make_window([(150, 150, 8)])
         r1 = engine._tick(w1, t)
-        assert r1.zone_occupancy[1] is True
-        assert r1.pending_targets == []
+        assert r1.targets[0].status == TargetStatus.ACTIVE
+        assert r1.targets[0].signal == 8
+        assert r1.targets[0].x == 150
+        assert r1.targets[0].y == 150
+
+    def test_pending_when_target_disappears(self):
+        """Target becomes PENDING when it goes inactive but zone is still counting down."""
+        grid = _make_grid(cols=4, rows=4)
+        cell_idx = grid.xy_to_cell(150, 150)
+        grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
+
+        zone = Zone(id=1, name="Desk", type=ZONE_TYPE_ENTRANCE, trigger=3, renew=3, timeout=10.0)
+        engine = ZoneEngine(grid=grid, zones=[zone])
+
+        t = 100.0
+        w1 = _make_window([(150, 150, 8)])
+        r1 = engine._tick(w1, t)
+        assert r1.targets[0].status == TargetStatus.ACTIVE
 
         w2 = _make_window([(0, 0, 0)])
         r2 = engine._tick(w2, t + 1.0)
         assert r2.zone_occupancy[1] is True
-        assert len(r2.pending_targets) == 1
-        pt = r2.pending_targets[0]
-        assert pt["x"] == 150
-        assert pt["y"] == 150
-        assert pt["target_index"] == 0
-        assert pt["zone_id"] == 1
+        assert r2.targets[0].status == TargetStatus.PENDING
+        assert r2.targets[0].x == 150
+        assert r2.targets[0].y == 150
+        assert r2.targets[0].signal == 0
 
-    def test_clear_when_zone_clears(self):
-        """Faded dot disappears when the zone's timeout expires."""
+    def test_inactive_when_zone_clears(self):
+        """Target becomes INACTIVE when zone timeout expires."""
         grid = _make_grid(cols=4, rows=4)
         cell_idx = grid.xy_to_cell(150, 150)
         grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
@@ -743,18 +757,17 @@ class TestPendingTargets:
         engine._tick(w1, t)
 
         w2 = _make_window([(0, 0, 0)])
-        r2 = engine._tick(w2, t + 1.0)
-        assert len(r2.pending_targets) == 1
+        engine._tick(w2, t + 1.0)
 
         w3 = _make_window([(0, 0, 0)])
         engine._tick(w3, t + 2.0)
         w4 = _make_window([(0, 0, 0)])
         r4 = engine._tick(w4, t + 3.5)
         assert r4.zone_occupancy[1] is False
-        assert r4.pending_targets == []
+        assert r4.targets[0].status == TargetStatus.INACTIVE
 
-    def test_disappear_when_target_returns(self):
-        """Faded dot disappears when the target reappears and renews the zone."""
+    def test_returns_to_active_when_target_reappears(self):
+        """Target goes PENDING then back to ACTIVE when it returns."""
         grid = _make_grid(cols=4, rows=4)
         cell_idx = grid.xy_to_cell(150, 150)
         grid.cells[cell_idx] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
@@ -768,12 +781,32 @@ class TestPendingTargets:
 
         w2 = _make_window([(0, 0, 0)])
         r2 = engine._tick(w2, t + 1.0)
-        assert len(r2.pending_targets) == 1
+        assert r2.targets[0].status == TargetStatus.PENDING
 
         w3 = _make_window([(150, 150, 8)])
         r3 = engine._tick(w3, t + 2.0)
         assert r3.zone_occupancy[1] is True
-        assert r3.pending_targets == []
+        assert r3.targets[0].status == TargetStatus.ACTIVE
+
+    def test_handoff_target_not_pending_in_source(self):
+        """Handoff target is not PENDING — it moved to the new zone."""
+        grid = _make_grid(cols=8, rows=4)
+        cell1 = grid.xy_to_cell(150, 150)
+        cell2 = grid.xy_to_cell(450, 150)
+        grid.cells[cell1] = CELL_ROOM_BIT | (1 << CELL_ZONE_SHIFT)
+        grid.cells[cell2] = CELL_ROOM_BIT | (2 << CELL_ZONE_SHIFT)
+
+        zone1 = Zone(id=1, name="Z1", type=ZONE_TYPE_ENTRANCE, trigger=3, renew=3, timeout=10.0)
+        zone2 = Zone(id=2, name="Z2", type=ZONE_TYPE_ENTRANCE, trigger=3, renew=3, timeout=10.0)
+        engine = ZoneEngine(grid=grid, zones=[zone1, zone2])
+
+        t = 100.0
+        w1 = _make_window([(150, 150, 8)])
+        engine._tick(w1, t)
+
+        w2 = _make_window([(450, 150, 8)])
+        r2 = engine._tick(w2, t + 1.0)
+        assert r2.targets[0].status == TargetStatus.ACTIVE
 
 
 # ===================================================================
