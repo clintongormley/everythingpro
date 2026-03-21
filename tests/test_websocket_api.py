@@ -539,19 +539,19 @@ async def test_subscribe_display_tracks_subscriber_count(hass: HomeAssistant, ha
 
 
 # ---------------------------------------------------------------------------
-# subscribe_raw_targets
+# subscribe_grid_targets
 # ---------------------------------------------------------------------------
 
 
-async def test_subscribe_raw_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
-    """subscribe_raw_targets sends initial state with raw positions and target_count."""
+async def test_subscribe_grid_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_grid_targets sends initial state with grid positions, sensors, and zones."""
     entry = setup_integration
     ws_client = await hass_ws_client(hass)
 
     await ws_client.send_json(
         {
             "id": 1,
-            "type": "everything_presence_pro/subscribe_raw_targets",
+            "type": "everything_presence_pro/subscribe_grid_targets",
             "entry_id": entry.entry_id,
         }
     )
@@ -563,23 +563,46 @@ async def test_subscribe_raw_targets(hass: HomeAssistant, hass_ws_client, setup_
     msg = await ws_client.receive_json()
     assert msg["type"] == "event"
     event = msg["event"]
-    assert "target_count" in event
-    assert "targets" in event
+
+    # Verify target structure — grid positions + cached state
     assert len(event["targets"]) == 3
     for t in event["targets"]:
-        assert "raw_x" in t
-        assert "raw_y" in t
-        assert len(t) == 2  # only raw_x and raw_y, nothing else
+        assert "x" in t
+        assert "y" in t
+        assert "signal" in t
+        assert "status" in t
+        assert t["status"] in ("active", "pending", "inactive")
+        # No raw_x/raw_y — that's subscribe_raw_targets
+        assert "raw_x" not in t
+        assert "raw_y" not in t
+
+    # Verify sensors
+    sensors = event["sensors"]
+    assert "occupancy" in sensors
+    assert "static_presence" in sensors
+    assert "motion_presence" in sensors
+    assert "target_presence" in sensors
+    assert "illuminance" in sensors
+    assert "temperature" in sensors
+    assert "humidity" in sensors
+    assert "co2" in sensors
+
+    # Verify zones
+    zones = event["zones"]
+    assert "occupancy" in zones
+    assert "target_counts" in zones
+    assert "frame_count" in zones
+    assert "debug_log" in zones
 
 
-async def test_subscribe_raw_targets_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
-    """subscribe_raw_targets with invalid entry_id returns error."""
+async def test_subscribe_grid_targets_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_grid_targets with invalid entry_id returns error."""
     ws_client = await hass_ws_client(hass)
 
     await ws_client.send_json(
         {
             "id": 1,
-            "type": "everything_presence_pro/subscribe_raw_targets",
+            "type": "everything_presence_pro/subscribe_grid_targets",
             "entry_id": "bad_id",
         }
     )
@@ -588,8 +611,8 @@ async def test_subscribe_raw_targets_not_found(hass: HomeAssistant, hass_ws_clie
     assert msg["error"]["code"] == "not_found"
 
 
-async def test_subscribe_raw_targets_tracks_subscriber_count(hass: HomeAssistant, hass_ws_client, setup_integration):
-    """subscribe_raw_targets increments/decrements the display subscriber count."""
+async def test_subscribe_grid_targets_tracks_subscriber_count(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_grid_targets increments/decrements the display subscriber count."""
     entry = setup_integration
     coordinator = entry.runtime_data
     assert coordinator.display_subscriber_count == 0
@@ -599,7 +622,7 @@ async def test_subscribe_raw_targets_tracks_subscriber_count(hass: HomeAssistant
     await ws_client.send_json(
         {
             "id": 1,
-            "type": "everything_presence_pro/subscribe_raw_targets",
+            "type": "everything_presence_pro/subscribe_grid_targets",
             "entry_id": entry.entry_id,
         }
     )

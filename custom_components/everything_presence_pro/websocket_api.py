@@ -52,6 +52,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_subscribe_targets)
     websocket_api.async_register_command(hass, websocket_subscribe_display)
     websocket_api.async_register_command(hass, websocket_subscribe_raw_targets)
+    websocket_api.async_register_command(hass, websocket_subscribe_grid_targets)
     websocket_api.async_register_command(hass, websocket_rename_zone_entities)
     websocket_api.async_register_command(hass, websocket_set_reporting)
 
@@ -616,6 +617,88 @@ async def websocket_subscribe_raw_targets(
         raw_list = [{"raw_x": t.raw_x, "raw_y": t.raw_y} for t in targets]
         target_count = sum(1 for t in targets if t.raw_x != 0.0 or t.raw_y != 0.0)
         return {"target_count": target_count, "targets": raw_list}
+
+    @callback
+    def _forward() -> None:
+        connection.send_message(
+            websocket_api.event_message(msg["id"], _build_payload())
+        )
+
+    coordinator.increment_display_subscribers()
+
+    connection.send_result(msg["id"])
+    connection.send_message(
+        websocket_api.event_message(msg["id"], _build_payload())
+    )
+
+    from homeassistant.helpers.dispatcher import async_dispatcher_connect
+
+    unsub = async_dispatcher_connect(
+        hass,
+        f"{SIGNAL_DISPLAY_UPDATED}_{msg['entry_id']}",
+        _forward,
+    )
+
+    @callback
+    def _unsub_all() -> None:
+        unsub()
+        coordinator.decrement_display_subscribers()
+
+    connection.subscriptions[msg["id"]] = _unsub_all
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "everything_presence_pro/subscribe_grid_targets",
+        vol.Required("entry_id"): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_subscribe_grid_targets(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle subscribe_grid_targets — 5 Hz grid positions + cached 1 Hz state."""
+    coordinator = _get_coordinator(hass, msg["entry_id"])
+    if coordinator is None:
+        connection.send_error(msg["id"], "not_found", "Config entry not found")
+        return
+
+    def _build_payload() -> dict[str, Any]:
+        snap = coordinator.last_display_snapshot
+        display = snap.targets if snap else [DisplayTarget()] * MAX_TARGETS
+        result = coordinator.last_result
+        ztargets = list(result.targets) if result else []
+        while len(ztargets) < MAX_TARGETS:
+            ztargets.append(TargetResult())
+        return {
+            "targets": [
+                {
+                    "x": d.x,
+                    "y": d.y,
+                    "signal": t.signal,
+                    "status": t.status.value,
+                }
+                for d, t in zip(display, ztargets, strict=False)
+            ],
+            "sensors": {
+                "occupancy": coordinator.device_occupied,
+                "static_presence": coordinator.static_present,
+                "motion_presence": coordinator.pir_motion,
+                "target_presence": coordinator.target_present,
+                "illuminance": coordinator.illuminance,
+                "temperature": coordinator.temperature,
+                "humidity": coordinator.humidity,
+                "co2": coordinator.co2,
+            },
+            "zones": {
+                "frame_count": result.frame_count,
+                "occupancy": result.zone_occupancy,
+                "target_counts": result.zone_target_counts,
+                "debug_log": result.debug_log,
+            },
+        }
 
     @callback
     def _forward() -> None:
