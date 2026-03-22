@@ -1419,7 +1419,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	private _smoothBuffer: SmoothBufferEntry[] = [];
 
 	private _getSmoothedRaw(): { x: number; y: number } | null {
-		const active = this._targets.find((t) => t.raw_x !== 0 || t.raw_y !== 0);
+		const active = this._targets.find((t) => t.raw_x != null && t.raw_y != null);
 		if (!active) return null;
 
 		const result = getSmoothedValue(
@@ -1442,7 +1442,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	}
 
 	private _wizardStartCapture(): void {
-		const active = this._targets.find((t) => t.raw_x !== 0 || t.raw_y !== 0);
+		const active = this._targets.find((t) => t.raw_x != null && t.raw_y != null);
 		if (!active) return;
 
 		this._wizardCapturing = true;
@@ -1464,7 +1464,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 			// Check target count: exactly 1 active target required
 			const activeTargets = this._targets.filter(
-				(t) => t.raw_x !== 0 || t.raw_y !== 0,
+				(t) => t.raw_x != null && t.raw_y != null,
 			);
 			const valid = activeTargets.length === 1;
 			this._wizardCapturePaused = !valid;
@@ -3442,7 +3442,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	private _renderWizardCorners() {
 		const idx = this._wizardCornerIndex;
 		const activeTargets = this._targets.filter(
-			(t) => t.raw_x !== 0 || t.raw_y !== 0,
+			(t) => t.raw_x != null && t.raw_y != null,
 		);
 		const hasTarget = activeTargets.length > 0;
 		const tooManyTargets = activeTargets.length > 1;
@@ -3660,7 +3660,7 @@ export class EverythingPresenceProPanel extends LitElement {
 						})}
           <!-- Live targets (per-target colors) -->
           ${this._targets.map((t, i) =>
-						t.raw_x !== 0 || t.raw_y !== 0
+						t.raw_x != null && t.raw_y != null
 							? html`
               <div
                 class="mini-grid-target"
@@ -3893,7 +3893,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
           <!-- Target dots -->
           ${this._targets.map((t, i) => {
-						if (t.raw_x === 0 && t.raw_y === 0) return nothing;
+						if (t.raw_x == null || t.raw_y == null) return nothing;
 						// Map raw coords to FOV using same linear mapping as calibration view
 						const tx = cx + (t.raw_x / 6000) * maxR * Math.sin(Math.PI / 3);
 						const ty = cy + (t.raw_y / 6000) * maxR;
@@ -4559,7 +4559,7 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
             <div class="targets-overlay" style="pointer-events: none;">
               ${this._targets.map((t, i) => {
-								if (t.x === 0 && t.y === 0) return nothing;
+								if (t.x == null || t.y == null) return nothing;
 								const pos = this._mapTargetToGridCell(t);
 								if (!pos) return nothing;
 								const xPct = ((pos.col - minCol) / visCols) * 100;

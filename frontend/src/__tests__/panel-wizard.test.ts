@@ -131,8 +131,8 @@ describe("_wizardStartCapture", () => {
 			{
 				x: 0,
 				y: 0,
-				raw_x: 0,
-				raw_y: 0,
+				raw_x: null,
+				raw_y: null,
 				speed: 0,
 				status: "inactive" as const,
 				signal: 0,

@@ -315,12 +315,16 @@ class TumblingWindow:
 
 @dataclass
 class DisplayTarget:
-    """A single target's display-only position data."""
+    """A single target's display-only position data.
 
-    x: float = 0.0
-    y: float = 0.0
-    raw_x: float = 0.0
-    raw_y: float = 0.0
+    Inactive targets use None for positions so (0,0) remains a valid
+    coordinate.  Serialises to JSON null.
+    """
+
+    x: float | None = None
+    y: float | None = None
+    raw_x: float | None = None
+    raw_y: float | None = None
     active: bool = False
     frame_count: int = 0
 
