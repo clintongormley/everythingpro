@@ -17,6 +17,7 @@ from .const import MAX_ZONES
 from .coordinator import SIGNAL_SENSORS_UPDATED
 from .coordinator import SIGNAL_TARGETS_UPDATED
 from .coordinator import EverythingPresenceProCoordinator
+from .zone_engine import TargetStatus
 
 
 async def async_setup_entry(
@@ -228,7 +229,7 @@ class EverythingPresenceProTargetActiveSensor(BinarySensorEntity):
         targets = self._coordinator.targets
         if self._index >= len(targets):
             return False
-        return targets[self._index][2]
+        return targets[self._index].status == TargetStatus.ACTIVE
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to target updates."""
