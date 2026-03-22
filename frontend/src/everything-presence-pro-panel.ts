@@ -1463,7 +1463,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			lastTick = now;
 
 			// Check target count: exactly 1 active target required
-			const activeTargets = this._targets.filter((t) => t.status === "active");
+			const activeTargets = this._targets.filter((t) => t.raw_x !== 0 || t.raw_y !== 0);
 			const valid = activeTargets.length === 1;
 			this._wizardCapturePaused = !valid;
 
@@ -3439,7 +3439,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderWizardCorners() {
 		const idx = this._wizardCornerIndex;
-		const activeTargets = this._targets.filter((t) => t.status === "active");
+		const activeTargets = this._targets.filter((t) => t.raw_x !== 0 || t.raw_y !== 0);
 		const hasTarget = activeTargets.length > 0;
 		const tooManyTargets = activeTargets.length > 1;
 		const allMarked = this._wizardCorners.every((c) => c !== null);
@@ -3656,7 +3656,7 @@ export class EverythingPresenceProPanel extends LitElement {
 						})}
           <!-- Live targets (per-target colors) -->
           ${this._targets.map((t, i) =>
-						t.status === "active"
+						t.raw_x !== 0 || t.raw_y !== 0
 							? html`
               <div
                 class="mini-grid-target"
