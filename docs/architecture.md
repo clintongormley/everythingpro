@@ -217,17 +217,26 @@ Commands registered once per hass instance:
 | `set_setup` | Save perspective transform and room dimensions |
 | `set_zones` | Update zone configuration |
 | `set_room_layout` | Save grid bytes, zone slots, furniture; manages zone entity enable/disable |
-| `subscribe_targets` | Stream live target, sensor, and zone data |
+| `subscribe_raw_targets` | 5 Hz smoothed sensor-space positions (calibration, FOV overlay) |
+| `subscribe_grid_targets` | 5 Hz grid positions + cached 1 Hz zone/sensor state (grid view, zone editor) |
 | `rename_zone_entities` | Batch-rename zone entity IDs |
 | `set_reporting` | Toggle which entities are enabled; set sensor offsets |
 
-`subscribe_targets` is the live data channel. It registers dispatcher
-callbacks and sends a JSON message on each update:
+Two live data subscriptions, both driven by the DisplayBuffer rolling median:
 
+**`subscribe_raw_targets`** (5 Hz) — sensor-space positions for calibration and FOV overlay:
 ```json
 {
-  "targets": [{"x", "y", "status", "raw_x", "raw_y", "signal"}, ...],
-  "sensors": {"occupancy", "static_presence", "pir_motion", "target_presence", "illuminance", "temperature", "humidity", "co2"},
+  "target_count": 1,
+  "targets": [{"raw_x": 1234.0, "raw_y": 2100.0}, ...]
+}
+```
+
+**`subscribe_grid_targets`** (5 Hz positions, 1 Hz cached state) — calibrated grid positions plus zone engine state:
+```json
+{
+  "targets": [{"x": 1500, "y": 2000, "signal": 7, "status": "active"}, ...],
+  "sensors": {"occupancy", "static_presence", "motion_presence", "target_presence", "illuminance", "temperature", "humidity", "co2"},
   "zones": {"occupancy": {id: bool}, "target_counts": {id: int}, "frame_count": int, "debug_log": str}
 }
 ```
@@ -264,7 +273,8 @@ three views: live overview, editor, and settings.
 
 **Initialization:** On connect, loads entries via `list_entries`, loads
 config via `get_config`, and subscribes to live target data via
-`subscribe_targets`.
+`subscribe_grid_targets` (grid positions + state) and `subscribe_raw_targets`
+(sensor-space positions for FOV overlay).
 
 **Live Overview** — Renders the calibrated grid with target dots, zone
 occupancy overlays, environment sensor readouts, and presence status
