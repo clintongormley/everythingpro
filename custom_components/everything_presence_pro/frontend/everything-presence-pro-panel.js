@@ -361,7 +361,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
         >${this._saving?this._localize("common.saving"):this._localize("common.save")}</button>
       </div>
     `}_renderLiveOverview(){return G`
-      <div class="panel" @click=${e=>{this._showLiveMenu&&!e.target.closest(".sidebar-menu-wrapper")&&(this._showLiveMenu=!1)}}>
+      <div class="panel" @click=${e=>{e.target instanceof Element&&this._showLiveMenu&&!e.target.closest(".sidebar-menu-wrapper")&&(this._showLiveMenu=!1)}}>
         ${this._renderHeader()}
         <div class="editor-layout">
           <div style="flex: 1; min-width: 0;">

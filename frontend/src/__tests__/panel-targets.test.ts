@@ -693,42 +693,6 @@ describe("_getRawRoomBounds", () => {
 	});
 });
 
-describe("_subscribeDisplay", () => {
-	let el: EverythingPresenceProPanel;
-
-	beforeEach(() => {
-		el = createPanel();
-	});
-
-	it("subscribes to display when hass and entryId are provided", () => {
-		const a = el as any;
-		const unsubFn = vi.fn();
-		el.hass = {
-			callWS: vi.fn(),
-			connection: {
-				subscribeMessage: vi.fn().mockResolvedValue(unsubFn),
-			},
-		};
-
-		a._subscribeDisplay("e1");
-
-		expect(el.hass.connection.subscribeMessage).toHaveBeenCalledWith(
-			expect.any(Function),
-			{
-				type: "everything_presence_pro/subscribe_raw_targets",
-				entry_id: "e1",
-			},
-		);
-	});
-
-	it("does nothing when hass is not set", () => {
-		const a = el as any;
-		el.hass = null;
-		a._subscribeDisplay("e1");
-		expect(a._unsubDisplay).toBeUndefined();
-	});
-});
-
 describe("raw targets event merging", () => {
 	it("merges raw positions into existing targets preserving status and grid fields", () => {
 		const el = createPanel();

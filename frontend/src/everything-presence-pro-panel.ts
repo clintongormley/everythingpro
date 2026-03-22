@@ -3700,11 +3700,9 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderLiveOverview() {
 		return html`
-      <div class="panel" @click=${(e: Event) => {
-				if (
-					this._showLiveMenu &&
-					!(e.target as HTMLElement).closest(".sidebar-menu-wrapper")
-				) {
+      <div class="panel" @click=${(e: MouseEvent) => {
+				if (!(e.target instanceof Element)) return;
+				if (this._showLiveMenu && !e.target.closest(".sidebar-menu-wrapper")) {
 					this._showLiveMenu = false;
 				}
 			}}>

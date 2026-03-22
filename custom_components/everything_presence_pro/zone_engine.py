@@ -353,13 +353,14 @@ class DisplayBuffer:
     ) -> DisplaySnapshot:
         """Feed calibrated and raw target data, return display snapshot.
 
-        calibrated tuples: (x, y, inside_room) — room-gated by the grid.
+        calibrated tuples: (x, y, inside_room) — calibrated positions; the
+        inside_room flag is informational but does not gate accumulation.
         raw tuples: (x, y, esphome_active) — always set when sensor tracks.
 
-        All deques accumulate whenever the sensor is tracking (esphome_active).
-        This ensures subscribe_grid_targets always has smoothed positions
-        for calibration and zone editing, independent of the backend's
-        room grid.  Room gating is handled by the zone engine.
+        All deques accumulate whenever the sensor is tracking (esphome_active),
+        regardless of room membership.  This ensures subscribe_grid_targets
+        always has smoothed positions for calibration and zone editing.
+        Room gating is handled by the zone engine.
         """
         targets: list[DisplayTarget] = []
         for i in range(MAX_TARGETS):
