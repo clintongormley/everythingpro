@@ -536,8 +536,14 @@ class EverythingPresenceProCoordinator:
     def _schedule_rebuild(self) -> None:
         """Feed raw target data to the zone engine on each state update."""
         now = time.monotonic()
-        calibrated = self._build_calibrated_targets()
-        raw = [(self._target_x[i], self._target_y[i], self._target_active[i]) for i in range(MAX_TARGETS)]
+        # Gate out targets with y==0 — the LD2450 reports this transiently
+        # before it has a range fix, producing a bogus initial position.
+        active = [
+            self._target_active[i] and self._target_y[i] != 0
+            for i in range(MAX_TARGETS)
+        ]
+        calibrated = self._build_calibrated_targets(active)
+        raw = [(self._target_x[i], self._target_y[i], active[i]) for i in range(MAX_TARGETS)]
 
         result = self._zone_engine.feed_raw(calibrated, now)
 
@@ -608,7 +614,9 @@ class EverythingPresenceProCoordinator:
         # If more zones are still pending, schedule the next expiry
         self._schedule_expiry_tick()
 
-    def _build_calibrated_targets(self) -> list[tuple[float, float, bool]]:
+    def _build_calibrated_targets(
+        self, active: list[bool],
+    ) -> list[tuple[float, float, bool]]:
         """Build calibrated target list from current raw state.
 
         The third element indicates the target is active AND inside the
@@ -617,7 +625,7 @@ class EverythingPresenceProCoordinator:
         grid = self._zone_engine.grid
         calibrated: list[tuple[float, float, bool]] = []
         for i in range(MAX_TARGETS):
-            if self._target_active[i]:
+            if active[i]:
                 cx, cy = self._sensor_transform.apply(self._target_x[i], self._target_y[i])
                 cell = grid.xy_to_cell(cx, cy)
                 inside = cell is not None and grid.cell_is_room(cell)

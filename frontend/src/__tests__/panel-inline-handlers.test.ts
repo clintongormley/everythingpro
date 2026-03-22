@@ -43,6 +43,7 @@ function createPanel(): EverythingPresenceProPanel {
 	];
 	a._selectedEntryId = "e1";
 	a._targets = [];
+	a._rawTargets = [];
 	a._sensorState = {
 		occupancy: false,
 		static_presence: false,
@@ -129,8 +130,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -149,8 +148,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 0,
@@ -168,8 +165,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "pending" as const,
 				signal: 5,
@@ -187,8 +182,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 999999,
 				y: 999999,
-				raw_x: 999999,
-				raw_y: 999999,
 				speed: 0,
 				status: "active" as const,
 				signal: 5,
@@ -207,8 +200,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: -1000,
 				y: -1000,
-				raw_x: -1000,
-				raw_y: -1000,
 				speed: 0,
 				status: "active" as const,
 				signal: 5,
@@ -241,8 +232,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -275,8 +264,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 9, // high signal, above gated threshold
@@ -316,8 +303,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -371,8 +356,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 3000,
 				y: 1000,
-				raw_x: 3000,
-				raw_y: 1000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -385,8 +368,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 3000,
 				y: 5000,
-				raw_x: 3000,
-				raw_y: 5000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -424,8 +405,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 1, // low signal, below gated threshold
@@ -460,8 +439,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 2, // below threshold
@@ -503,8 +480,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -537,8 +512,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 5,
@@ -546,8 +519,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 1000,
 				y: 1000,
-				raw_x: 1000,
-				raw_y: 1000,
 				speed: 0,
 				status: "active" as const,
 				signal: 3,
@@ -555,8 +526,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 2000,
 				y: 3000,
-				raw_x: 2000,
-				raw_y: 3000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -615,8 +584,6 @@ describe("zone engine in _renderVisibleCells", () => {
 			{
 				x: 3000,
 				y: 5000,
-				raw_x: 3000,
-				raw_y: 5000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -947,15 +914,10 @@ describe("_applyLayout zone/furniture serialization", () => {
 describe("_wizardStartCapture cancellation", () => {
 	it("cancels capture when _wizardCaptureCancelled is set", async () => {
 		const a = createPanel() as any;
-		a._targets = [
+		a._rawTargets = [
 			{
-				x: 100,
-				y: 200,
 				raw_x: 100,
 				raw_y: 200,
-				speed: 0,
-				status: "active" as const,
-				signal: 5,
 			},
 		];
 

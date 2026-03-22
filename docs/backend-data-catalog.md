@@ -37,6 +37,8 @@ All data comes from ESPHome API subscriptions via the coordinator.
 | `resolution` | float (mm) | LD2450 resolution quality |
 | `active` | bool | target being tracked |
 
+**Zero-range gating:** The LD2450 transiently reports `y=0` before it has a range fix. The coordinator gates these out — targets with `y=0` are treated as inactive in both `subscribe_grid_targets` and `subscribe_raw_targets`, preventing bogus initial positions.
+
 ### Per-Zone (x8: zone 0 "rest of room" + zones 1-7)
 
 | Data | Type | Source |
@@ -61,23 +63,32 @@ All data comes from ESPHome API subscriptions via the coordinator.
 
 ## 2. Live Overview
 
-The live overview uses two websocket subscriptions at 5 Hz:
+The live overview uses two independent websocket subscriptions at 5 Hz, each writing to its own frontend array:
 
-- `subscribe_grid_targets` — grid view with calibrated room-space positions and zone state
-- `subscribe_raw_targets` — FOV overlay with smoothed sensor-space positions
+- `subscribe_grid_targets` → `_targets[]` — grid view with calibrated room-space positions and zone state
+- `subscribe_raw_targets` → `_rawTargets[]` — FOV overlay and calibration wizard with smoothed sensor-space positions
+
+These are never merged. Each subscription writes directly to its own array to avoid cross-subscription lag.
 
 See [section 5](#subscriptions-live-data) for API details.
 
-### `targets[]` (up to 3, from `subscribe_grid_targets`)
+### `_targets[]` (up to 3, from `subscribe_grid_targets`)
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `x` | float (mm) | calibrated room-space, rolling median smoothed (from `subscribe_grid_targets`) |
+| `x` | float (mm) | calibrated room-space, rolling median smoothed |
 | `y` | float (mm) | calibrated room-space, rolling median smoothed |
 | `signal` | int 0-9 | from zone engine (cached, updates at 1Hz) |
 | `status` | string | `"active"`, `"pending"`, or `"inactive"` — room-gated (cached, 1Hz) |
 
-Raw positions for the FOV overlay come from `subscribe_raw_targets`.
+### `_rawTargets[]` (up to 3, from `subscribe_raw_targets`)
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `raw_x` | float (mm) | sensor-space, rolling median smoothed |
+| `raw_y` | float (mm) | sensor-space, rolling median smoothed |
+
+Used by: FOV overlay (uncalibrated view), calibration wizard corner capture, mini sensor view.
 
 ### `sensors`
 
@@ -113,9 +124,10 @@ The calibration wizard uses `subscribe_raw_targets` (5 Hz) for smoothed raw targ
 
 | Data | Type | Notes |
 |------|------|-------|
-| `raw_x` | float (mm) | per-target, range +/-6000, rolling median smoothed |
-| `raw_y` | float (mm) | per-target, range 0-6000, rolling median smoothed |
-| `target_count` | int | 0 = no targets, must be exactly 1 for capture |
+| `raw_x` | float (mm) | per-target, range +/-6000, rolling median smoothed; `null` when inactive |
+| `raw_y` | float (mm) | per-target, range 0-6000, rolling median smoothed; `null` when inactive |
+
+Target count is derived frontend-side by filtering for non-null positions (must be exactly 1 for capture).
 
 ### Wizard captures (frontend-computed)
 
@@ -214,11 +226,10 @@ Used by the room calibration wizard and the FOV overlay on the live overview scr
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `target_count` | int 0-3 | number of targets the sensor is currently tracking |
-| `targets[].raw_x` | float (mm) | sensor-space, rolling median smoothed (always available when sensor is tracking) |
-| `targets[].raw_y` | float (mm) | sensor-space, rolling median smoothed |
+| `targets[].raw_x` | float (mm) | sensor-space, rolling median smoothed; `null` when inactive |
+| `targets[].raw_y` | float (mm) | sensor-space, rolling median smoothed; `null` when inactive |
 
-Raw positions are always available when the sensor detects a target, even if the target falls outside the calibrated room grid. This is what makes room calibration work — targets are visible before/during calibration when no room grid exists yet.
+No `target_count` field — the frontend derives the count by filtering for non-null positions. Raw positions are always available when the sensor detects a target, even if the target falls outside the calibrated room grid. This is what makes room calibration work — targets are visible before/during calibration when no room grid exists yet.
 
 **Used by:** room calibration wizard, FOV overlay.
 
@@ -346,14 +357,14 @@ Batch-renames zone entity IDs via the entity registry.
 
 ### Frontend screen -> API mapping
 
-| Screen | Subscriptions | Fields used | Commands |
-|--------|---------------|-------------|----------|
-| Device picker | — | — | `list_entries` |
-| Room calibration | `subscribe_raw_targets` | `target_count`, `raw_x`, `raw_y` | `set_setup` |
-| Live overview (FOV) | `subscribe_raw_targets` | `target_count`, `raw_x`, `raw_y` | — |
-| Live overview (grid) | `subscribe_grid_targets` | all fields | `get_config` |
-| Detection zone editor | `subscribe_grid_targets` | `x`, `y`, `signal` (ignores `status`) | `set_room_layout`, `rename_zone_entities` |
-| Reporting settings | — | — | `get_config`, `set_reporting` |
+| Screen | Subscriptions | Frontend array | Fields used | Commands |
+|--------|---------------|----------------|-------------|----------|
+| Device picker | — | — | — | `list_entries` |
+| Room calibration | `subscribe_raw_targets` | `_rawTargets` | `raw_x`, `raw_y` | `set_setup` |
+| Live overview (FOV) | `subscribe_raw_targets` | `_rawTargets` | `raw_x`, `raw_y` | — |
+| Live overview (grid) | `subscribe_grid_targets` | `_targets` | all fields | `get_config` |
+| Detection zone editor | `subscribe_grid_targets` | `_targets` | `x`, `y`, `signal` (ignores `status`) | `set_room_layout`, `rename_zone_entities` |
+| Reporting settings | — | — | — | `get_config`, `set_reporting` |
 
 ---
 

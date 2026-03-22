@@ -504,7 +504,7 @@ async def test_subscribe_grid_targets_tracks_subscriber_count(hass: HomeAssistan
 
 
 async def test_subscribe_raw_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
-    """subscribe_raw_targets sends initial state with raw positions and target_count."""
+    """subscribe_raw_targets sends initial state with raw positions."""
     entry = setup_integration
     ws_client = await hass_ws_client(hass)
 
@@ -523,7 +523,7 @@ async def test_subscribe_raw_targets(hass: HomeAssistant, hass_ws_client, setup_
     msg = await ws_client.receive_json()
     assert msg["type"] == "event"
     event = msg["event"]
-    assert "target_count" in event
+    assert "target_count" not in event
     assert "targets" in event
     assert len(event["targets"]) == 3
     for t in event["targets"]:

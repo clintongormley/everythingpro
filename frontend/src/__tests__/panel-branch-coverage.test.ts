@@ -146,9 +146,7 @@ describe("target subscription null coalescing branches", () => {
 			},
 		});
 
-		// raw_x/raw_y are null until subscribe_raw_targets delivers
-		expect(a._targets[0].raw_x).toBeNull();
-		expect(a._targets[0].raw_y).toBeNull();
+		// Target no longer carries raw_x/raw_y — those live in _rawTargets
 		expect(a._targets[0].signal).toBe(0);
 
 		// Sensor state should use defaults
@@ -214,8 +212,6 @@ describe("zone engine branch coverage", () => {
 			{
 				x: -5000,
 				y: -5000,
-				raw_x: -5000,
-				raw_y: -5000,
 				speed: 0,
 				status: "active" as const,
 				signal: 5,
@@ -290,8 +286,6 @@ describe("zone engine branch coverage", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -359,8 +353,6 @@ describe("zone engine branch coverage", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 9,
@@ -404,8 +396,6 @@ describe("zone engine branch coverage", () => {
 			{
 				x: 3000,
 				y: 5500,
-				raw_x: 3000,
-				raw_y: 5500,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -423,8 +413,6 @@ describe("zone engine branch coverage", () => {
 			{
 				x: -10000,
 				y: -10000,
-				raw_x: -10000,
-				raw_y: -10000,
 				speed: 0,
 				status: "active" as const,
 				signal: 5,
@@ -450,15 +438,10 @@ describe("wizard corner offset edge cases", () => {
 		const a = createPanel() as any;
 		a._wizardCorners = [null, null, null, null];
 		a._wizardCornerIndex = 0;
-		a._targets = [
+		a._rawTargets = [
 			{
-				x: 0,
-				y: 0,
 				raw_x: 0,
 				raw_y: 0,
-				speed: 0,
-				status: "active" as const,
-				signal: 5,
 			},
 		];
 
@@ -516,8 +499,6 @@ describe("_renderEditor target rendering branches", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "pending" as const,
 				signal: 3,
@@ -536,8 +517,6 @@ describe("_renderEditor target rendering branches", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -556,8 +535,6 @@ describe("_renderEditor target rendering branches", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "pending" as const,
 				signal: 7,
@@ -581,8 +558,6 @@ describe("_renderLiveGrid target branches", () => {
 			{
 				x: 100,
 				y: 200,
-				raw_x: 100,
-				raw_y: 200,
 				speed: 0,
 				status: "active" as const,
 				signal: 5,
@@ -599,8 +574,6 @@ describe("_renderLiveGrid target branches", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 5,
@@ -608,8 +581,6 @@ describe("_renderLiveGrid target branches", () => {
 			{
 				x: 1000,
 				y: 1000,
-				raw_x: 1000,
-				raw_y: 1000,
 				speed: 0,
 				status: "active" as const,
 				signal: 3,
@@ -617,8 +588,6 @@ describe("_renderLiveGrid target branches", () => {
 			{
 				x: 2000,
 				y: 3000,
-				raw_x: 2000,
-				raw_y: 3000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -1183,15 +1152,10 @@ describe("corner chip click with null offsets", () => {
 			null,
 			null,
 		];
-		a._targets = [
+		a._rawTargets = [
 			{
-				x: 0,
-				y: 0,
 				raw_x: 0,
 				raw_y: 0,
-				speed: 0,
-				status: "active" as const,
-				signal: 5,
 			},
 		];
 
@@ -1262,8 +1226,6 @@ describe("editor target signal display branches", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 0,
@@ -1281,33 +1243,18 @@ describe("uncalibrated FOV target color", () => {
 	it("uses fallback color for target index >= 3", () => {
 		const a = createPanel() as any;
 		a._perspective = null;
-		a._targets = [
+		a._rawTargets = [
 			{
-				x: 100,
-				y: 200,
 				raw_x: 100,
 				raw_y: 200,
-				speed: 0,
-				status: "active" as const,
-				signal: 5,
 			},
 			{
-				x: 200,
-				y: 300,
 				raw_x: 200,
 				raw_y: 300,
-				speed: 0,
-				status: "active" as const,
-				signal: 5,
 			},
 			{
-				x: 300,
-				y: 400,
 				raw_x: 300,
 				raw_y: 400,
-				speed: 0,
-				status: "active" as const,
-				signal: 5,
 			},
 		];
 		const tpl = a._renderUncalibratedFov();
@@ -1326,8 +1273,6 @@ describe("live grid hit count and signal", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 7,
@@ -1344,8 +1289,6 @@ describe("live grid hit count and signal", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 0,
@@ -1753,8 +1696,6 @@ describe("_renderVisibleCells debug log branches", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 5,
@@ -1906,8 +1847,6 @@ describe("_renderVisibleCells debug log branches", () => {
 			{
 				x: 1500,
 				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
 				speed: 0,
 				status: "active" as const,
 				signal: 0, // zero signal — skipped
