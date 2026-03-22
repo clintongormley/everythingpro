@@ -78,8 +78,8 @@ interface Target {
 }
 
 interface RawTarget {
-	raw_x: number;
-	raw_y: number;
+	raw_x: number | null;
+	raw_y: number | null;
 }
 
 interface EntryInfo {
@@ -1409,7 +1409,8 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _getSmoothedRaw(): { x: number; y: number } | null {
 		const active = this._rawTargets.find(
-			(t) => t.raw_x != null && t.raw_y != null,
+			(t): t is RawTarget & { raw_x: number; raw_y: number } =>
+				t.raw_x != null && t.raw_y != null,
 		);
 		if (!active) return null;
 
@@ -1457,7 +1458,8 @@ export class EverythingPresenceProPanel extends LitElement {
 
 			// Check target count: exactly 1 active target required
 			const activeRaw = this._rawTargets.filter(
-				(t) => t.raw_x != null && t.raw_y != null,
+				(t): t is RawTarget & { raw_x: number; raw_y: number } =>
+					t.raw_x != null && t.raw_y != null,
 			);
 			const valid = activeRaw.length === 1;
 			this._wizardCapturePaused = !valid;
@@ -1577,7 +1579,10 @@ export class EverythingPresenceProPanel extends LitElement {
 	}
 
 	private _getWizardTargetStyle(target: RawTarget): string {
-		const { xPct, yPct } = this._rawToFovPct(target.raw_x, target.raw_y);
+		const { xPct, yPct } = this._rawToFovPct(
+			target.raw_x ?? 0,
+			target.raw_y ?? 0,
+		);
 		return `left: ${xPct}%; top: ${yPct}%;`;
 	}
 

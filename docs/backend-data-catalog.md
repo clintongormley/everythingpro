@@ -85,8 +85,8 @@ See [section 5](#subscriptions-live-data) for API details.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `raw_x` | float (mm) | sensor-space, rolling median smoothed |
-| `raw_y` | float (mm) | sensor-space, rolling median smoothed |
+| `raw_x` | float\|null (mm) | sensor-space, rolling median smoothed; `null` when inactive |
+| `raw_y` | float\|null (mm) | sensor-space, rolling median smoothed; `null` when inactive |
 
 Used by: FOV overlay (uncalibrated view), calibration wizard corner capture, mini sensor view.
 
