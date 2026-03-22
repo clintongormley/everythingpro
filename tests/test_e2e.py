@@ -265,7 +265,8 @@ async def test_raw_subscription_shows_target(hass: HomeAssistant, hass_ws_client
 
     # Subscribe (increments display_subscriber_count)
     initial = await _subscribe_raw(ws_client, entry.entry_id)
-    assert initial["target_count"] == 0
+    # No target_count in raw subscription — derived frontend-side
+    assert "target_count" not in initial
 
     with patch("custom_components.everything_presence_pro.coordinator.time") as mock_time:
         mock_time.monotonic.return_value = 100.0
@@ -279,7 +280,6 @@ async def test_raw_subscription_shows_target(hass: HomeAssistant, hass_ws_client
     msg = await ws_client.receive_json()
     event = msg["event"]
 
-    assert event["target_count"] == 1
     assert event["targets"][0]["raw_x"] == pytest.approx(1500.0, abs=1)
     assert event["targets"][0]["raw_y"] == pytest.approx(2000.0, abs=1)
     # Other targets are null (inactive)
@@ -348,7 +348,6 @@ async def test_no_calibration_raw_still_visible(hass: HomeAssistant, hass_ws_cli
     event = msg["event"]
 
     # Raw positions visible even without calibration
-    assert event["target_count"] == 1
     assert event["targets"][0]["raw_x"] == pytest.approx(2000.0, abs=1)
     assert event["targets"][0]["raw_y"] == pytest.approx(3000.0, abs=1)
 
@@ -723,15 +722,15 @@ async def test_full_pipeline_target_lifecycle(hass: HomeAssistant, hass_ws_clien
     grid_msg = await ws_client.receive_json()
 
     # Identify which is raw vs grid by checking event structure
-    if "target_count" in raw_msg["event"]:
+    # Grid events have "zones", raw events don't
+    if "zones" in raw_msg["event"]:
+        grid_event = raw_msg["event"]
+        raw_event = grid_msg["event"]
+    else:
         raw_event = raw_msg["event"]
         grid_event = grid_msg["event"]
-    else:
-        raw_event = grid_msg["event"]
-        grid_event = raw_msg["event"]
 
     # Raw subscription: target visible with raw coords
-    assert raw_event["target_count"] == 1
     assert raw_event["targets"][0]["raw_x"] == pytest.approx(1500.0, abs=50)
 
     # Grid subscription: target active in zone 1

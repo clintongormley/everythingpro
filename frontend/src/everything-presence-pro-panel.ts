@@ -72,11 +72,14 @@ type TargetStatus = "active" | "pending" | "inactive";
 interface Target {
 	x: number;
 	y: number;
-	raw_x: number;
-	raw_y: number;
 	speed: number;
 	status: TargetStatus;
 	signal: number;
+}
+
+interface RawTarget {
+	raw_x: number;
+	raw_y: number;
 }
 
 interface EntryInfo {
@@ -405,6 +408,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	}[] = [];
 	@state() private _showRenameDialog = false;
 	@state() private _targets: Target[] = [];
+	@state() private _rawTargets: RawTarget[] = [];
 	@state() private _sensorState: {
 		occupancy: boolean;
 		static_presence: boolean;
@@ -689,18 +693,15 @@ export class EverythingPresenceProPanel extends LitElement {
 		conn
 			.subscribeMessage(
 				(event: any) => {
-					const targets: Target[] = (event.targets || []).map(
-						(t: any, i: number) => ({
+					this._targets = (event.targets || []).map(
+						(t: any) => ({
 							x: t.x,
 							y: t.y,
-							raw_x: this._targets[i]?.raw_x ?? null,
-							raw_y: this._targets[i]?.raw_y ?? null,
 							speed: 0,
 							status: (t.status as TargetStatus) ?? "inactive",
 							signal: t.signal ?? 0,
 						}),
 					);
-					this._targets = targets;
 					if (event.sensors) {
 						this._sensorState = {
 							occupancy: event.sensors.occupancy ?? false,
@@ -762,6 +763,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			this._unsubTargets = undefined;
 		}
 		this._targets = [];
+		this._rawTargets = [];
 	}
 
 	private _subscribeDisplay(entryId: string): void {
@@ -773,21 +775,12 @@ export class EverythingPresenceProPanel extends LitElement {
 		conn
 			.subscribeMessage(
 				(event: any) => {
-					const rawTargets: Array<{
-						raw_x: number;
-						raw_y: number;
-					}> = event.targets || [];
-
-					// Merge raw positions into existing targets
-					this._targets = this._targets.map((t, i) => {
-						const d = rawTargets[i];
-						if (!d) return t;
-						return {
-							...t,
-							raw_x: d.raw_x,
-							raw_y: d.raw_y,
-						};
-					});
+					this._rawTargets = (event.targets || []).map(
+						(t: any) => ({
+							raw_x: t.raw_x,
+							raw_y: t.raw_y,
+						}),
+					);
 				},
 				{
 					type: "everything_presence_pro/subscribe_raw_targets",
@@ -1419,7 +1412,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	private _smoothBuffer: SmoothBufferEntry[] = [];
 
 	private _getSmoothedRaw(): { x: number; y: number } | null {
-		const active = this._targets.find(
+		const active = this._rawTargets.find(
 			(t) => t.raw_x != null && t.raw_y != null,
 		);
 		if (!active) return null;
@@ -1444,7 +1437,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	}
 
 	private _wizardStartCapture(): void {
-		const active = this._targets.find(
+		const active = this._rawTargets.find(
 			(t) => t.raw_x != null && t.raw_y != null,
 		);
 		if (!active) return;
@@ -1467,15 +1460,15 @@ export class EverythingPresenceProPanel extends LitElement {
 			lastTick = now;
 
 			// Check target count: exactly 1 active target required
-			const activeTargets = this._targets.filter(
+			const activeRaw = this._rawTargets.filter(
 				(t) => t.raw_x != null && t.raw_y != null,
 			);
-			const valid = activeTargets.length === 1;
+			const valid = activeRaw.length === 1;
 			this._wizardCapturePaused = !valid;
 
 			if (valid) {
 				goodElapsed += dt;
-				samples.push({ x: activeTargets[0].raw_x, y: activeTargets[0].raw_y });
+				samples.push({ x: activeRaw[0].raw_x, y: activeRaw[0].raw_y });
 			}
 
 			this._wizardCaptureProgress = Math.min(goodElapsed / duration, 1);
@@ -1587,7 +1580,7 @@ export class EverythingPresenceProPanel extends LitElement {
 		return rawToFovPct(rawX, rawY);
 	}
 
-	private _getWizardTargetStyle(target: Target): string {
+	private _getWizardTargetStyle(target: RawTarget): string {
 		const { xPct, yPct } = this._rawToFovPct(target.raw_x, target.raw_y);
 		return `left: ${xPct}%; top: ${yPct}%;`;
 	}
@@ -3445,11 +3438,11 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderWizardCorners() {
 		const idx = this._wizardCornerIndex;
-		const activeTargets = this._targets.filter(
+		const activeRaw = this._rawTargets.filter(
 			(t) => t.raw_x != null && t.raw_y != null,
 		);
-		const hasTarget = activeTargets.length > 0;
-		const tooManyTargets = activeTargets.length > 1;
+		const hasTarget = activeRaw.length > 0;
+		const tooManyTargets = activeRaw.length > 1;
 		const allMarked = this._wizardCorners.every((c) => c !== null);
 		const label = CORNER_LABELS[idx] || "";
 		const [sideLabel, fbLabel] = CORNER_OFFSET_LABELS[idx] || ["", ""];
@@ -3663,7 +3656,7 @@ export class EverythingPresenceProPanel extends LitElement {
               `;
 						})}
           <!-- Live targets (per-target colors) -->
-          ${this._targets.map((t, i) =>
+          ${this._rawTargets.map((t, i) =>
 						t.raw_x != null && t.raw_y != null
 							? html`
               <div
@@ -3894,11 +3887,15 @@ export class EverythingPresenceProPanel extends LitElement {
           <line x1="${cx}" y1="${cy}" x2="${ex2}" y2="${ey2}" stroke="${fovColor}" stroke-width="0.5" opacity="0.2"/>
 
           <!-- Target dots -->
-          ${this._targets.map((t, i) => {
+          ${this._rawTargets.map((t, i) => {
 						if (t.raw_x == null || t.raw_y == null) return nothing;
-						// Map raw coords to FOV using same linear mapping as calibration view
-						const tx = cx + (t.raw_x / 6000) * maxR * Math.sin(Math.PI / 3);
-						const ty = cy + (t.raw_y / 6000) * maxR;
+						// Polar mapping: convert raw x/y to true angle + distance
+						const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
+						const angle = Math.atan2(t.raw_x, t.raw_y);
+						const r = Math.min(dist / 6000, 1) * maxR;
+						const svgAngle = Math.PI / 2 - angle;
+						const tx = cx + r * Math.cos(svgAngle);
+						const ty = cy + r * Math.sin(svgAngle);
 						return svg`<circle cx="${tx}" cy="${ty}" r="5" fill="${TARGET_COLORS[i] || TARGET_COLORS[0]}"/>`;
 					})}
 

@@ -404,8 +404,9 @@ class TestBuildCalibratedTargetsGridGating:
         coord._target_active = [True, False, False]
         coord._target_x = [1500.0, 0.0, 0.0]
         coord._target_y = [1500.0, 0.0, 0.0]
+        active = list(coord._target_active)
 
-        result = coord._build_calibrated_targets()
+        result = coord._build_calibrated_targets(active)
 
         assert result[0][2] is True
         assert result[0][0] == pytest.approx(1500.0)
@@ -417,8 +418,9 @@ class TestBuildCalibratedTargetsGridGating:
         coord._target_active = [True, False, False]
         coord._target_x = [9000.0, 0.0, 0.0]
         coord._target_y = [1500.0, 0.0, 0.0]
+        active = list(coord._target_active)
 
-        result = coord._build_calibrated_targets()
+        result = coord._build_calibrated_targets(active)
 
         assert result[0][2] is False
 
@@ -428,8 +430,9 @@ class TestBuildCalibratedTargetsGridGating:
         coord._target_active = [False, False, False]
         coord._target_x = [1500.0, 0.0, 0.0]
         coord._target_y = [1500.0, 0.0, 0.0]
+        active = list(coord._target_active)
 
-        result = coord._build_calibrated_targets()
+        result = coord._build_calibrated_targets(active)
 
         assert result[0][2] is False
 
@@ -439,12 +442,70 @@ class TestBuildCalibratedTargetsGridGating:
         coord._target_active = [True, True, True]
         coord._target_x = [1500.0, 9000.0, 1500.0]
         coord._target_y = [1500.0, 1500.0, 1500.0]
+        active = list(coord._target_active)
 
-        result = coord._build_calibrated_targets()
+        result = coord._build_calibrated_targets(active)
 
         assert result[0][2] is True  # inside room
         assert result[1][2] is False  # outside grid
         assert result[2][2] is True  # inside room
+
+
+class TestZeroRangeGating:
+    """Tests for y==0 gating in _schedule_rebuild.
+
+    The LD2450 transiently reports y=0 before it has a range fix.
+    These targets must be treated as inactive to avoid bogus positions
+    in both subscribe_grid_targets and subscribe_raw_targets.
+    """
+
+    def test_active_target_with_zero_y_is_gated(self, mock_hass, mock_entry):
+        """A target with y=0 is treated as inactive even if ESPHome says active."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [True, False, False]
+        coord._target_x = [-1497.0, 0.0, 0.0]
+        coord._target_y = [0.0, 0.0, 0.0]
+
+        active = [
+            coord._target_active[i] and coord._target_y[i] != 0
+            for i in range(3)
+        ]
+
+        assert active[0] is False
+        result = coord._build_calibrated_targets(active)
+        assert result[0] == (0.0, 0.0, False)
+
+    def test_active_target_with_nonzero_y_passes(self, mock_hass, mock_entry):
+        """A target with valid y passes the gating check."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [True, False, False]
+        coord._target_x = [1500.0, 0.0, 0.0]
+        coord._target_y = [1500.0, 0.0, 0.0]
+
+        active = [
+            coord._target_active[i] and coord._target_y[i] != 0
+            for i in range(3)
+        ]
+
+        assert active[0] is True
+        result = coord._build_calibrated_targets(active)
+        assert result[0][2] is True
+
+    def test_inactive_target_with_zero_y_stays_inactive(self, mock_hass, mock_entry):
+        """An ESPHome-inactive target with y=0 remains inactive."""
+        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
+        coord._target_active = [False, False, False]
+        coord._target_x = [-1497.0, 0.0, 0.0]
+        coord._target_y = [0.0, 0.0, 0.0]
+
+        active = [
+            coord._target_active[i] and coord._target_y[i] != 0
+            for i in range(3)
+        ]
+
+        assert active[0] is False
+        result = coord._build_calibrated_targets(active)
+        assert result[0] == (0.0, 0.0, False)
 
 
 # ---------------------------------------------------------------------------

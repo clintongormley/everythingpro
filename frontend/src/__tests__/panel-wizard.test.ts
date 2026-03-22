@@ -32,6 +32,7 @@ function createPanel(): EverythingPresenceProPanel {
 	a._wizardOffsetFb = "";
 	a._wizardSaving = false;
 	a._targets = [];
+	a._rawTargets = [];
 	a._entries = [
 		{
 			entry_id: "e1",
@@ -124,38 +125,24 @@ describe("_wizardCancelCapture", () => {
 });
 
 describe("_wizardStartCapture", () => {
-	it("does nothing when no active target", () => {
+	it("does nothing when no active raw target", () => {
 		const el = createPanel();
 		const a = el as any;
-		a._targets = [
-			{
-				x: 0,
-				y: 0,
-				raw_x: null,
-				raw_y: null,
-				speed: 0,
-				status: "inactive" as const,
-				signal: 0,
-			},
-		];
+		// No raw targets with valid coordinates
+		a._rawTargets = [];
 
 		a._wizardStartCapture();
 
 		expect(a._wizardCapturing).toBe(false);
 	});
 
-	it("starts capture when active target exists", () => {
+	it("starts capture when active raw target exists", () => {
 		const el = createPanel();
 		const a = el as any;
-		a._targets = [
+		a._rawTargets = [
 			{
-				x: 100,
-				y: 200,
 				raw_x: 100,
 				raw_y: 200,
-				speed: 0,
-				status: "active" as const,
-				signal: 5,
 			},
 		];
 
@@ -325,18 +312,13 @@ describe("_getSmoothedRaw", () => {
 		expect(a._getSmoothedRaw()).toBeNull();
 	});
 
-	it("returns smoothed value when active target exists", () => {
+	it("returns smoothed value when active raw target exists", () => {
 		const el = createPanel();
 		const a = el as any;
-		a._targets = [
+		a._rawTargets = [
 			{
-				x: 100,
-				y: 200,
 				raw_x: 500,
 				raw_y: 1000,
-				speed: 0,
-				status: "active" as const,
-				signal: 5,
 			},
 		];
 		a._smoothBuffer = [];
@@ -354,13 +336,8 @@ describe("_getWizardTargetStyle", () => {
 		const el = createPanel();
 		const a = el as any;
 		const target = {
-			x: 0,
-			y: 3000,
 			raw_x: 0,
 			raw_y: 3000,
-			speed: 0,
-			status: "active" as const,
-			signal: 5,
 		};
 
 		const style = a._getWizardTargetStyle(target);

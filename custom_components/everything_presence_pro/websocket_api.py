@@ -448,8 +448,7 @@ async def websocket_subscribe_raw_targets(
         snap = coordinator.last_display_snapshot
         targets = snap.targets if snap else [DisplayTarget()] * MAX_TARGETS
         raw_list = [{"raw_x": t.raw_x, "raw_y": t.raw_y} for t in targets]
-        target_count = sum(1 for t in targets if t.active)
-        return {"target_count": target_count, "targets": raw_list}
+        return {"targets": raw_list}
 
     @callback
     def _forward() -> None:
