@@ -488,7 +488,6 @@ describe("_subscribeDisplay", () => {
 
 		// Fire a raw targets event
 		displayHandler!({
-			target_count: 2,
 			targets: [
 				{ raw_x: 111, raw_y: 211 },
 				{ raw_x: 311, raw_y: 411 },
@@ -546,7 +545,6 @@ describe("_subscribeDisplay", () => {
 
 		// Raw targets event provides only one target
 		displayHandler!({
-			target_count: 1,
 			targets: [{ raw_x: 111, raw_y: 211 }],
 		});
 
@@ -587,7 +585,7 @@ describe("_subscribeDisplay", () => {
 		a._subscribeDisplay("e1");
 
 		// Fire event with no targets field (falls back to [])
-		displayHandler!({ target_count: 0 });
+		displayHandler!({});
 
 		// _rawTargets is empty, _targets unchanged
 		expect(a._rawTargets).toEqual([]);
@@ -725,7 +723,6 @@ describe("raw targets event writing", () => {
 
 		// Fire raw targets event
 		callback!({
-			target_count: 3,
 			targets: [
 				{ raw_x: 50, raw_y: 100 },
 				{ raw_x: 150, raw_y: 200 },
