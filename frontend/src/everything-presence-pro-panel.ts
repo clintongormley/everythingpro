@@ -1419,7 +1419,9 @@ export class EverythingPresenceProPanel extends LitElement {
 	private _smoothBuffer: SmoothBufferEntry[] = [];
 
 	private _getSmoothedRaw(): { x: number; y: number } | null {
-		const active = this._targets.find((t) => t.raw_x != null && t.raw_y != null);
+		const active = this._targets.find(
+			(t) => t.raw_x != null && t.raw_y != null,
+		);
 		if (!active) return null;
 
 		const result = getSmoothedValue(
@@ -1442,7 +1444,9 @@ export class EverythingPresenceProPanel extends LitElement {
 	}
 
 	private _wizardStartCapture(): void {
-		const active = this._targets.find((t) => t.raw_x != null && t.raw_y != null);
+		const active = this._targets.find(
+			(t) => t.raw_x != null && t.raw_y != null,
+		);
 		if (!active) return;
 
 		this._wizardCapturing = true;
