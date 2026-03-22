@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EverythingPresenceProPanel } from "../everything-presence-pro-panel.js";
 import "../everything-presence-pro-panel.js";
-import { GRID_CELL_COUNT } from "../lib/grid.js";
+import {
+	CELL_ROOM_BIT,
+	cellSetZone,
+	GRID_CELL_COUNT,
+	initGridFromRoom,
+} from "../lib/grid.js";
 import { ZONE_TYPE_DEFAULTS } from "../lib/zone-defaults.js";
 
 function createPanel(): EverythingPresenceProPanel {
@@ -409,6 +414,31 @@ describe("_applyLayout", () => {
 
 		expect(a._pendingRenames).toHaveLength(1);
 		expect(a._showRenameDialog).toBe(true);
+	});
+
+	it("strips zones with zero painted cells on save", async () => {
+		const a = el as any;
+		a._selectedEntryId = "e1";
+		a._dirty = true;
+		a._roomWidth = 3000;
+		a._roomDepth = 4000;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._zoneConfigs[0] = { name: "Z1", color: "#ff0000", type: "normal" };
+		a._zoneConfigs[1] = { name: "Z2", color: "#00ff00", type: "normal" };
+		// Paint one cell with zone 1 but leave zone 2 unpainted
+		for (let i = 0; i < a._grid.length; i++) {
+			if (a._grid[i] & CELL_ROOM_BIT) {
+				a._grid[i] = cellSetZone(a._grid[i], 1);
+				break;
+			}
+		}
+		el.hass = { callWS: vi.fn().mockResolvedValue({}) };
+
+		await a._applyLayout();
+
+		// Zone 1 kept (has cells), zone 2 removed (no cells)
+		expect(a._zoneConfigs[0]).not.toBeNull();
+		expect(a._zoneConfigs[1]).toBeNull();
 	});
 
 	it("resets _saving on error", async () => {
