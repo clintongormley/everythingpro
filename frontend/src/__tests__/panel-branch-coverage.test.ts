@@ -48,7 +48,7 @@ function createPanel() {
 	a._sensorState = {
 		occupancy: false,
 		static_presence: false,
-		pir_motion: false,
+		motion_presence: false,
 		target_presence: false,
 		illuminance: null,
 		temperature: null,
@@ -724,7 +724,7 @@ describe("_renderLiveSidebar env sensor branches", () => {
 		a._sensorState = {
 			occupancy: true,
 			static_presence: true,
-			pir_motion: true,
+			motion_presence: true,
 			target_presence: false,
 			illuminance: 100,
 			temperature: null,

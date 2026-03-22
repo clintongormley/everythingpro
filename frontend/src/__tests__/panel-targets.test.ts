@@ -23,7 +23,7 @@ function createPanel(): EverythingPresenceProPanel {
 	a._sensorState = {
 		occupancy: false,
 		static_presence: false,
-		pir_motion: false,
+		motion_presence: false,
 		target_presence: false,
 		illuminance: null,
 		temperature: null,
@@ -76,7 +76,7 @@ describe("_subscribeTargets", () => {
 		expect(el.hass.connection.subscribeMessage).toHaveBeenCalledWith(
 			expect.any(Function),
 			{
-				type: "everything_presence_pro/subscribe_targets",
+				type: "everything_presence_pro/subscribe_grid_targets",
 				entry_id: "e1",
 			},
 		);
@@ -123,7 +123,7 @@ describe("_subscribeTargets", () => {
 			sensors: {
 				occupancy: true,
 				static_presence: true,
-				pir_motion: false,
+				motion_presence: false,
 				target_presence: false,
 				illuminance: 150,
 				temperature: 22.5,
@@ -442,7 +442,7 @@ describe("_subscribeDisplay", () => {
 		expect(el.hass.connection.subscribeMessage).toHaveBeenCalledWith(
 			expect.any(Function),
 			{
-				type: "everything_presence_pro/subscribe_display",
+				type: "everything_presence_pro/subscribe_raw_targets",
 				entry_id: "e1",
 			},
 		);
@@ -453,7 +453,7 @@ describe("_subscribeDisplay", () => {
 		expect(a._unsubDisplay).toBe(unsubFn);
 	});
 
-	it("merges display positions into existing targets", async () => {
+	it("merges raw positions into existing targets", async () => {
 		const el = createPanel();
 		const a = el as any;
 		let displayHandler: (event: any) => void;
@@ -493,28 +493,31 @@ describe("_subscribeDisplay", () => {
 
 		a._subscribeDisplay("e1");
 
-		// Fire a display event with updated positions
+		// Fire a raw targets event with updated raw positions
 		displayHandler!({
+			target_count: 2,
 			targets: [
-				{ x: 110, y: 210, raw_x: 111, raw_y: 211, signal: 4 },
-				{ x: 310, y: 410, raw_x: 311, raw_y: 411, signal: 1 },
+				{ raw_x: 111, raw_y: 211 },
+				{ raw_x: 311, raw_y: 411 },
 			],
 		});
 
-		expect(a._targets[0].x).toBe(110);
-		expect(a._targets[0].y).toBe(210);
+		// x, y, signal remain unchanged (come from grid targets)
+		expect(a._targets[0].x).toBe(100);
+		expect(a._targets[0].y).toBe(200);
 		expect(a._targets[0].raw_x).toBe(111);
 		expect(a._targets[0].raw_y).toBe(211);
-		expect(a._targets[0].signal).toBe(4);
-		// Non-display fields remain unchanged
+		expect(a._targets[0].signal).toBe(3);
+		// Non-raw fields remain unchanged
 		expect(a._targets[0].status).toBe("active");
 		expect(a._targets[0].speed).toBe(1);
 
-		expect(a._targets[1].x).toBe(310);
-		expect(a._targets[1].signal).toBe(1);
+		expect(a._targets[1].raw_x).toBe(311);
+		expect(a._targets[1].raw_y).toBe(411);
+		expect(a._targets[1].x).toBe(300);
 	});
 
-	it("skips merge when display target index has no match", async () => {
+	it("skips merge when raw target index has no match", async () => {
 		const el = createPanel();
 		const a = el as any;
 		let displayHandler: (event: any) => void;
@@ -528,7 +531,7 @@ describe("_subscribeDisplay", () => {
 			},
 		};
 
-		// Two targets but display only provides one
+		// Two targets but raw targets only provides one
 		a._targets = [
 			{
 				x: 100,
@@ -553,20 +556,22 @@ describe("_subscribeDisplay", () => {
 		a._subscribeDisplay("e1");
 
 		displayHandler!({
+			target_count: 1,
 			targets: [
-				{ x: 110, y: 210, raw_x: 111, raw_y: 211, signal: 4 },
-				// index 1 is missing — displays fewer than targets
+				{ raw_x: 111, raw_y: 211 },
+				// index 1 is missing — fewer raw targets than grid targets
 			],
 		});
 
-		// First target merges
-		expect(a._targets[0].x).toBe(110);
-		// Second target is unchanged because displayTargets[1] is undefined
-		expect(a._targets[1].x).toBe(300);
-		expect(a._targets[1].y).toBe(400);
+		// First target raw positions merged
+		expect(a._targets[0].raw_x).toBe(111);
+		expect(a._targets[0].x).toBe(100);
+		// Second target is unchanged because rawTargets[1] is undefined
+		expect(a._targets[1].raw_x).toBe(300);
+		expect(a._targets[1].raw_y).toBe(400);
 	});
 
-	it("handles display event with empty targets array", async () => {
+	it("handles raw targets event with empty targets array", async () => {
 		const el = createPanel();
 		const a = el as any;
 		let displayHandler: (event: any) => void;
@@ -595,10 +600,11 @@ describe("_subscribeDisplay", () => {
 		a._subscribeDisplay("e1");
 
 		// Fire event with no targets field (falls back to [])
-		displayHandler!({});
+		displayHandler!({ target_count: 0 });
 
-		// All targets unchanged because displayTargets is empty
+		// All targets unchanged because rawTargets is empty
 		expect(a._targets[0].x).toBe(100);
+		expect(a._targets[0].raw_x).toBe(100);
 	});
 });
 
@@ -709,7 +715,7 @@ describe("_subscribeDisplay", () => {
 		expect(el.hass.connection.subscribeMessage).toHaveBeenCalledWith(
 			expect.any(Function),
 			{
-				type: "everything_presence_pro/subscribe_display",
+				type: "everything_presence_pro/subscribe_raw_targets",
 				entry_id: "e1",
 			},
 		);
@@ -723,17 +729,25 @@ describe("_subscribeDisplay", () => {
 	});
 });
 
-describe("display event merging", () => {
-	it("merges display positions into existing targets preserving status", () => {
+describe("raw targets event merging", () => {
+	it("merges raw positions into existing targets preserving status and grid fields", () => {
 		const el = createPanel();
 		const a = el as any;
 
-		// Set up existing targets (as if from subscribe_targets)
+		// Set up existing targets (as if from subscribe_grid_targets)
 		a._targets = [
-			{ x: 0, y: 0, raw_x: 0, raw_y: 0, speed: 0, status: "active", signal: 5 },
 			{
-				x: 0,
-				y: 0,
+				x: 10,
+				y: 20,
+				raw_x: 0,
+				raw_y: 0,
+				speed: 0,
+				status: "active",
+				signal: 5,
+			},
+			{
+				x: 30,
+				y: 40,
 				raw_x: 0,
 				raw_y: 0,
 				speed: 0,
@@ -751,7 +765,7 @@ describe("display event merging", () => {
 			},
 		];
 
-		// Simulate display event callback
+		// Simulate raw targets event callback
 		let callback: (event: any) => void;
 		el.hass = {
 			callWS: vi.fn(),
@@ -764,22 +778,26 @@ describe("display event merging", () => {
 		};
 		a._subscribeDisplay("e1");
 
-		// Fire display event
+		// Fire raw targets event
 		callback!({
+			target_count: 3,
 			targets: [
-				{ x: 100, y: 200, raw_x: 50, raw_y: 100, signal: 7 },
-				{ x: 300, y: 400, raw_x: 150, raw_y: 200, signal: 4 },
-				{ x: 0, y: 0, raw_x: 0, raw_y: 0, signal: 0 },
+				{ raw_x: 50, raw_y: 100 },
+				{ raw_x: 150, raw_y: 200 },
+				{ raw_x: 0, raw_y: 0 },
 			],
 		});
 
-		// Positions updated
-		expect(a._targets[0].x).toBe(100);
-		expect(a._targets[0].y).toBe(200);
+		// Raw positions updated
 		expect(a._targets[0].raw_x).toBe(50);
-		expect(a._targets[0].signal).toBe(7);
-		// Status preserved from subscribe_targets
+		expect(a._targets[0].raw_y).toBe(100);
+		// Grid fields preserved from subscribe_grid_targets
+		expect(a._targets[0].x).toBe(10);
+		expect(a._targets[0].y).toBe(20);
+		expect(a._targets[0].signal).toBe(5);
+		// Status preserved from subscribe_grid_targets
 		expect(a._targets[0].status).toBe("active");
 		expect(a._targets[1].status).toBe("pending");
+		expect(a._targets[1].raw_x).toBe(150);
 	});
 });

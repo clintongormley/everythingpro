@@ -408,7 +408,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	@state() private _sensorState: {
 		occupancy: boolean;
 		static_presence: boolean;
-		pir_motion: boolean;
+		motion_presence: boolean;
 		target_presence: boolean;
 		illuminance: number | null;
 		temperature: number | null;
@@ -417,7 +417,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	} = {
 		occupancy: false,
 		static_presence: false,
-		pir_motion: false,
+		motion_presence: false,
 		target_presence: false,
 		illuminance: null,
 		temperature: null,
@@ -689,21 +689,23 @@ export class EverythingPresenceProPanel extends LitElement {
 		conn
 			.subscribeMessage(
 				(event: any) => {
-					const targets: Target[] = (event.targets || []).map((t: any) => ({
-						x: t.x,
-						y: t.y,
-						raw_x: t.raw_x ?? t.x,
-						raw_y: t.raw_y ?? t.y,
-						speed: 0,
-						status: (t.status as TargetStatus) ?? "inactive",
-						signal: t.signal ?? 0,
-					}));
+					const targets: Target[] = (event.targets || []).map(
+						(t: any, i: number) => ({
+							x: t.x,
+							y: t.y,
+							raw_x: this._targets[i]?.raw_x ?? t.x,
+							raw_y: this._targets[i]?.raw_y ?? t.y,
+							speed: 0,
+							status: (t.status as TargetStatus) ?? "inactive",
+							signal: t.signal ?? 0,
+						}),
+					);
 					this._targets = targets;
 					if (event.sensors) {
 						this._sensorState = {
 							occupancy: event.sensors.occupancy ?? false,
 							static_presence: event.sensors.static_presence ?? false,
-							pir_motion: event.sensors.pir_motion ?? false,
+							motion_presence: event.sensors.motion_presence ?? false,
 							target_presence: event.sensors.target_presence ?? false,
 							illuminance: event.sensors.illuminance ?? null,
 							temperature: event.sensors.temperature ?? null,
@@ -743,7 +745,7 @@ export class EverythingPresenceProPanel extends LitElement {
 					}
 				},
 				{
-					type: "everything_presence_pro/subscribe_targets",
+					type: "everything_presence_pro/subscribe_grid_targets",
 					entry_id: entryId,
 				},
 			)
@@ -771,30 +773,24 @@ export class EverythingPresenceProPanel extends LitElement {
 		conn
 			.subscribeMessage(
 				(event: any) => {
-					const displayTargets: Array<{
-						x: number;
-						y: number;
+					const rawTargets: Array<{
 						raw_x: number;
 						raw_y: number;
-						signal: number;
 					}> = event.targets || [];
 
-					// Merge display positions into existing targets
+					// Merge raw positions into existing targets
 					this._targets = this._targets.map((t, i) => {
-						const d = displayTargets[i];
+						const d = rawTargets[i];
 						if (!d) return t;
 						return {
 							...t,
-							x: d.x,
-							y: d.y,
 							raw_x: d.raw_x,
 							raw_y: d.raw_y,
-							signal: d.signal,
 						};
 					});
 				},
 				{
-					type: "everything_presence_pro/subscribe_display",
+					type: "everything_presence_pro/subscribe_raw_targets",
 					entry_id: entryId,
 				},
 			)
@@ -5625,7 +5621,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			{
 				id: "motion",
 				label: this._localize("live.motion_presence"),
-				on: ss.pir_motion,
+				on: ss.motion_presence,
 				info: this._localize("info.motion_presence"),
 			},
 			{
