@@ -518,14 +518,14 @@ describe("_renderUncalibratedFov", () => {
 		const dist = Math.sqrt(raw_x * raw_x + raw_y * raw_y); // ~4243
 		const angle = Math.atan2(raw_x, raw_y); // π/4
 		const r = Math.min(dist / 6000, 1) * maxR; // ~127.3
-		const svgAngle = Math.PI / 2 + angle; // 3π/4
+		const svgAngle = Math.PI / 2 - angle; // π/4
 
 		const tx = cx + r * Math.cos(svgAngle);
 		const ty = cy + r * Math.sin(svgAngle);
 
-		// At 45° right, tx should be left of center (cos(3π/4) < 0)
-		// and ty should be partway down (sin(3π/4) > 0)
-		expect(tx).toBeLessThan(cx);
+		// At 45° right (positive raw_x), tx should be right of center
+		// and ty should be partway down
+		expect(tx).toBeGreaterThan(cx);
 		expect(ty).toBeGreaterThan(cy);
 	});
 

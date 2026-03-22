@@ -460,7 +460,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
           <line x1="${i}" y1="${o}" x2="${c}" y2="${h}" stroke="${t}" stroke-width="0.5" opacity="0.2"/>
 
           <!-- Target dots -->
-          ${this._targets.map((e,t)=>{if(0===e.raw_x&&0===e.raw_y)return V;const n=Math.sqrt(e.raw_x*e.raw_x+e.raw_y*e.raw_y),s=Math.atan2(e.raw_x,e.raw_y),a=Math.min(n/6e3,1)*r,l=Math.PI/2+s,c=i+a*Math.cos(l),h=o+a*Math.sin(l);return W`<circle cx="${c}" cy="${h}" r="5" fill="${ni[t]||ni[0]}"/>`})}
+          ${this._targets.map((e,t)=>{if(0===e.raw_x&&0===e.raw_y)return V;const n=Math.sqrt(e.raw_x*e.raw_x+e.raw_y*e.raw_y),s=Math.atan2(e.raw_x,e.raw_y),a=Math.min(n/6e3,1)*r,l=Math.PI/2-s,c=i+a*Math.cos(l),h=o+a*Math.sin(l);return W`<circle cx="${c}" cy="${h}" r="5" fill="${ni[t]||ni[0]}"/>`})}
 
           ${e?W`
             <text x="${i}" y="120" font-size="13" fill="${t}" text-anchor="middle" font-weight="500">${this._localize("live.detected")}</text>
@@ -837,7 +837,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
             </div>
             ${this._renderFurnitureOverlay(c,i,r,s,a)}
             <div class="targets-overlay" style="pointer-events: none;">
-              ${this._targets.map((e,t)=>{const o=this._mapTargetToGridCell(e);if(!o)return V;const n=(o.col-i)/s*100,l=(o.row-r)/a*100;return G`
+              ${this._targets.map((e,t)=>{if("inactive"===e.status)return V;const o=this._mapTargetToGridCell(e);if(!o)return V;const n=(o.col-i)/s*100,l=(o.row-r)/a*100;return G`
                     <div
                       class="target-dot"
                       style="left: ${n}%; top: ${l}%; background: ${ni[t]||ni[0]}; opacity: ${"pending"===e.status?.3:1}; transition: opacity 0.5s ease;"

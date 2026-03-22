@@ -3894,7 +3894,7 @@ export class EverythingPresenceProPanel extends LitElement {
 						const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
 						const angle = Math.atan2(t.raw_x, t.raw_y); // angle from center
 						const r = Math.min(dist / 6000, 1) * maxR;
-						const svgAngle = Math.PI / 2 + angle; // rotate so 0=down
+						const svgAngle = Math.PI / 2 - angle; // rotate so 0=down, positive raw_x -> right
 						const tx = cx + r * Math.cos(svgAngle);
 						const ty = cy + r * Math.sin(svgAngle);
 						return svg`<circle cx="${tx}" cy="${ty}" r="5" fill="${TARGET_COLORS[i] || TARGET_COLORS[0]}"/>`;
@@ -4559,6 +4559,7 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
             <div class="targets-overlay" style="pointer-events: none;">
               ${this._targets.map((t, i) => {
+								if (t.status === "inactive") return nothing;
 								const pos = this._mapTargetToGridCell(t);
 								if (!pos) return nothing;
 								const xPct = ((pos.col - minCol) / visCols) * 100;
