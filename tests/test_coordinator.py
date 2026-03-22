@@ -466,10 +466,7 @@ class TestZeroRangeGating:
         coord._target_x = [-1497.0, 0.0, 0.0]
         coord._target_y = [0.0, 0.0, 0.0]
 
-        active = [
-            coord._target_active[i] and coord._target_y[i] != 0
-            for i in range(3)
-        ]
+        active = [coord._target_active[i] and coord._target_y[i] != 0 for i in range(3)]
 
         assert active[0] is False
         result = coord._build_calibrated_targets(active)
@@ -482,10 +479,7 @@ class TestZeroRangeGating:
         coord._target_x = [1500.0, 0.0, 0.0]
         coord._target_y = [1500.0, 0.0, 0.0]
 
-        active = [
-            coord._target_active[i] and coord._target_y[i] != 0
-            for i in range(3)
-        ]
+        active = [coord._target_active[i] and coord._target_y[i] != 0 for i in range(3)]
 
         assert active[0] is True
         result = coord._build_calibrated_targets(active)
@@ -498,10 +492,7 @@ class TestZeroRangeGating:
         coord._target_x = [-1497.0, 0.0, 0.0]
         coord._target_y = [0.0, 0.0, 0.0]
 
-        active = [
-            coord._target_active[i] and coord._target_y[i] != 0
-            for i in range(3)
-        ]
+        active = [coord._target_active[i] and coord._target_y[i] != 0 for i in range(3)]
 
         assert active[0] is False
         result = coord._build_calibrated_targets(active)

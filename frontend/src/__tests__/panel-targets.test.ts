@@ -547,9 +547,7 @@ describe("_subscribeDisplay", () => {
 		// Raw targets event provides only one target
 		displayHandler!({
 			target_count: 1,
-			targets: [
-				{ raw_x: 111, raw_y: 211 },
-			],
+			targets: [{ raw_x: 111, raw_y: 211 }],
 		});
 
 		// _rawTargets reflects exactly what the event provided
