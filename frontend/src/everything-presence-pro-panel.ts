@@ -3848,9 +3848,9 @@ export class EverythingPresenceProPanel extends LitElement {
 		const occupied = this._sensorState.occupancy;
 		const fovColor = occupied ? "#4CAF50" : "var(--primary-color, #03a9f4)";
 		// 120° FOV centered at 90° (pointing down), ±60°
-		const cx = 150,
-			cy = 10,
-			maxR = 180;
+		const cx = 160,
+			cy = 14,
+			maxR = 150;
 		const a1 = ((90 - 60) * Math.PI) / 180; // 30°
 		const a2 = ((90 + 60) * Math.PI) / 180; // 150°
 		const ex1 = cx + maxR * Math.cos(a1),
@@ -3860,7 +3860,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 		return html`
       <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
-        <svg viewBox="0 0 300 210" width="300" height="210" style="display: block;">
+        <svg viewBox="0 0 320 180" width="320" height="180" style="display: block;">
           <!-- Sensor at top center -->
           <rect x="${cx - 6}" y="0" width="12" height="8" rx="3" fill="${fovColor}"/>
           <circle cx="${cx}" cy="0" r="4" fill="${fovColor}" opacity="0.4"/>
@@ -3890,13 +3890,9 @@ export class EverythingPresenceProPanel extends LitElement {
           <!-- Target dots -->
           ${this._targets.map((t, i) => {
 						if (t.raw_x === 0 && t.raw_y === 0) return nothing;
-						// Map raw coords to FOV: x maps left-right, y maps top-bottom
-						const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
-						const angle = Math.atan2(t.raw_x, t.raw_y); // angle from center
-						const r = Math.min(dist / 6000, 1) * maxR;
-						const svgAngle = Math.PI / 2 + angle; // rotate so 0=down
-						const tx = cx + r * Math.cos(svgAngle);
-						const ty = cy + r * Math.sin(svgAngle);
+						// Map raw coords to FOV using same linear mapping as calibration view
+						const tx = cx + (t.raw_x / 6000) * maxR * Math.sin(Math.PI / 3);
+						const ty = cy + (t.raw_y / 6000) * maxR;
 						return svg`<circle cx="${tx}" cy="${ty}" r="5" fill="${TARGET_COLORS[i] || TARGET_COLORS[0]}"/>`;
 					})}
 

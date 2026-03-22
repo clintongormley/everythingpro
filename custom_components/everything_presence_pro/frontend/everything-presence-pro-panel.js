@@ -436,11 +436,11 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
       <div class="grid-dimensions">
         ${e.widthM}m × ${e.depthM}m · Furthest point: ${e.furthestM}m
       </div>
-    `:V}_renderUncalibratedFov(){const e=this._sensorState.occupancy,t=e?"#4CAF50":"var(--primary-color, #03a9f4)",i=150,o=10,r=180,n=30*Math.PI/180,s=150*Math.PI/180,a=i+r*Math.cos(n),l=o+r*Math.sin(n),c=i+r*Math.cos(s),h=o+r*Math.sin(s);return G`
+    `:V}_renderUncalibratedFov(){const e=this._sensorState.occupancy,t=e?"#4CAF50":"var(--primary-color, #03a9f4)",i=160,o=14,r=150,n=30*Math.PI/180,s=150*Math.PI/180,a=i+r*Math.cos(n),l=o+r*Math.sin(n),c=i+r*Math.cos(s),h=o+r*Math.sin(s);return G`
       <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
-        <svg viewBox="0 0 300 210" width="300" height="210" style="display: block;">
+        <svg viewBox="0 0 320 180" width="320" height="180" style="display: block;">
           <!-- Sensor at top center -->
-          <rect x="${144}" y="0" width="12" height="8" rx="3" fill="${t}"/>
+          <rect x="${154}" y="0" width="12" height="8" rx="3" fill="${t}"/>
           <circle cx="${i}" cy="0" r="4" fill="${t}" opacity="0.4"/>
 
           <!-- 120° FOV wedge with rounded arc end -->
@@ -460,7 +460,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
           <line x1="${i}" y1="${o}" x2="${c}" y2="${h}" stroke="${t}" stroke-width="0.5" opacity="0.2"/>
 
           <!-- Target dots -->
-          ${this._targets.map((e,t)=>{if(0===e.raw_x&&0===e.raw_y)return V;const n=Math.sqrt(e.raw_x*e.raw_x+e.raw_y*e.raw_y),s=Math.atan2(e.raw_x,e.raw_y),a=Math.min(n/6e3,1)*r,l=Math.PI/2+s,c=i+a*Math.cos(l),h=o+a*Math.sin(l);return W`<circle cx="${c}" cy="${h}" r="5" fill="${ni[t]||ni[0]}"/>`})}
+          ${this._targets.map((e,t)=>{if(0===e.raw_x&&0===e.raw_y)return V;const n=i+e.raw_x/6e3*r*Math.sin(Math.PI/3),s=o+e.raw_y/6e3*r;return W`<circle cx="${n}" cy="${s}" r="5" fill="${ni[t]||ni[0]}"/>`})}
 
           ${e?W`
             <text x="${i}" y="120" font-size="13" fill="${t}" text-anchor="middle" font-weight="500">${this._localize("live.detected")}</text>
