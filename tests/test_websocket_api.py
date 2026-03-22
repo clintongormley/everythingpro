@@ -219,77 +219,6 @@ async def test_set_room_layout_not_found(hass: HomeAssistant, hass_ws_client, se
 
 
 # ---------------------------------------------------------------------------
-# subscribe_targets
-# ---------------------------------------------------------------------------
-
-
-async def test_subscribe_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
-    """subscribe_targets sends initial state and receives updates."""
-    entry = setup_integration
-    ws_client = await hass_ws_client(hass)
-
-    await ws_client.send_json(
-        {
-            "id": 1,
-            "type": "everything_presence_pro/subscribe_targets",
-            "entry_id": entry.entry_id,
-        }
-    )
-
-    # First message: result (subscription acknowledgment)
-    msg = await ws_client.receive_json()
-    assert msg["id"] == 1
-    assert msg["success"] is True
-
-    # Second message: initial state event
-    msg = await ws_client.receive_json()
-    assert msg["id"] == 1
-    assert msg["type"] == "event"
-    event = msg["event"]
-    assert "targets" in event
-    assert "sensors" in event
-    assert "zones" in event
-    assert "pending_targets" not in event
-
-    # Verify target structure
-    assert len(event["targets"]) == 3  # MAX_TARGETS = 3
-    for t in event["targets"]:
-        assert "x" in t
-        assert "y" in t
-        assert "status" in t
-        assert "raw_x" in t
-        assert "raw_y" in t
-        assert "signal" in t
-        assert t["status"] in ("active", "pending", "inactive")
-
-    # Verify sensor structure
-    sensors = event["sensors"]
-    assert "occupancy" in sensors
-    assert "static_presence" in sensors
-    assert "pir_motion" in sensors
-    assert "illuminance" in sensors
-    assert "temperature" in sensors
-    assert "humidity" in sensors
-    assert "co2" in sensors
-
-
-async def test_subscribe_targets_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
-    """subscribe_targets with invalid entry_id returns error."""
-    ws_client = await hass_ws_client(hass)
-
-    await ws_client.send_json(
-        {
-            "id": 1,
-            "type": "everything_presence_pro/subscribe_targets",
-            "entry_id": "bad_id",
-        }
-    )
-    msg = await ws_client.receive_json()
-    assert msg["success"] is False
-    assert msg["error"]["code"] == "not_found"
-
-
-# ---------------------------------------------------------------------------
 # rename_zone_entities
 # ---------------------------------------------------------------------------
 
@@ -468,3 +397,178 @@ async def test_set_setup_not_found(hass: HomeAssistant, hass_ws_client, setup_in
     )
     msg = await ws_client.receive_json()
     assert msg["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# subscribe_grid_targets
+# ---------------------------------------------------------------------------
+
+
+async def test_subscribe_grid_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_grid_targets sends initial state with grid positions, sensors, and zones."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_grid_targets",
+            "entry_id": entry.entry_id,
+        }
+    )
+
+    msg = await ws_client.receive_json()
+    assert msg["id"] == 1
+    assert msg["success"] is True
+
+    msg = await ws_client.receive_json()
+    assert msg["type"] == "event"
+    event = msg["event"]
+
+    # Verify target structure — grid positions + cached state
+    assert len(event["targets"]) == 3
+    for t in event["targets"]:
+        assert "x" in t
+        assert "y" in t
+        assert "signal" in t
+        assert "status" in t
+        assert t["status"] in ("active", "pending", "inactive")
+        # No raw_x/raw_y — that's subscribe_raw_targets
+        assert "raw_x" not in t
+        assert "raw_y" not in t
+
+    # Verify sensors
+    sensors = event["sensors"]
+    assert "occupancy" in sensors
+    assert "static_presence" in sensors
+    assert "motion_presence" in sensors
+    assert "target_presence" in sensors
+    assert "illuminance" in sensors
+    assert "temperature" in sensors
+    assert "humidity" in sensors
+    assert "co2" in sensors
+
+    # Verify zones
+    zones = event["zones"]
+    assert "occupancy" in zones
+    assert "target_counts" in zones
+    assert "frame_count" in zones
+    assert "debug_log" in zones
+
+
+async def test_subscribe_grid_targets_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_grid_targets with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_grid_targets",
+            "entry_id": "bad_id",
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
+    assert msg["error"]["code"] == "not_found"
+
+
+async def test_subscribe_grid_targets_tracks_subscriber_count(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_grid_targets increments/decrements the display subscriber count."""
+    entry = setup_integration
+    coordinator = entry.runtime_data
+    assert coordinator.display_subscriber_count == 0
+
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_grid_targets",
+            "entry_id": entry.entry_id,
+        }
+    )
+    await ws_client.receive_json()  # result
+    await ws_client.receive_json()  # initial event
+
+    assert coordinator.display_subscriber_count == 1
+
+    await ws_client.send_json({"id": 2, "type": "unsubscribe_events", "subscription": 1})
+    await ws_client.receive_json()
+
+    assert coordinator.display_subscriber_count == 0
+
+
+# ---------------------------------------------------------------------------
+# subscribe_raw_targets
+# ---------------------------------------------------------------------------
+
+
+async def test_subscribe_raw_targets(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets sends initial state with raw positions and target_count."""
+    entry = setup_integration
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": entry.entry_id,
+        }
+    )
+
+    msg = await ws_client.receive_json()
+    assert msg["id"] == 1
+    assert msg["success"] is True
+
+    msg = await ws_client.receive_json()
+    assert msg["type"] == "event"
+    event = msg["event"]
+    assert "target_count" in event
+    assert "targets" in event
+    assert len(event["targets"]) == 3
+    for t in event["targets"]:
+        assert "raw_x" in t
+        assert "raw_y" in t
+        assert len(t) == 2  # only raw_x and raw_y, nothing else
+
+
+async def test_subscribe_raw_targets_not_found(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets with invalid entry_id returns error."""
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": "bad_id",
+        }
+    )
+    msg = await ws_client.receive_json()
+    assert msg["success"] is False
+    assert msg["error"]["code"] == "not_found"
+
+
+async def test_subscribe_raw_targets_tracks_subscriber_count(hass: HomeAssistant, hass_ws_client, setup_integration):
+    """subscribe_raw_targets increments/decrements the display subscriber count."""
+    entry = setup_integration
+    coordinator = entry.runtime_data
+    assert coordinator.display_subscriber_count == 0
+
+    ws_client = await hass_ws_client(hass)
+
+    await ws_client.send_json(
+        {
+            "id": 1,
+            "type": "everything_presence_pro/subscribe_raw_targets",
+            "entry_id": entry.entry_id,
+        }
+    )
+    await ws_client.receive_json()  # result
+    await ws_client.receive_json()  # initial event
+
+    assert coordinator.display_subscriber_count == 1
+
+    await ws_client.send_json({"id": 2, "type": "unsubscribe_events", "subscription": 1})
+    await ws_client.receive_json()
+
+    assert coordinator.display_subscriber_count == 0

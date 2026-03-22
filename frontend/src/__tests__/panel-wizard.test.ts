@@ -46,7 +46,7 @@ function createPanel(): EverythingPresenceProPanel {
 	a._sensorState = {
 		occupancy: false,
 		static_presence: false,
-		pir_motion: false,
+		motion_presence: false,
 		target_presence: false,
 		illuminance: null,
 		temperature: null,
@@ -129,10 +129,10 @@ describe("_wizardStartCapture", () => {
 		const a = el as any;
 		a._targets = [
 			{
-				x: 100,
-				y: 200,
-				raw_x: 100,
-				raw_y: 200,
+				x: 0,
+				y: 0,
+				raw_x: null,
+				raw_y: null,
 				speed: 0,
 				status: "inactive" as const,
 				signal: 0,

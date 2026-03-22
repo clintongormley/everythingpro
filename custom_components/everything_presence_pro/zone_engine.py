@@ -12,6 +12,7 @@ import base64
 import enum
 import logging
 import math
+from collections import deque
 from dataclasses import dataclass
 from dataclasses import field
 from statistics import median
@@ -310,6 +311,92 @@ class TumblingWindow:
             self._target_ys[i].clear()
 
         return output
+
+
+@dataclass
+class DisplayTarget:
+    """A single target's display-only position data.
+
+    Inactive targets use None for positions so (0,0) remains a valid
+    coordinate.  Serialises to JSON null.
+    """
+
+    x: float | None = None
+    y: float | None = None
+    raw_x: float | None = None
+    raw_y: float | None = None
+    active: bool = False
+    frame_count: int = 0
+
+
+@dataclass
+class DisplaySnapshot:
+    """Snapshot of all targets for display purposes."""
+
+    targets: list[DisplayTarget] = field(default_factory=list)
+
+
+class DisplayBuffer:
+    """Rolling median buffer for smooth display updates."""
+
+    def __init__(self, maxlen: int = 10) -> None:
+        self._maxlen = maxlen
+        self._xs: list[deque[float]] = [deque(maxlen=maxlen) for _ in range(MAX_TARGETS)]
+        self._ys: list[deque[float]] = [deque(maxlen=maxlen) for _ in range(MAX_TARGETS)]
+        self._raw_xs: list[deque[float]] = [deque(maxlen=maxlen) for _ in range(MAX_TARGETS)]
+        self._raw_ys: list[deque[float]] = [deque(maxlen=maxlen) for _ in range(MAX_TARGETS)]
+
+    def feed(
+        self,
+        calibrated: list[tuple[float, float, bool]],
+        raw: list[tuple[float, float, bool]],
+    ) -> DisplaySnapshot:
+        """Feed calibrated and raw target data, return display snapshot.
+
+        calibrated tuples: (x, y, inside_room) — calibrated positions; the
+        inside_room flag is informational but does not gate accumulation.
+        raw tuples: (x, y, esphome_active) — always set when sensor tracks.
+
+        All deques accumulate whenever the sensor is tracking (esphome_active),
+        regardless of room membership.  This ensures subscribe_grid_targets
+        always has smoothed positions for calibration and zone editing.
+        Room gating is handled by the zone engine.
+        """
+        targets: list[DisplayTarget] = []
+        for i in range(MAX_TARGETS):
+            rx, ry, raw_active = raw[i] if i < len(raw) else (0.0, 0.0, False)
+
+            if raw_active:
+                cx, cy, _ = calibrated[i] if i < len(calibrated) else (0.0, 0.0, False)
+                self._xs[i].append(cx)
+                self._ys[i].append(cy)
+                self._raw_xs[i].append(rx)
+                self._raw_ys[i].append(ry)
+                targets.append(
+                    DisplayTarget(
+                        x=median(self._xs[i]),
+                        y=median(self._ys[i]),
+                        raw_x=median(self._raw_xs[i]),
+                        raw_y=median(self._raw_ys[i]),
+                        active=True,
+                        frame_count=len(self._xs[i]),
+                    )
+                )
+            else:
+                self._xs[i].clear()
+                self._ys[i].clear()
+                self._raw_xs[i].clear()
+                self._raw_ys[i].clear()
+                targets.append(DisplayTarget())
+        return DisplaySnapshot(targets=targets)
+
+    def reset(self) -> None:
+        """Reset all deques."""
+        for i in range(MAX_TARGETS):
+            self._xs[i].clear()
+            self._ys[i].clear()
+            self._raw_xs[i].clear()
+            self._raw_ys[i].clear()
 
 
 @dataclass

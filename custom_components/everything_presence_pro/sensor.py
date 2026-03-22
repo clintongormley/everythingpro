@@ -340,18 +340,22 @@ class EverythingPresenceProTargetXYGridSensor(_PerTargetSensor):
     def native_value(self) -> str | None:
         """Return calibrated X,Y as a string value."""
         targets = self._coordinator.targets
-        if self._index >= len(targets) or targets[self._index].status != TargetStatus.ACTIVE:
+        if self._index >= len(targets):
             return None
         t = targets[self._index]
+        if t.status == TargetStatus.INACTIVE:
+            return None
         return f"{t.x:.0f},{t.y:.0f}"
 
     @property
     def extra_state_attributes(self) -> dict[str, float] | None:
         """Return x and y as separate attributes."""
         targets = self._coordinator.targets
-        if self._index >= len(targets) or targets[self._index].status != TargetStatus.ACTIVE:
+        if self._index >= len(targets):
             return None
         t = targets[self._index]
+        if t.status == TargetStatus.INACTIVE:
+            return None
         return {"x_mm": round(t.x), "y_mm": round(t.y)}
 
 

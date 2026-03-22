@@ -42,7 +42,7 @@ function createPanel(): EverythingPresenceProPanel {
 	a._sensorState = {
 		occupancy: false,
 		static_presence: false,
-		pir_motion: false,
+		motion_presence: false,
 		target_presence: false,
 		illuminance: 150,
 		temperature: 22.5,
@@ -454,12 +454,29 @@ describe("_renderUncalibratedFov", () => {
 		expect(result).toBeDefined();
 	});
 
-	it("skips inactive targets", () => {
+	it("skips targets with null raw positions", () => {
 		const a = createPanel() as any;
 		a._targets = [
 			{
-				x: 100,
-				y: 200,
+				x: null,
+				y: null,
+				raw_x: null,
+				raw_y: null,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 0,
+			},
+		];
+		const result = a._renderUncalibratedFov();
+		expect(result).toBeDefined();
+	});
+
+	it("shows targets with raw positions even if status is inactive", () => {
+		const a = createPanel() as any;
+		a._targets = [
+			{
+				x: 0,
+				y: 0,
 				raw_x: 500,
 				raw_y: 1000,
 				speed: 0,
@@ -467,6 +484,7 @@ describe("_renderUncalibratedFov", () => {
 				signal: 0,
 			},
 		];
+		// Target has raw positions — should render even though status is inactive
 		const result = a._renderUncalibratedFov();
 		expect(result).toBeDefined();
 	});
@@ -666,6 +684,37 @@ describe("_renderEditor", () => {
 		a._view = "editor";
 		a._sidebarTab = "zones";
 		a._grid = initGridFromRoom(3000, 4000);
+		const result = a._renderEditor();
+		expect(result).toBeDefined();
+	});
+
+	it("renders editor with targets showing signal badges", () => {
+		const a = createPanel() as any;
+		a._view = "editor";
+		a._sidebarTab = "zones";
+		a._roomWidth = 3000;
+		a._roomDepth = 4000;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 7,
+			},
+			{
+				x: null,
+				y: null,
+				raw_x: null,
+				raw_y: null,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 0,
+			},
+		];
 		const result = a._renderEditor();
 		expect(result).toBeDefined();
 	});
@@ -1085,7 +1134,7 @@ describe("_renderLiveSidebar", () => {
 		a._sensorState = {
 			occupancy: false,
 			static_presence: false,
-			pir_motion: false,
+			motion_presence: false,
 			illuminance: null,
 			temperature: null,
 			humidity: null,

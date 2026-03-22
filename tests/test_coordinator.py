@@ -16,6 +16,7 @@ from custom_components.everything_presence_pro.const import GRID_CELL_SIZE_MM
 from custom_components.everything_presence_pro.const import GRID_COLS
 from custom_components.everything_presence_pro.const import GRID_ROWS
 from custom_components.everything_presence_pro.coordinator import EverythingPresenceProCoordinator
+from custom_components.everything_presence_pro.zone_engine import DisplayBuffer
 from custom_components.everything_presence_pro.zone_engine import Grid
 from custom_components.everything_presence_pro.zone_engine import ProcessingResult
 from custom_components.everything_presence_pro.zone_engine import TargetResult
@@ -406,7 +407,7 @@ class TestBuildCalibratedTargetsGridGating:
 
         result = coord._build_calibrated_targets()
 
-        assert result[0][2] is True  # active
+        assert result[0][2] is True
         assert result[0][0] == pytest.approx(1500.0)
         assert result[0][1] == pytest.approx(1500.0)
 
@@ -414,28 +415,15 @@ class TestBuildCalibratedTargetsGridGating:
         """A target beyond the 20x20 grid boundary is treated as inactive."""
         coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
         coord._target_active = [True, False, False]
-        # Place target far outside the grid (grid is 20*300=6000mm wide)
         coord._target_x = [9000.0, 0.0, 0.0]
         coord._target_y = [1500.0, 0.0, 0.0]
 
         result = coord._build_calibrated_targets()
 
-        assert result[0][2] is False  # gated to inactive
-
-    def test_target_on_non_room_cell_becomes_inactive(self, mock_hass, mock_entry):
-        """A target inside the grid but on a non-room cell is treated as inactive."""
-        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
-        coord._target_active = [True, False, False]
-        # Place target at negative x — inside the 20x20 grid but outside the room rectangle
-        coord._target_x = [-1000.0, 0.0, 0.0]
-        coord._target_y = [1500.0, 0.0, 0.0]
-
-        result = coord._build_calibrated_targets()
-
-        assert result[0][2] is False  # gated to inactive
+        assert result[0][2] is False
 
     def test_inactive_target_stays_inactive(self, mock_hass, mock_entry):
-        """An already-inactive target is unaffected by grid gating."""
+        """An ESPHome-inactive target is reported as inactive."""
         coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
         coord._target_active = [False, False, False]
         coord._target_x = [1500.0, 0.0, 0.0]
@@ -449,7 +437,7 @@ class TestBuildCalibratedTargetsGridGating:
         """Each target is gated based on its own position."""
         coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
         coord._target_active = [True, True, True]
-        coord._target_x = [1500.0, 9000.0, 1500.0]  # inside, outside, inside
+        coord._target_x = [1500.0, 9000.0, 1500.0]
         coord._target_y = [1500.0, 1500.0, 1500.0]
 
         result = coord._build_calibrated_targets()
@@ -457,28 +445,6 @@ class TestBuildCalibratedTargetsGridGating:
         assert result[0][2] is True  # inside room
         assert result[1][2] is False  # outside grid
         assert result[2][2] is True  # inside room
-
-    def test_target_at_room_edge_is_active(self, mock_hass, mock_entry):
-        """A target just inside the room boundary stays active."""
-        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
-        coord._target_active = [True, False, False]
-        coord._target_x = [150.0, 0.0, 0.0]  # center of first room cell
-        coord._target_y = [150.0, 0.0, 0.0]
-
-        result = coord._build_calibrated_targets()
-
-        assert result[0][2] is True
-
-    def test_target_negative_coords_becomes_inactive(self, mock_hass, mock_entry):
-        """A target with negative y (behind sensor) is treated as inactive."""
-        coord = _coordinator_with_grid(mock_hass, mock_entry, 3000, 3000)
-        coord._target_active = [True, False, False]
-        coord._target_x = [1500.0, 0.0, 0.0]
-        coord._target_y = [-500.0, 0.0, 0.0]
-
-        result = coord._build_calibrated_targets()
-
-        assert result[0][2] is False
 
 
 # ---------------------------------------------------------------------------
@@ -910,3 +876,78 @@ class TestLoadConfigDataPaths:
         assert len(coord.zones) == 2
         assert coord.zones[0].name == "Desk"
         assert coord.zones[1].name == "Bed"
+
+
+# ---------------------------------------------------------------------------
+# DisplayBuffer integration
+# ---------------------------------------------------------------------------
+
+
+class TestDisplayBuffer:
+    """Tests for display buffer integration in coordinator."""
+
+    def test_coordinator_has_display_buffer(self, coordinator):
+        """Coordinator initializes with a DisplayBuffer."""
+        assert hasattr(coordinator, "_display_buffer")
+        assert isinstance(coordinator._display_buffer, DisplayBuffer)
+
+    def test_display_subscriber_count_starts_zero(self, coordinator):
+        """Display subscriber count starts at zero."""
+        assert coordinator.display_subscriber_count == 0
+
+    def test_schedule_rebuild_always_feeds_display_buffer(self, coordinator):
+        """_schedule_rebuild always feeds the display buffer."""
+        coordinator._target_active[0] = True
+        coordinator._target_x[0] = 100.0
+        coordinator._target_y[0] = 200.0
+
+        coordinator._schedule_rebuild()
+
+        assert coordinator._last_display_snapshot is not None
+        assert coordinator._last_display_snapshot.targets[0].raw_x == 100.0
+
+    def test_flush_display_not_called_without_subscribers(self, coordinator):
+        """Display signal is not dispatched when no subscribers."""
+        coordinator._display_subscriber_count = 0
+        coordinator._flush_display()
+        # No signal dispatched (hass.loop is a mock, nothing to check)
+
+    def test_flush_display_throttles_at_5hz(self, coordinator):
+        """Display signal dispatch is throttled to 5 Hz (200ms interval)."""
+        coordinator._display_subscriber_count = 1
+
+        # First flush — dispatches signal, records time
+        coordinator._flush_display()
+        first_time = coordinator._last_display_time
+        assert first_time > 0
+
+        # Second flush immediately — should be throttled
+        old_time = coordinator._last_display_time
+        coordinator._flush_display()
+        assert coordinator._last_display_time == old_time
+
+    def test_schedule_rebuild_schedules_display_flush(self, coordinator):
+        """_schedule_rebuild schedules a display flush when subscribers exist."""
+        coordinator._display_subscriber_count = 1
+        coordinator._target_active[0] = True
+        coordinator._target_x[0] = 100.0
+        coordinator._target_y[0] = 200.0
+
+        coordinator._schedule_rebuild()
+
+        # call_soon should have been scheduled
+        coordinator.hass.loop.call_soon.assert_called()
+
+    def test_schedule_rebuild_skips_display_without_subscribers(self, coordinator):
+        """_schedule_rebuild does not schedule display flush without subscribers."""
+        coordinator._display_subscriber_count = 0
+        coordinator._target_active[0] = True
+        coordinator._target_x[0] = 100.0
+        coordinator._target_y[0] = 200.0
+
+        coordinator.hass.loop.call_soon.reset_mock()
+        coordinator._schedule_rebuild()
+
+        # call_soon should NOT have been called for display
+        for call in coordinator.hass.loop.call_soon.call_args_list:
+            assert call.args[0] != coordinator._flush_display

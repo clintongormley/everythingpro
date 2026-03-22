@@ -11,6 +11,8 @@ from custom_components.everything_presence_pro.const import ZONE_TYPE_DEFAULTS
 from custom_components.everything_presence_pro.const import ZONE_TYPE_ENTRANCE
 from custom_components.everything_presence_pro.const import ZONE_TYPE_NORMAL
 from custom_components.everything_presence_pro.const import threshold_to_frame_count
+from custom_components.everything_presence_pro.zone_engine import DisplayBuffer
+from custom_components.everything_presence_pro.zone_engine import DisplaySnapshot
 from custom_components.everything_presence_pro.zone_engine import Grid
 from custom_components.everything_presence_pro.zone_engine import TargetStatus
 from custom_components.everything_presence_pro.zone_engine import TargetWindow
@@ -895,3 +897,72 @@ class TestZoneDefaults:
         assert ZoneState.CLEAR.value == "clear"
         assert ZoneState.OCCUPIED.value == "occupied"
         assert ZoneState.PENDING.value == "pending"
+
+
+class TestDisplayBuffer:
+    """Tests for DisplayBuffer rolling median."""
+
+    def test_single_feed_returns_snapshot(self):
+        buf = DisplayBuffer(maxlen=10)
+        snap = buf.feed(
+            calibrated=[(100.0, 200.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+            raw=[(50.0, 100.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+        )
+        assert isinstance(snap, DisplaySnapshot)
+        assert len(snap.targets) == 3
+        t = snap.targets[0]
+        assert t.x == 100.0
+        assert t.y == 200.0
+        assert t.raw_x == 50.0
+        assert t.raw_y == 100.0
+        assert t.active is True
+        assert t.frame_count == 1
+        assert snap.targets[1].active is False
+
+    def test_rolling_median_smooths(self):
+        buf = DisplayBuffer(maxlen=10)
+        positions = [100.0, 101.0, 100.0, 200.0, 99.0]
+        for x in positions:
+            snap = buf.feed(
+                calibrated=[(x, 300.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+                raw=[(x, 300.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+            )
+        assert snap.targets[0].x == 100.0
+        assert snap.targets[0].frame_count == 5
+
+    def test_inactive_clears_history(self):
+        buf = DisplayBuffer(maxlen=10)
+        buf.feed(
+            calibrated=[(100.0, 200.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+            raw=[(50.0, 100.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+        )
+        snap = buf.feed(
+            calibrated=[(0.0, 0.0, False), (0.0, 0.0, False), (0.0, 0.0, False)],
+            raw=[(0.0, 0.0, False), (0.0, 0.0, False), (0.0, 0.0, False)],
+        )
+        assert snap.targets[0].active is False
+        assert snap.targets[0].frame_count == 0
+
+    def test_deque_maxlen(self):
+        buf = DisplayBuffer(maxlen=3)
+        for x in [10.0, 20.0, 30.0, 40.0, 50.0]:
+            snap = buf.feed(
+                calibrated=[(x, 0.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+                raw=[(x, 0.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+            )
+        assert snap.targets[0].x == 40.0
+        assert snap.targets[0].frame_count == 3
+
+    def test_reset(self):
+        buf = DisplayBuffer(maxlen=10)
+        buf.feed(
+            calibrated=[(100.0, 200.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+            raw=[(50.0, 100.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+        )
+        buf.reset()
+        snap = buf.feed(
+            calibrated=[(999.0, 888.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+            raw=[(999.0, 888.0, True), (0.0, 0.0, False), (0.0, 0.0, False)],
+        )
+        assert snap.targets[0].x == 999.0
+        assert snap.targets[0].frame_count == 1

@@ -408,7 +408,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	@state() private _sensorState: {
 		occupancy: boolean;
 		static_presence: boolean;
-		pir_motion: boolean;
+		motion_presence: boolean;
 		target_presence: boolean;
 		illuminance: number | null;
 		temperature: number | null;
@@ -417,7 +417,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	} = {
 		occupancy: false,
 		static_presence: false,
-		pir_motion: false,
+		motion_presence: false,
 		target_presence: false,
 		illuminance: null,
 		temperature: null,
@@ -503,6 +503,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	// Target subscription
 	private _unsubTargets?: () => void;
+	private _unsubDisplay?: () => void;
 
 	private _beforeUnloadHandler = (e: BeforeUnloadEvent) => {
 		if (this._dirty) {
@@ -688,21 +689,23 @@ export class EverythingPresenceProPanel extends LitElement {
 		conn
 			.subscribeMessage(
 				(event: any) => {
-					const targets: Target[] = (event.targets || []).map((t: any) => ({
-						x: t.x,
-						y: t.y,
-						raw_x: t.raw_x ?? t.x,
-						raw_y: t.raw_y ?? t.y,
-						speed: 0,
-						status: (t.status as TargetStatus) ?? "inactive",
-						signal: t.signal ?? 0,
-					}));
+					const targets: Target[] = (event.targets || []).map(
+						(t: any, i: number) => ({
+							x: t.x,
+							y: t.y,
+							raw_x: this._targets[i]?.raw_x ?? null,
+							raw_y: this._targets[i]?.raw_y ?? null,
+							speed: 0,
+							status: (t.status as TargetStatus) ?? "inactive",
+							signal: t.signal ?? 0,
+						}),
+					);
 					this._targets = targets;
 					if (event.sensors) {
 						this._sensorState = {
 							occupancy: event.sensors.occupancy ?? false,
 							static_presence: event.sensors.static_presence ?? false,
-							pir_motion: event.sensors.pir_motion ?? false,
+							motion_presence: event.sensors.motion_presence ?? false,
 							target_presence: event.sensors.target_presence ?? false,
 							illuminance: event.sensors.illuminance ?? null,
 							temperature: event.sensors.temperature ?? null,
@@ -742,21 +745,65 @@ export class EverythingPresenceProPanel extends LitElement {
 					}
 				},
 				{
-					type: "everything_presence_pro/subscribe_targets",
+					type: "everything_presence_pro/subscribe_grid_targets",
 					entry_id: entryId,
 				},
 			)
 			.then((unsub: () => void) => {
 				this._unsubTargets = unsub;
 			});
+		this._subscribeDisplay(entryId);
 	}
 
 	private _unsubscribeTargets(): void {
+		this._unsubscribeDisplay();
 		if (this._unsubTargets) {
 			this._unsubTargets();
 			this._unsubTargets = undefined;
 		}
 		this._targets = [];
+	}
+
+	private _subscribeDisplay(entryId: string): void {
+		this._unsubscribeDisplay();
+		if (!this.hass || !entryId) return;
+
+		const conn = this.hass.connection;
+
+		conn
+			.subscribeMessage(
+				(event: any) => {
+					const rawTargets: Array<{
+						raw_x: number;
+						raw_y: number;
+					}> = event.targets || [];
+
+					// Merge raw positions into existing targets
+					this._targets = this._targets.map((t, i) => {
+						const d = rawTargets[i];
+						if (!d) return t;
+						return {
+							...t,
+							raw_x: d.raw_x,
+							raw_y: d.raw_y,
+						};
+					});
+				},
+				{
+					type: "everything_presence_pro/subscribe_raw_targets",
+					entry_id: entryId,
+				},
+			)
+			.then((unsub: () => void) => {
+				this._unsubDisplay = unsub;
+			});
+	}
+
+	private _unsubscribeDisplay(): void {
+		if (this._unsubDisplay) {
+			this._unsubDisplay();
+			this._unsubDisplay = undefined;
+		}
 	}
 
 	// -- Grid cell painting --
@@ -1372,7 +1419,9 @@ export class EverythingPresenceProPanel extends LitElement {
 	private _smoothBuffer: SmoothBufferEntry[] = [];
 
 	private _getSmoothedRaw(): { x: number; y: number } | null {
-		const active = this._targets.find((t) => t.status === "active");
+		const active = this._targets.find(
+			(t) => t.raw_x != null && t.raw_y != null,
+		);
 		if (!active) return null;
 
 		const result = getSmoothedValue(
@@ -1395,7 +1444,9 @@ export class EverythingPresenceProPanel extends LitElement {
 	}
 
 	private _wizardStartCapture(): void {
-		const active = this._targets.find((t) => t.status === "active");
+		const active = this._targets.find(
+			(t) => t.raw_x != null && t.raw_y != null,
+		);
 		if (!active) return;
 
 		this._wizardCapturing = true;
@@ -1416,7 +1467,9 @@ export class EverythingPresenceProPanel extends LitElement {
 			lastTick = now;
 
 			// Check target count: exactly 1 active target required
-			const activeTargets = this._targets.filter((t) => t.status === "active");
+			const activeTargets = this._targets.filter(
+				(t) => t.raw_x != null && t.raw_y != null,
+			);
 			const valid = activeTargets.length === 1;
 			this._wizardCapturePaused = !valid;
 
@@ -3392,7 +3445,9 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderWizardCorners() {
 		const idx = this._wizardCornerIndex;
-		const activeTargets = this._targets.filter((t) => t.status === "active");
+		const activeTargets = this._targets.filter(
+			(t) => t.raw_x != null && t.raw_y != null,
+		);
 		const hasTarget = activeTargets.length > 0;
 		const tooManyTargets = activeTargets.length > 1;
 		const allMarked = this._wizardCorners.every((c) => c !== null);
@@ -3609,7 +3664,7 @@ export class EverythingPresenceProPanel extends LitElement {
 						})}
           <!-- Live targets (per-target colors) -->
           ${this._targets.map((t, i) =>
-						t.status === "active"
+						t.raw_x != null && t.raw_y != null
 							? html`
               <div
                 class="mini-grid-target"
@@ -3645,12 +3700,9 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderLiveOverview() {
 		return html`
-      <div class="panel" @click=${(e: Event) => {
-				if (
-					this._showLiveMenu &&
-					(!(e.target instanceof Element) ||
-						!e.target.closest(".sidebar-menu-wrapper"))
-				) {
+      <div class="panel" @click=${(e: MouseEvent) => {
+				if (!(e.target instanceof Element)) return;
+				if (this._showLiveMenu && !e.target.closest(".sidebar-menu-wrapper")) {
 					this._showLiveMenu = false;
 				}
 			}}>
@@ -3665,7 +3717,7 @@ export class EverythingPresenceProPanel extends LitElement {
 									: this._renderUncalibratedFov()
 							}
             </div>
-            ${this._renderBackendDebugLog()}
+            ${this._perspective ? this._renderBackendDebugLog() : nothing}
           </div>
           <div class="zone-sidebar">
             <div class="sidebar-header">
@@ -3802,9 +3854,9 @@ export class EverythingPresenceProPanel extends LitElement {
 		const occupied = this._sensorState.occupancy;
 		const fovColor = occupied ? "#4CAF50" : "var(--primary-color, #03a9f4)";
 		// 120° FOV centered at 90° (pointing down), ±60°
-		const cx = 150,
-			cy = 10,
-			maxR = 180;
+		const cx = 160,
+			cy = 14,
+			maxR = 150;
 		const a1 = ((90 - 60) * Math.PI) / 180; // 30°
 		const a2 = ((90 + 60) * Math.PI) / 180; // 150°
 		const ex1 = cx + maxR * Math.cos(a1),
@@ -3814,7 +3866,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 		return html`
       <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
-        <svg viewBox="0 0 300 210" width="300" height="210" style="display: block;">
+        <svg viewBox="0 0 320 180" width="320" height="180" style="display: block;">
           <!-- Sensor at top center -->
           <rect x="${cx - 6}" y="0" width="12" height="8" rx="3" fill="${fovColor}"/>
           <circle cx="${cx}" cy="0" r="4" fill="${fovColor}" opacity="0.4"/>
@@ -3843,14 +3895,10 @@ export class EverythingPresenceProPanel extends LitElement {
 
           <!-- Target dots -->
           ${this._targets.map((t, i) => {
-						if (t.status === "inactive") return nothing;
-						// Map raw coords to FOV: x maps left-right, y maps top-bottom
-						const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
-						const angle = Math.atan2(t.raw_x, t.raw_y); // angle from center
-						const r = Math.min(dist / 6000, 1) * maxR;
-						const svgAngle = Math.PI / 2 + angle; // rotate so 0=down
-						const tx = cx + r * Math.cos(svgAngle);
-						const ty = cy + r * Math.sin(svgAngle);
+						if (t.raw_x == null || t.raw_y == null) return nothing;
+						// Map raw coords to FOV using same linear mapping as calibration view
+						const tx = cx + (t.raw_x / 6000) * maxR * Math.sin(Math.PI / 3);
+						const ty = cy + (t.raw_y / 6000) * maxR;
 						return svg`<circle cx="${tx}" cy="${ty}" r="5" fill="${TARGET_COLORS[i] || TARGET_COLORS[0]}"/>`;
 					})}
 
@@ -4513,7 +4561,7 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
             <div class="targets-overlay" style="pointer-events: none;">
               ${this._targets.map((t, i) => {
-								if (t.status === "inactive") return nothing;
+								if (t.x == null || t.y == null) return nothing;
 								const pos = this._mapTargetToGridCell(t);
 								if (!pos) return nothing;
 								const xPct = ((pos.col - minCol) / visCols) * 100;
@@ -4524,7 +4572,7 @@ export class EverythingPresenceProPanel extends LitElement {
                       style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]}; opacity: ${t.status === "pending" ? 0.3 : 1}; transition: opacity 0.5s ease;"
                     ></div>
                     ${
-											t.status === "active" && t.signal > 0
+											t.signal > 0
 												? html`
                       <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -280%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
                         ${t.signal}
@@ -5575,7 +5623,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			{
 				id: "motion",
 				label: this._localize("live.motion_presence"),
-				on: ss.pir_motion,
+				on: ss.motion_presence,
 				info: this._localize("info.motion_presence"),
 			},
 			{

@@ -33,7 +33,7 @@ function createPanel(): EverythingPresenceProPanel {
 	a._sensorState = {
 		occupancy: false,
 		static_presence: false,
-		pir_motion: false,
+		motion_presence: false,
 		target_presence: false,
 		illuminance: null,
 		temperature: null,

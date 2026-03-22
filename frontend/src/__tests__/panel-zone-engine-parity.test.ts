@@ -197,7 +197,16 @@ describe("Zone engine parity (mirrors test_zone_engine_parity.py)", () => {
 	it("target outside grid → no zone occupancy", () => {
 		a._targets = [makeTarget(9000, 9000, 9)];
 		const occ = a._runLocalZoneEngine();
-		// No zones should be occupied
+		for (const v of Object.values(occ)) {
+			expect(v).toBe(false);
+		}
+	});
+
+	it("target on non-room cell inside grid → no zone occupancy", () => {
+		// Room is cols 8-11, rows 0-3. Target at x=-900 maps to col 5 (inside
+		// the 20x20 grid but not a room cell), hitting the cellIsInside branch.
+		a._targets = [makeTarget(-900, 150, 9)];
+		const occ = a._runLocalZoneEngine();
 		for (const v of Object.values(occ)) {
 			expect(v).toBe(false);
 		}
