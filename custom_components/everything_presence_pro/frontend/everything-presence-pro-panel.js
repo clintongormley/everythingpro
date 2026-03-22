@@ -369,7 +369,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
             <div class="grid-container">
               ${this._perspective?this._renderLiveGrid():this._renderUncalibratedFov()}
             </div>
-            ${this._renderBackendDebugLog()}
+            ${this._perspective?this._renderBackendDebugLog():V}
           </div>
           <div class="zone-sidebar">
             <div class="sidebar-header">

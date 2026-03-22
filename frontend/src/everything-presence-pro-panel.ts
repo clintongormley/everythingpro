@@ -3715,7 +3715,7 @@ export class EverythingPresenceProPanel extends LitElement {
 									: this._renderUncalibratedFov()
 							}
             </div>
-            ${this._renderBackendDebugLog()}
+            ${this._perspective ? this._renderBackendDebugLog() : nothing}
           </div>
           <div class="zone-sidebar">
             <div class="sidebar-header">
