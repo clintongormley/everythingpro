@@ -5712,6 +5712,7 @@ export class EverythingPresenceProPanel extends LitElement {
         `,
 				)}
 
+        ${this._perspective ? html`
         <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 10px 12px;"/>
 
         <button class="live-section-header live-section-link" @click=${() => {
@@ -5742,6 +5743,7 @@ export class EverythingPresenceProPanel extends LitElement {
 					}
         `,
 				)}
+        ` : nothing}
 
         <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 10px 12px;"/>
 

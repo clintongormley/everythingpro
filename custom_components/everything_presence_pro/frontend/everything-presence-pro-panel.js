@@ -1270,6 +1270,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
           `:V}
         `)}
 
+        ${this._perspective?G`
         <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 10px 12px;"/>
 
         <button class="live-section-header live-section-link" @click=${()=>{this._view="editor",this._sidebarTab="zones"}}>${this._localize("sidebar.detection_zones")}</button>
@@ -1288,6 +1289,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
             <div class="live-sensor-info-text">${e.info}</div>
           `:V}
         `)}
+        `:V}
 
         <hr style="border: none; border-top: 1px solid var(--divider-color, #eee); margin: 10px 12px;"/>
 
