@@ -438,7 +438,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
       </div>
     `:V}_renderUncalibratedFov(){const e=this._sensorState.occupancy,t=e?"#4CAF50":"var(--primary-color, #03a9f4)",i=150,o=10,r=180,n=30*Math.PI/180,s=150*Math.PI/180,a=i+r*Math.cos(n),l=o+r*Math.sin(n),c=i+r*Math.cos(s),h=o+r*Math.sin(s);return G`
       <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
-        <svg viewBox="0 0 300 210" width="300" height="210" style="display: block;">
+        <svg viewBox="-10 -5 320 210" width="320" height="210" style="display: block;">
           <!-- Sensor at top center -->
           <rect x="${144}" y="0" width="12" height="8" rx="3" fill="${t}"/>
           <circle cx="${i}" cy="0" r="4" fill="${t}" opacity="0.4"/>

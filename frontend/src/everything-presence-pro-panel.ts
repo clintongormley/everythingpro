@@ -3860,7 +3860,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 		return html`
       <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
-        <svg viewBox="0 0 300 210" width="300" height="210" style="display: block;">
+        <svg viewBox="-10 -5 320 210" width="320" height="210" style="display: block;">
           <!-- Sensor at top center -->
           <rect x="${cx - 6}" y="0" width="12" height="8" rx="3" fill="${fovColor}"/>
           <circle cx="${cx}" cy="0" r="4" fill="${fovColor}" opacity="0.4"/>
