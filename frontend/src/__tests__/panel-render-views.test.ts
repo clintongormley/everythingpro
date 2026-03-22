@@ -689,6 +689,37 @@ describe("_renderEditor", () => {
 		expect(result).toBeDefined();
 	});
 
+	it("renders editor with targets showing signal badges", () => {
+		const a = createPanel() as any;
+		a._view = "editor";
+		a._sidebarTab = "zones";
+		a._roomWidth = 3000;
+		a._roomDepth = 4000;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 7,
+			},
+			{
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 0,
+			},
+		];
+		const result = a._renderEditor();
+		expect(result).toBeDefined();
+	});
+
 	it("renders editor view with furniture sidebar", () => {
 		const a = createPanel() as any;
 		a._view = "editor";

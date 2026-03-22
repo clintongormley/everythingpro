@@ -2053,4 +2053,51 @@ describe("_renderDebugLog render branches", () => {
 		expect(a._debugLogPrev).toBeNull();
 		document.body.removeChild(c);
 	});
+
+	it("Clear button clears debug log lines", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._debugLogLines = ["line 1", "line 2"];
+		a._debugLogPrev = "line 2";
+
+		const tpl = a._renderDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const clearBtn = Array.from(
+			c.querySelectorAll("button.debug-log-btn"),
+		).find((b) => b.textContent?.trim() === "Clear") as HTMLButtonElement;
+		clearBtn?.click();
+
+		expect(a._debugLogLines).toHaveLength(0);
+		expect(a._debugLogPrev).toBeNull();
+		document.body.removeChild(c);
+	});
+
+	it("Copy all button copies debug log to clipboard", () => {
+		const a = createPanel() as any;
+		a._showDebugLog = true;
+		a._debugLogLines = ["line 1", "line 2"];
+
+		const tpl = a._renderDebugLog();
+		const c = document.createElement("div");
+		document.body.appendChild(c);
+		render(tpl, c);
+
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		Object.defineProperty(navigator, "clipboard", {
+			value: { writeText },
+			writable: true,
+			configurable: true,
+		});
+
+		const copyBtn = Array.from(c.querySelectorAll("button.debug-log-btn")).find(
+			(b) => b.textContent?.trim() === "Copy all",
+		) as HTMLButtonElement;
+		copyBtn?.click();
+
+		expect(writeText).toHaveBeenCalledWith("line 1\nline 2");
+		document.body.removeChild(c);
+	});
 });

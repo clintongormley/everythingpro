@@ -1419,7 +1419,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	private _smoothBuffer: SmoothBufferEntry[] = [];
 
 	private _getSmoothedRaw(): { x: number; y: number } | null {
-		const active = this._targets.find((t) => t.status === "active");
+		const active = this._targets.find((t) => t.raw_x !== 0 || t.raw_y !== 0);
 		if (!active) return null;
 
 		const result = getSmoothedValue(
@@ -1442,7 +1442,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	}
 
 	private _wizardStartCapture(): void {
-		const active = this._targets.find((t) => t.status === "active");
+		const active = this._targets.find((t) => t.raw_x !== 0 || t.raw_y !== 0);
 		if (!active) return;
 
 		this._wizardCapturing = true;
@@ -1463,7 +1463,9 @@ export class EverythingPresenceProPanel extends LitElement {
 			lastTick = now;
 
 			// Check target count: exactly 1 active target required
-			const activeTargets = this._targets.filter((t) => t.raw_x !== 0 || t.raw_y !== 0);
+			const activeTargets = this._targets.filter(
+				(t) => t.raw_x !== 0 || t.raw_y !== 0,
+			);
 			const valid = activeTargets.length === 1;
 			this._wizardCapturePaused = !valid;
 
@@ -3439,7 +3441,9 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderWizardCorners() {
 		const idx = this._wizardCornerIndex;
-		const activeTargets = this._targets.filter((t) => t.raw_x !== 0 || t.raw_y !== 0);
+		const activeTargets = this._targets.filter(
+			(t) => t.raw_x !== 0 || t.raw_y !== 0,
+		);
 		const hasTarget = activeTargets.length > 0;
 		const tooManyTargets = activeTargets.length > 1;
 		const allMarked = this._wizardCorners.every((c) => c !== null);
@@ -4565,7 +4569,7 @@ export class EverythingPresenceProPanel extends LitElement {
                       style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]}; opacity: ${t.status === "pending" ? 0.3 : 1}; transition: opacity 0.5s ease;"
                     ></div>
                     ${
-											t.status === "active" && t.signal > 0
+											t.signal > 0
 												? html`
                       <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -280%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
                         ${t.signal}

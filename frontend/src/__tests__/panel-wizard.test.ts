@@ -129,10 +129,10 @@ describe("_wizardStartCapture", () => {
 		const a = el as any;
 		a._targets = [
 			{
-				x: 100,
-				y: 200,
-				raw_x: 100,
-				raw_y: 200,
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
 				speed: 0,
 				status: "inactive" as const,
 				signal: 0,
