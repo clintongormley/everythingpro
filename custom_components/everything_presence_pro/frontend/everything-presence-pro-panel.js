@@ -837,7 +837,7 @@ const he={attribute:!0,type:String,converter:b,reflect:!1,hasChanged:y},de=(e=he
             </div>
             ${this._renderFurnitureOverlay(c,i,r,s,a)}
             <div class="targets-overlay" style="pointer-events: none;">
-              ${this._targets.map((e,t)=>{const o=this._mapTargetToGridCell(e);if(!o)return V;const n=(o.col-i)/s*100,l=(o.row-r)/a*100;return G`
+              ${this._targets.map((e,t)=>{if(0===e.x&&0===e.y)return V;const o=this._mapTargetToGridCell(e);if(!o)return V;const n=(o.col-i)/s*100,l=(o.row-r)/a*100;return G`
                     <div
                       class="target-dot"
                       style="left: ${n}%; top: ${l}%; background: ${ni[t]||ni[0]}; opacity: ${"pending"===e.status?.3:1}; transition: opacity 0.5s ease;"
