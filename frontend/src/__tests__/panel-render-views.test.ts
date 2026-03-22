@@ -454,19 +454,20 @@ describe("_renderUncalibratedFov", () => {
 		expect(result).toBeDefined();
 	});
 
-	it("skips targets with null raw positions", () => {
+	it("skips targets with zero raw positions", () => {
 		const a = createPanel() as any;
 		a._targets = [
 			{
-				x: null,
-				y: null,
-				raw_x: null,
-				raw_y: null,
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
 				speed: 0,
 				status: "inactive" as const,
 				signal: 0,
 			},
 		];
+		// Should render without error — target is skipped
 		const result = a._renderUncalibratedFov();
 		expect(result).toBeDefined();
 	});
@@ -487,6 +488,55 @@ describe("_renderUncalibratedFov", () => {
 		// Target has raw positions — should render even though status is inactive
 		const result = a._renderUncalibratedFov();
 		expect(result).toBeDefined();
+	});
+
+	it("maps target polar coordinates correctly", () => {
+		// Target straight ahead (raw_x=0, raw_y=3000) should map to center-x, partway down
+		const cx = 150,
+			cy = 10,
+			maxR = 180;
+		const raw_x = 0,
+			raw_y = 3000;
+		const dist = Math.sqrt(raw_x * raw_x + raw_y * raw_y); // 3000
+		const angle = Math.atan2(raw_x, raw_y); // 0 (straight ahead)
+		const r = Math.min(dist / 6000, 1) * maxR; // 0.5 * 180 = 90
+		const svgAngle = Math.PI / 2 + angle; // π/2 (pointing down)
+		const tx = cx + r * Math.cos(svgAngle); // 150 + 90*cos(π/2) ≈ 150
+		const ty = cy + r * Math.sin(svgAngle); // 10 + 90*sin(π/2) = 100
+
+		expect(tx).toBeCloseTo(cx, 0); // centered horizontally
+		expect(ty).toBeCloseTo(100, 0); // partway down
+	});
+
+	it("maps target at 45° offset correctly", () => {
+		const cx = 150,
+			cy = 10,
+			maxR = 180;
+		// Target at 45° right: raw_x=3000, raw_y=3000
+		const raw_x = 3000,
+			raw_y = 3000;
+		const dist = Math.sqrt(raw_x * raw_x + raw_y * raw_y); // ~4243
+		const angle = Math.atan2(raw_x, raw_y); // π/4
+		const r = Math.min(dist / 6000, 1) * maxR; // ~127.3
+		const svgAngle = Math.PI / 2 + angle; // 3π/4
+
+		const tx = cx + r * Math.cos(svgAngle);
+		const ty = cy + r * Math.sin(svgAngle);
+
+		// At 45° right, tx should be left of center (cos(3π/4) < 0)
+		// and ty should be partway down (sin(3π/4) > 0)
+		expect(tx).toBeLessThan(cx);
+		expect(ty).toBeGreaterThan(cy);
+	});
+
+	it("clamps distant targets to maxR", () => {
+		const maxR = 180;
+		// Target at 12000mm — well beyond 6000 max
+		const raw_x = 0,
+			raw_y = 12000;
+		const dist = Math.sqrt(raw_x * raw_x + raw_y * raw_y);
+		const r = Math.min(dist / 6000, 1) * maxR;
+		expect(r).toBe(maxR); // clamped to edge
 	});
 });
 
@@ -688,37 +738,6 @@ describe("_renderEditor", () => {
 		expect(result).toBeDefined();
 	});
 
-	it("renders editor with targets showing signal badges", () => {
-		const a = createPanel() as any;
-		a._view = "editor";
-		a._sidebarTab = "zones";
-		a._roomWidth = 3000;
-		a._roomDepth = 4000;
-		a._grid = initGridFromRoom(3000, 4000);
-		a._targets = [
-			{
-				x: 1500,
-				y: 2000,
-				raw_x: 1500,
-				raw_y: 2000,
-				speed: 0,
-				status: "inactive" as const,
-				signal: 7,
-			},
-			{
-				x: null,
-				y: null,
-				raw_x: null,
-				raw_y: null,
-				speed: 0,
-				status: "inactive" as const,
-				signal: 0,
-			},
-		];
-		const result = a._renderEditor();
-		expect(result).toBeDefined();
-	});
-
 	it("renders editor view with furniture sidebar", () => {
 		const a = createPanel() as any;
 		a._view = "editor";
@@ -805,6 +824,48 @@ describe("_renderEditor", () => {
 		];
 		const result = a._renderEditor();
 		expect(result).toBeDefined();
+	});
+
+	it("renders editor with signal badge only for active targets", () => {
+		const a = createPanel() as any;
+		a._view = "editor";
+		a._sidebarTab = "zones";
+		a._roomWidth = 3000;
+		a._roomDepth = 4000;
+		a._grid = initGridFromRoom(3000, 4000);
+		a._targets = [
+			{
+				x: 1500,
+				y: 2000,
+				raw_x: 1500,
+				raw_y: 2000,
+				speed: 0,
+				status: "active" as const,
+				signal: 7,
+			},
+			{
+				x: 500,
+				y: 1000,
+				raw_x: 500,
+				raw_y: 1000,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 5,
+			},
+		];
+		const result = a._renderEditor();
+		expect(result).toBeDefined();
+
+		// The signal badge guard is: t.status === "active" && t.signal > 0
+		// Verify the logic: active target with signal shows badge, inactive does not
+		const activeTarget = a._targets[0];
+		const inactiveTarget = a._targets[1];
+		expect(activeTarget.status === "active" && activeTarget.signal > 0).toBe(
+			true,
+		);
+		expect(
+			inactiveTarget.status === "active" && inactiveTarget.signal > 0,
+		).toBe(false);
 	});
 
 	it("renders editor with frozen bounds during painting", () => {

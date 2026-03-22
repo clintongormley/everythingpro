@@ -315,16 +315,12 @@ class TumblingWindow:
 
 @dataclass
 class DisplayTarget:
-    """A single target's display-only position data.
+    """A single target's display-only position data."""
 
-    Inactive targets use None for positions so (0,0) remains a valid
-    coordinate.  Serialises to JSON null.
-    """
-
-    x: float | None = None
-    y: float | None = None
-    raw_x: float | None = None
-    raw_y: float | None = None
+    x: float = 0.0
+    y: float = 0.0
+    raw_x: float = 0.0
+    raw_y: float = 0.0
     active: bool = False
     frame_count: int = 0
 
@@ -353,14 +349,13 @@ class DisplayBuffer:
     ) -> DisplaySnapshot:
         """Feed calibrated and raw target data, return display snapshot.
 
-        calibrated tuples: (x, y, inside_room) — calibrated positions; the
-        inside_room flag is informational but does not gate accumulation.
+        calibrated tuples: (x, y, inside_room) — room-gated by the grid.
         raw tuples: (x, y, esphome_active) — always set when sensor tracks.
 
-        All deques accumulate whenever the sensor is tracking (esphome_active),
-        regardless of room membership.  This ensures subscribe_grid_targets
-        always has smoothed positions for calibration and zone editing.
-        Room gating is handled by the zone engine.
+        All deques accumulate whenever the sensor is tracking (esphome_active).
+        This ensures subscribe_grid_targets always has smoothed positions
+        for calibration and zone editing, independent of the backend's
+        room grid.  Room gating is handled by the zone engine.
         """
         targets: list[DisplayTarget] = []
         for i in range(MAX_TARGETS):
