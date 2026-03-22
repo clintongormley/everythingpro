@@ -3850,7 +3850,7 @@ export class EverythingPresenceProPanel extends LitElement {
 		// 120° FOV centered at 90° (pointing down), ±60°
 		const cx = 160,
 			cy = 14,
-			maxR = 150;
+			maxR = 180;
 		const a1 = ((90 - 60) * Math.PI) / 180; // 30°
 		const a2 = ((90 + 60) * Math.PI) / 180; // 150°
 		const ex1 = cx + maxR * Math.cos(a1),
@@ -3860,7 +3860,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 		return html`
       <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
-        <svg viewBox="0 0 320 180" width="320" height="180" style="display: block;">
+        <svg viewBox="0 0 320 210" width="320" height="210" style="display: block;">
           <!-- Sensor at top center -->
           <rect x="${cx - 6}" y="0" width="12" height="8" rx="3" fill="${fovColor}"/>
           <circle cx="${cx}" cy="0" r="4" fill="${fovColor}" opacity="0.4"/>
