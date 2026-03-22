@@ -454,12 +454,30 @@ describe("_renderUncalibratedFov", () => {
 		expect(result).toBeDefined();
 	});
 
-	it("skips inactive targets", () => {
+	it("skips targets with zero raw positions", () => {
 		const a = createPanel() as any;
 		a._targets = [
 			{
-				x: 100,
-				y: 200,
+				x: 0,
+				y: 0,
+				raw_x: 0,
+				raw_y: 0,
+				speed: 0,
+				status: "inactive" as const,
+				signal: 0,
+			},
+		];
+		// Should render without error — target is skipped
+		const result = a._renderUncalibratedFov();
+		expect(result).toBeDefined();
+	});
+
+	it("shows targets with raw positions even if status is inactive", () => {
+		const a = createPanel() as any;
+		a._targets = [
+			{
+				x: 0,
+				y: 0,
 				raw_x: 500,
 				raw_y: 1000,
 				speed: 0,
@@ -467,6 +485,7 @@ describe("_renderUncalibratedFov", () => {
 				signal: 0,
 			},
 		];
+		// Target has raw positions — should render even though status is inactive
 		const result = a._renderUncalibratedFov();
 		expect(result).toBeDefined();
 	});

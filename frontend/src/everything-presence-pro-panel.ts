@@ -3889,7 +3889,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
           <!-- Target dots -->
           ${this._targets.map((t, i) => {
-						if (t.status === "inactive") return nothing;
+						if (t.raw_x === 0 && t.raw_y === 0) return nothing;
 						// Map raw coords to FOV: x maps left-right, y maps top-bottom
 						const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
 						const angle = Math.atan2(t.raw_x, t.raw_y); // angle from center
@@ -4559,7 +4559,6 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
             <div class="targets-overlay" style="pointer-events: none;">
               ${this._targets.map((t, i) => {
-								if (t.status === "inactive") return nothing;
 								const pos = this._mapTargetToGridCell(t);
 								if (!pos) return nothing;
 								const xPct = ((pos.col - minCol) / visCols) * 100;
