@@ -693,8 +693,8 @@ export class EverythingPresenceProPanel extends LitElement {
 						(t: any, i: number) => ({
 							x: t.x,
 							y: t.y,
-							raw_x: this._targets[i]?.raw_x ?? t.x,
-							raw_y: this._targets[i]?.raw_y ?? t.y,
+							raw_x: this._targets[i]?.raw_x ?? null,
+							raw_y: this._targets[i]?.raw_y ?? null,
 							speed: 0,
 							status: (t.status as TargetStatus) ?? "inactive",
 							signal: t.signal ?? 0,

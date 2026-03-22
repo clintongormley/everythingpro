@@ -146,9 +146,9 @@ describe("target subscription null coalescing branches", () => {
 			},
 		});
 
-		// raw_x should fall back to x, raw_y to y, signal to 0
-		expect(a._targets[0].raw_x).toBe(100);
-		expect(a._targets[0].raw_y).toBe(200);
+		// raw_x/raw_y are null until subscribe_raw_targets delivers
+		expect(a._targets[0].raw_x).toBeNull();
+		expect(a._targets[0].raw_y).toBeNull();
 		expect(a._targets[0].signal).toBe(0);
 
 		// Sensor state should use defaults

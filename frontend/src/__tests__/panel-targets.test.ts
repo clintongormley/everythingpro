@@ -139,7 +139,7 @@ describe("_subscribeTargets", () => {
 
 		expect(a._targets).toHaveLength(2);
 		expect(a._targets[0].status).toBe("active");
-		expect(a._targets[0].raw_x).toBe(100);
+		expect(a._targets[0].raw_x).toBeNull();
 		expect(a._targets[1].status).toBe("inactive");
 
 		expect(a._sensorState.occupancy).toBe(true);
