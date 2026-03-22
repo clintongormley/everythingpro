@@ -538,10 +538,7 @@ class EverythingPresenceProCoordinator:
         now = time.monotonic()
         # Gate out targets with y==0 — the LD2450 reports this transiently
         # before it has a range fix, producing a bogus initial position.
-        active = [
-            self._target_active[i] and self._target_y[i] != 0
-            for i in range(MAX_TARGETS)
-        ]
+        active = [self._target_active[i] and self._target_y[i] != 0 for i in range(MAX_TARGETS)]
         calibrated = self._build_calibrated_targets(active)
         raw = [(self._target_x[i], self._target_y[i], active[i]) for i in range(MAX_TARGETS)]
 
@@ -615,7 +612,8 @@ class EverythingPresenceProCoordinator:
         self._schedule_expiry_tick()
 
     def _build_calibrated_targets(
-        self, active: list[bool],
+        self,
+        active: list[bool],
     ) -> list[tuple[float, float, bool]]:
         """Build calibrated target list from current raw state.
 

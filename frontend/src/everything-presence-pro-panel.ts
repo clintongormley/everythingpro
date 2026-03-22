@@ -693,15 +693,13 @@ export class EverythingPresenceProPanel extends LitElement {
 		conn
 			.subscribeMessage(
 				(event: any) => {
-					this._targets = (event.targets || []).map(
-						(t: any) => ({
-							x: t.x,
-							y: t.y,
-							speed: 0,
-							status: (t.status as TargetStatus) ?? "inactive",
-							signal: t.signal ?? 0,
-						}),
-					);
+					this._targets = (event.targets || []).map((t: any) => ({
+						x: t.x,
+						y: t.y,
+						speed: 0,
+						status: (t.status as TargetStatus) ?? "inactive",
+						signal: t.signal ?? 0,
+					}));
 					if (event.sensors) {
 						this._sensorState = {
 							occupancy: event.sensors.occupancy ?? false,
@@ -775,12 +773,10 @@ export class EverythingPresenceProPanel extends LitElement {
 		conn
 			.subscribeMessage(
 				(event: any) => {
-					this._rawTargets = (event.targets || []).map(
-						(t: any) => ({
-							raw_x: t.raw_x,
-							raw_y: t.raw_y,
-						}),
-					);
+					this._rawTargets = (event.targets || []).map((t: any) => ({
+						raw_x: t.raw_x,
+						raw_y: t.raw_y,
+					}));
 				},
 				{
 					type: "everything_presence_pro/subscribe_raw_targets",
