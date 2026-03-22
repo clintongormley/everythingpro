@@ -139,7 +139,7 @@ describe("_subscribeTargets", () => {
 
 		expect(a._targets).toHaveLength(2);
 		expect(a._targets[0].status).toBe("active");
-		expect(a._targets[0].raw_x).toBeNull();
+		expect(a._targets[0].raw_x).toBe(100);
 		expect(a._targets[1].status).toBe("inactive");
 
 		expect(a._sensorState.occupancy).toBe(true);
@@ -690,6 +690,42 @@ describe("_getRawRoomBounds", () => {
 		expect(result).toHaveProperty("maxCol");
 		expect(result).toHaveProperty("minRow");
 		expect(result).toHaveProperty("maxRow");
+	});
+});
+
+describe("_subscribeDisplay", () => {
+	let el: EverythingPresenceProPanel;
+
+	beforeEach(() => {
+		el = createPanel();
+	});
+
+	it("subscribes to display when hass and entryId are provided", () => {
+		const a = el as any;
+		const unsubFn = vi.fn();
+		el.hass = {
+			callWS: vi.fn(),
+			connection: {
+				subscribeMessage: vi.fn().mockResolvedValue(unsubFn),
+			},
+		};
+
+		a._subscribeDisplay("e1");
+
+		expect(el.hass.connection.subscribeMessage).toHaveBeenCalledWith(
+			expect.any(Function),
+			{
+				type: "everything_presence_pro/subscribe_raw_targets",
+				entry_id: "e1",
+			},
+		);
+	});
+
+	it("does nothing when hass is not set", () => {
+		const a = el as any;
+		el.hass = null;
+		a._subscribeDisplay("e1");
+		expect(a._unsubDisplay).toBeUndefined();
 	});
 });
 

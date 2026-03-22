@@ -693,8 +693,8 @@ export class EverythingPresenceProPanel extends LitElement {
 						(t: any, i: number) => ({
 							x: t.x,
 							y: t.y,
-							raw_x: this._targets[i]?.raw_x ?? null,
-							raw_y: this._targets[i]?.raw_y ?? null,
+							raw_x: this._targets[i]?.raw_x ?? t.x,
+							raw_y: this._targets[i]?.raw_y ?? t.y,
 							speed: 0,
 							status: (t.status as TargetStatus) ?? "inactive",
 							signal: t.signal ?? 0,
@@ -1419,9 +1419,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	private _smoothBuffer: SmoothBufferEntry[] = [];
 
 	private _getSmoothedRaw(): { x: number; y: number } | null {
-		const active = this._targets.find(
-			(t) => t.raw_x != null && t.raw_y != null,
-		);
+		const active = this._targets.find((t) => t.status === "active");
 		if (!active) return null;
 
 		const result = getSmoothedValue(
@@ -1444,9 +1442,7 @@ export class EverythingPresenceProPanel extends LitElement {
 	}
 
 	private _wizardStartCapture(): void {
-		const active = this._targets.find(
-			(t) => t.raw_x != null && t.raw_y != null,
-		);
+		const active = this._targets.find((t) => t.status === "active");
 		if (!active) return;
 
 		this._wizardCapturing = true;
@@ -1467,9 +1463,7 @@ export class EverythingPresenceProPanel extends LitElement {
 			lastTick = now;
 
 			// Check target count: exactly 1 active target required
-			const activeTargets = this._targets.filter(
-				(t) => t.raw_x != null && t.raw_y != null,
-			);
+			const activeTargets = this._targets.filter((t) => t.status === "active");
 			const valid = activeTargets.length === 1;
 			this._wizardCapturePaused = !valid;
 
@@ -3445,9 +3439,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderWizardCorners() {
 		const idx = this._wizardCornerIndex;
-		const activeTargets = this._targets.filter(
-			(t) => t.raw_x != null && t.raw_y != null,
-		);
+		const activeTargets = this._targets.filter((t) => t.status === "active");
 		const hasTarget = activeTargets.length > 0;
 		const tooManyTargets = activeTargets.length > 1;
 		const allMarked = this._wizardCorners.every((c) => c !== null);
@@ -3664,7 +3656,7 @@ export class EverythingPresenceProPanel extends LitElement {
 						})}
           <!-- Live targets (per-target colors) -->
           ${this._targets.map((t, i) =>
-						t.raw_x != null && t.raw_y != null
+						t.status === "active"
 							? html`
               <div
                 class="mini-grid-target"
@@ -3700,9 +3692,11 @@ export class EverythingPresenceProPanel extends LitElement {
 
 	private _renderLiveOverview() {
 		return html`
-      <div class="panel" @click=${(e: MouseEvent) => {
-				if (!(e.target instanceof Element)) return;
-				if (this._showLiveMenu && !e.target.closest(".sidebar-menu-wrapper")) {
+      <div class="panel" @click=${(e: Event) => {
+				if (
+					this._showLiveMenu &&
+					!(e.target as HTMLElement).closest(".sidebar-menu-wrapper")
+				) {
 					this._showLiveMenu = false;
 				}
 			}}>
@@ -3717,7 +3711,7 @@ export class EverythingPresenceProPanel extends LitElement {
 									: this._renderUncalibratedFov()
 							}
             </div>
-            ${this._perspective ? this._renderBackendDebugLog() : nothing}
+            ${this._renderBackendDebugLog()}
           </div>
           <div class="zone-sidebar">
             <div class="sidebar-header">
@@ -3854,9 +3848,9 @@ export class EverythingPresenceProPanel extends LitElement {
 		const occupied = this._sensorState.occupancy;
 		const fovColor = occupied ? "#4CAF50" : "var(--primary-color, #03a9f4)";
 		// 120° FOV centered at 90° (pointing down), ±60°
-		const cx = 160,
-			cy = 14,
-			maxR = 150;
+		const cx = 150,
+			cy = 10,
+			maxR = 180;
 		const a1 = ((90 - 60) * Math.PI) / 180; // 30°
 		const a2 = ((90 + 60) * Math.PI) / 180; // 150°
 		const ex1 = cx + maxR * Math.cos(a1),
@@ -3866,7 +3860,7 @@ export class EverythingPresenceProPanel extends LitElement {
 
 		return html`
       <div style="display: flex; flex-direction: column; align-items: center; padding: 24px;">
-        <svg viewBox="0 0 320 180" width="320" height="180" style="display: block;">
+        <svg viewBox="0 0 300 210" width="300" height="210" style="display: block;">
           <!-- Sensor at top center -->
           <rect x="${cx - 6}" y="0" width="12" height="8" rx="3" fill="${fovColor}"/>
           <circle cx="${cx}" cy="0" r="4" fill="${fovColor}" opacity="0.4"/>
@@ -3895,10 +3889,14 @@ export class EverythingPresenceProPanel extends LitElement {
 
           <!-- Target dots -->
           ${this._targets.map((t, i) => {
-						if (t.raw_x == null || t.raw_y == null) return nothing;
-						// Map raw coords to FOV using same linear mapping as calibration view
-						const tx = cx + (t.raw_x / 6000) * maxR * Math.sin(Math.PI / 3);
-						const ty = cy + (t.raw_y / 6000) * maxR;
+						if (t.raw_x === 0 && t.raw_y === 0) return nothing;
+						// Map raw coords to FOV: x maps left-right, y maps top-bottom
+						const dist = Math.sqrt(t.raw_x * t.raw_x + t.raw_y * t.raw_y);
+						const angle = Math.atan2(t.raw_x, t.raw_y); // angle from center
+						const r = Math.min(dist / 6000, 1) * maxR;
+						const svgAngle = Math.PI / 2 - angle; // rotate so 0=down, positive raw_x -> right
+						const tx = cx + r * Math.cos(svgAngle);
+						const ty = cy + r * Math.sin(svgAngle);
 						return svg`<circle cx="${tx}" cy="${ty}" r="5" fill="${TARGET_COLORS[i] || TARGET_COLORS[0]}"/>`;
 					})}
 
@@ -4561,7 +4559,7 @@ export class EverythingPresenceProPanel extends LitElement {
             ${this._renderFurnitureOverlay(cellPx, minCol, minRow, visCols, visRows)}
             <div class="targets-overlay" style="pointer-events: none;">
               ${this._targets.map((t, i) => {
-								if (t.x == null || t.y == null) return nothing;
+								if (t.status === "inactive") return nothing;
 								const pos = this._mapTargetToGridCell(t);
 								if (!pos) return nothing;
 								const xPct = ((pos.col - minCol) / visCols) * 100;
@@ -4572,7 +4570,7 @@ export class EverythingPresenceProPanel extends LitElement {
                       style="left: ${xPct}%; top: ${yPct}%; background: ${TARGET_COLORS[i] || TARGET_COLORS[0]}; opacity: ${t.status === "pending" ? 0.3 : 1}; transition: opacity 0.5s ease;"
                     ></div>
                     ${
-											t.signal > 0
+											t.status === "active" && t.signal > 0
 												? html`
                       <div style="position: absolute; left: ${xPct}%; top: ${yPct}%; transform: translate(-50%, -280%); background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; font-weight: bold; padding: 0 4px; border-radius: 6px; pointer-events: none;">
                         ${t.signal}
