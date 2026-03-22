@@ -1,5 +1,7 @@
 # Fast Display Updates Design
 
+> **Superseded:** The subscription API described here (`subscribe_display` + `subscribe_targets`) was replaced by `subscribe_raw_targets` + `subscribe_grid_targets`. See `2026-03-21-websocket-subscription-redesign.md` for the current design. The DisplayBuffer architecture described below is still accurate.
+
 ## Problem
 
 After refactoring target data processing to use a 1-second tumbling window, the

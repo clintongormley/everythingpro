@@ -115,8 +115,7 @@ The calibration wizard uses `subscribe_raw_targets` (5 Hz) for smoothed raw targ
 |------|------|-------|
 | `raw_x` | float (mm) | per-target, range +/-6000, rolling median smoothed |
 | `raw_y` | float (mm) | per-target, range 0-6000, rolling median smoothed |
-| `signal` | int 0-9 | 0 = no target, >0 = sensor is tracking |
-| target count | int | must be exactly 1 for capture |
+| `target_count` | int | 0 = no targets, must be exactly 1 for capture |
 
 ### Wizard captures (frontend-computed)
 

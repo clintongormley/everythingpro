@@ -442,8 +442,6 @@ class TestBuildCalibratedTargetsGridGating:
 
         result = coord._build_calibrated_targets()
 
-        assert result[0][2] is True  # ESPHome active
-        assert result[1][2] is False  # ESPHome inactive
         assert result[0][2] is True  # inside room
         assert result[1][2] is False  # outside grid
         assert result[2][2] is True  # inside room
