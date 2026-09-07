@@ -50,7 +50,7 @@ def empty_zone_slots() -> list[dict[str, str] | None]:
 # Firmware version this integration requires.
 # Must match the firmware's Firmware Version text sensor value.
 # Bump when releasing new firmware. GitHub release tag is v{FIRMWARE_VERSION}.
-FIRMWARE_VERSION = "1.9.0-rc.3"
+FIRMWARE_VERSION = "1.9.0"
 
 # Original EPP firmware identifiers (for device discovery). The model string is
 # whatever the device reports as its ESPHome project name, so each supported

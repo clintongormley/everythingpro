@@ -4,38 +4,39 @@ User-facing changes to Everything Presence Grid. For full release assets and
 firmware downloads, see the
 [GitHub releases page](https://github.com/clintongormley/everything-presence-pro-grid/releases).
 
-## v1.9.0 — unreleased
+## v1.9.0 — 2026-09-07
 
-**The integration is now called Everything Presence Grid** (formerly Everything
-Presence Pro Grid), since it runs on both the Everything Presence Pro and the
-new Everything Presence Lite. Nothing changes for existing installs — the same
-devices, entities, and settings carry over; only the name shown in Home
-Assistant and HACS is different.
+**Everything Presence Grid now runs on the Everything Presence Lite as well as
+the Pro** — which is why it has changed name from Everything Presence Pro Grid
+to simply Everything Presence Grid. If you already have it installed, nothing
+changes: your devices, entities, and settings all carry over, and only the name
+shown in Home Assistant and HACS is different.
 
 ### New features
 
-- **Support for the Everything Presence Lite.** Everything Presence Grid now
-    runs on the Everything Presence Lite, which shares the Pro's zone engine,
-    grid, target tracking, and room calibration. Flashing over USB detects the
-    model automatically and installs the right firmware — a Lite needs no model
-    choice at all. The panel hides the controls for hardware the Lite doesn't
-    have (static-presence radar, PIR motion, relay, addressable RGB LED,
-    Bluetooth), leaving the occupancy, zones, CO2, and light-level features it
-    supports (#416).
-- **A new "Tracking Sensor" entity shows when the tracker has failed.** If the
-    tracking sensor stops responding, presence and motion can keep working (they
-    come from separate sensors) while target dots silently disappear and Target
-    Presence stays clear — making a hardware failure look like an empty room.
-    The new Tracking Sensor entity reads Connected while the tracker is sending
-    data and Disconnected when it has gone quiet or never started, so a failed
-    tracker is easy to spot (#407).
-- **Clear the heatmap from the panel.** A Clear button now sits next to the
-    Heatmap toggle in the panel — on the live overview and in the
-    zones/overlays/furniture editor — so you can wipe a sensor's accumulated
-    heatmap without opening a dashboard card or calling the
-    `eppgrid.clear_heatmap` action. It asks for confirmation first, clears only
-    when the sensor supports it, and clearing is permanent and survives a device
-    reboot (#411).
+- **Support for the Everything Presence Lite.** The Lite now gets the same
+    zones, target tracking, grid, and room calibration as the Pro. Flashing over
+    USB recognises which model you have plugged in and installs the right
+    firmware for it, and the panel only shows the controls your device actually
+    has. Huge thanks to @HaniKazmi, whose work made this possible (#416).
+- **A new Tracking Sensor tells you when tracking has failed.** If the part of
+    the sensor that tracks people stops working, a room can look empty when it
+    isn't — targets vanish and presence reads clear, even though motion and
+    occupancy keep working normally. The new Tracking Sensor reads Connected
+    while tracking is working and Disconnected when it isn't, so a fault is easy
+    to spot (#407).
+- **Clear the heatmap straight from the panel.** A Clear button now sits next to
+    the Heatmap toggle, so you can wipe a sensor's built-up heatmap without a
+    dashboard card or a service call. It asks you to confirm first, and the
+    heatmap stays cleared even after the device restarts (#411).
+
+### Fixes
+
+- **Keeps working on the latest Home Assistant.** Updated the integration for
+    changes in recent Home Assistant releases that would otherwise have stopped
+    it loading.
+- **A more reliable panel.** The panel no longer gets cut off or scrolls oddly,
+    and the detection log now shows on every editor tab (#412, #414).
 
 ### Contributors
 
