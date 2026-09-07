@@ -38,7 +38,7 @@ esphome:
   # tests/test_firmware_esphome_pin.py.
   min_version: "2026.5.3"
   project:
-    version: "1.9.0-rc.3"
+    version: "1.9.0"
   on_boot:
     - priority: 200
       then:
